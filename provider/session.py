@@ -207,6 +207,8 @@ class YandexSession:
         # Step 4: Follow redirect to finalize session cookies
         redirect_url = resp.get("redirect_url")
         if redirect_url:
+            if redirect_url.startswith("/"):
+                redirect_url = f"{PASSPORT_URL}{redirect_url}"
             async with self._session.get(redirect_url, allow_redirects=True):
                 pass
 
