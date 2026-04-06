@@ -75,10 +75,11 @@ class Protobuf:
                 raise NotImplementedError(msg)
 
             if tag in res:
-                if isinstance(res[tag], list):
-                    res[tag].append(v)
+                existing = res[tag]
+                if isinstance(existing, list):
+                    existing.append(v)
                 else:
-                    res[tag] = [res[tag], v]
+                    res[tag] = [existing, v]
             else:
                 res[tag] = v
 

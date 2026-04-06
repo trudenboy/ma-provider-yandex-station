@@ -182,8 +182,8 @@ class YandexSession:
         if method != "get" and not url.startswith("https://rpc.alice.yandex.ru"):
             if self.csrf_token is None:
                 _LOGGER.debug("Refreshing CSRF token")
-                async with self._session.get("https://yandex.ru/quasar") as r:
-                    raw = await r.text()
+                async with self._session.get("https://yandex.ru/quasar") as csrf_resp:
+                    raw = await csrf_resp.text()
                     m = re.search('"csrfToken2":"(.+?)"', raw)
                     if not m:
                         msg = "Failed to obtain CSRF token"
