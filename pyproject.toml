@@ -1,3 +1,8 @@
+[project]
+name = "ma-provider-yandex-station"
+version = "0.0.1"
+requires-python = ">=3.12"
+
 [tool.codespell]
 skip = "*.min.js,docs-site/package-lock.json"
 
