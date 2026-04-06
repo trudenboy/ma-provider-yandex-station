@@ -22,6 +22,10 @@ from .constants import (
     MUSIC_CLIENT_ID,
     MUSIC_CLIENT_SECRET,
     MUSIC_TOKEN_URL,
+    PASSPORT_API_URL,
+    PASSPORT_CLIENT_ID,
+    PASSPORT_CLIENT_SECRET,
+    PASSPORT_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -148,6 +152,108 @@ class YandexSession:
         """Ensure music_token is available, fetching it if needed."""
         if not self.music_token and self.x_token:
             self.music_token = await self.get_music_token(self.x_token)
+
+    # ── Passport login flow (username/password → x_token) ────────
+
+    async def login_username(self, username: str) -> LoginResponse:
+        """Start multi-step auth: get CSRF token, submit username, return track_id."""
+        _LOGGER.debug("Starting passport login for %s", username)
+
+        # Step 1: Get CSRF token from passport page
+        async with self._session.get(f"{PASSPORT_URL}/am?app_platform=android") as r:
+            raw = await r.text()
+            m = re.search(r'"csrf_token"\s*value="([^"]+)"', raw)
+            if not m:
+                return LoginResponse({"status": "error", "errors": ["csrf_token.not_found"]})
+            self._auth_payload: dict[str, str] = {"csrf_token": m[1]}
+
+        # Step 2: Submit username
+        async with self._session.post(
+            f"{PASSPORT_URL}/registration-validations/auth/multi_step/start",
+            data={**self._auth_payload, "login": username},
+        ) as r:
+            resp = await r.json()
+
+        if resp.get("can_register") is True:
+            return LoginResponse({"status": "error", "errors": ["account.not_found"]})
+
+        if not resp.get("can_authorize"):
+            return LoginResponse({"status": "error", "errors": ["auth.not_available"]})
+
+        self._auth_payload["track_id"] = resp["track_id"]
+        return LoginResponse(resp)
+
+    async def login_password(self, password: str) -> LoginResponse:
+        """Submit password in multi-step auth flow, then obtain x_token."""
+        if not hasattr(self, "_auth_payload") or "track_id" not in self._auth_payload:
+            return LoginResponse({"status": "error", "errors": ["auth.no_track_id"]})
+
+        _LOGGER.debug("Submitting password for passport login")
+
+        # Step 3: Submit password
+        async with self._session.post(
+            f"{PASSPORT_URL}/registration-validations/auth/multi_step/commit_password",
+            data={
+                **self._auth_payload,
+                "password": password,
+                "retpath": f"{PASSPORT_URL}/am/finish?status=ok&from=Login",
+            },
+        ) as r:
+            resp = await r.json()
+
+        if resp.get("status") != "ok":
+            return LoginResponse(resp)
+
+        # Step 4: Follow redirect to finalize session cookies
+        redirect_url = resp.get("redirect_url")
+        if redirect_url:
+            async with self._session.get(redirect_url, allow_redirects=True):
+                pass
+
+        # Step 5: Exchange session cookies for x_token
+        return await self.login_cookies()
+
+    async def login_cookies(self) -> LoginResponse:
+        """Exchange current session cookies for x_token."""
+        cookies = "; ".join(
+            f"{c.key}={c.value}"
+            for c in self._session.cookie_jar
+            if c["domain"].endswith("yandex.ru")
+        )
+
+        async with self._session.post(
+            f"{PASSPORT_API_URL}/1/bundle/oauth/token_by_sessionid",
+            data={
+                "client_id": PASSPORT_CLIENT_ID,
+                "client_secret": PASSPORT_CLIENT_SECRET,
+            },
+            headers={
+                "Ya-Client-Host": "passport.yandex.ru",
+                "Ya-Client-Cookie": cookies,
+            },
+        ) as r:
+            resp = await r.json()
+
+        if "access_token" not in resp:
+            return LoginResponse({"status": "error", "errors": ["token.exchange_failed"]})
+
+        x_token = resp["access_token"]
+        self.x_token = x_token
+
+        # Validate token and get user info
+        return await self.validate_token(x_token)
+
+    async def validate_token(self, x_token: str) -> LoginResponse:
+        """Validate x_token and return user info."""
+        async with self._session.get(
+            f"{PASSPORT_API_URL}/1/bundle/account/short_info/",
+            params={"avatar_size": "islands-300"},
+            headers={"Authorization": f"OAuth {x_token}"},
+        ) as r:
+            resp = await r.json()
+
+        resp["x_token"] = x_token
+        return LoginResponse(resp)
 
     # ── HTTP methods ─────────────────────────────────────────────
 

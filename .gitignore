@@ -52,3 +52,9 @@ secrets.yaml
 
 # Claude Code
 .claude/
+
+# Docker dev data
+.ma-data/
+
+# Playwright MCP snapshots
+.playwright-mcp/
