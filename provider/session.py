@@ -42,17 +42,17 @@ class LoginResponse:
     @property
     def errors(self) -> list[str]:
         """Return list of error codes."""
-        return self.raw.get("errors", [])
+        return list(self.raw.get("errors", []))
 
     @property
     def error(self) -> str:
         """Return first error code."""
-        return self.raw["errors"][0]
+        return str(self.raw["errors"][0])
 
     @property
     def x_token(self) -> str:
         """Return the X-Token from response."""
-        return self.raw["x_token"]
+        return str(self.raw["x_token"])
 
     @property
     def error_captcha_required(self) -> bool:
@@ -86,7 +86,7 @@ class YandexSession:
         if cookie:
             try:
                 raw = base64.b64decode(cookie)
-                self._session.cookie_jar._cookies = pickle.loads(raw)  # noqa: S301
+                self._session.cookie_jar._cookies = pickle.loads(raw)  # type: ignore[attr-defined]  # noqa: S301
                 self._session.cookie_jar.clear(lambda _x: False)
             except Exception:
                 _LOGGER.warning("Failed to restore cookies from saved state")
@@ -107,7 +107,7 @@ class YandexSession:
             if "access_token" not in resp:
                 msg = f"Failed to get music token: {resp}"
                 raise RuntimeError(msg)
-            return resp["access_token"]
+            return resp["access_token"]  # type: ignore[no-any-return]
 
     async def login_token(self, x_token: str) -> bool:
         """Login to Yandex with x-token to obtain session cookies."""
@@ -191,7 +191,7 @@ class YandexSession:
                     self.csrf_token = m[1]
             kwargs.setdefault("headers", {})["x-csrf-token"] = self.csrf_token
 
-        r = await getattr(self._session, method)(url, **kwargs)
+        r: ClientResponse = await getattr(self._session, method)(url, **kwargs)
         if r.status == 200:
             return r
         if r.status == 400:
@@ -232,5 +232,5 @@ class YandexSession:
     @property
     def cookie(self) -> str:
         """Serialize cookies to base64 for persistent storage."""
-        raw = pickle.dumps(self._session.cookie_jar._cookies, pickle.HIGHEST_PROTOCOL)
+        raw = pickle.dumps(self._session.cookie_jar._cookies, pickle.HIGHEST_PROTOCOL)  # type: ignore[attr-defined]
         return base64.b64encode(raw).decode()

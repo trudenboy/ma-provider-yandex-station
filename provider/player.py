@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def _external_command(name: str, payload: dict[str, Any] | str | None = None) -> dict:
+def _external_command(name: str, payload: dict[str, Any] | str | None = None) -> dict[str, Any]:
     """Build an externalCommandBypass command for Glagol."""
     data: dict[int, str] = {1: name}
     if payload:
@@ -117,7 +117,7 @@ class YandexStationPlayer(Player):
     async def volume_mute(self, muted: bool) -> None:
         """Mute/unmute. Yandex Station doesn't have native mute, simulate with volume."""
         if muted:
-            self._saved_volume = self._attr_volume_level
+            self._saved_volume = self._attr_volume_level or 0
             await self.volume_set(0)
         elif hasattr(self, "_saved_volume"):
             await self.volume_set(self._saved_volume)
@@ -145,7 +145,7 @@ class YandexStationPlayer(Player):
 
     # ── State updates from Glagol WebSocket ──────────────────────
 
-    def _on_glagol_update(self, data: dict | None) -> None:
+    def _on_glagol_update(self, data: dict[str, Any] | None) -> None:
         """Handle state update from Glagol WebSocket.
 
         Called from the WebSocket receive loop (already in asyncio context).

@@ -47,9 +47,9 @@ class Protobuf:
         length = self.read_varint()
         return self.read(length)
 
-    def read_dict(self) -> dict:
+    def read_dict(self) -> dict[int, object]:
         """Parse the buffer into a tag→value dict."""
-        res: dict = {}
+        res: dict[int, object] = {}
         while self.pos < len(self.raw):
             b = self.read_varint()
             typ = b & 0b111
@@ -92,7 +92,7 @@ def _append_varint(b: bytearray, i: int) -> None:
     b.append(i)
 
 
-def loads(raw: str | bytes) -> dict:
+def loads(raw: str | bytes) -> dict[int, object]:
     """Decode protobuf wire format to dict."""
     return Protobuf(raw).read_dict()
 
@@ -101,9 +101,6 @@ def dumps(data: dict[int, str]) -> bytes:
     """Encode dict to protobuf wire format (string values only)."""
     b = bytearray()
     for tag, value in data.items():
-        if not isinstance(tag, int) or not isinstance(value, str):
-            msg = f"Only int→str mappings supported, got {type(tag)}→{type(value)}"
-            raise TypeError(msg)
         b.append(tag << 3 | 2)
         encoded = value.encode()
         _append_varint(b, len(encoded))

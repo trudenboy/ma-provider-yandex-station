@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
 import ipaddress
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession
 
@@ -21,7 +20,8 @@ if TYPE_CHECKING:
     from music_assistant_models.config_entries import ProviderConfig
     from music_assistant_models.enums import ProviderFeature
     from music_assistant_models.provider import ProviderManifest
-    from zeroconf import ServiceInfo, Zeroconf
+    from zeroconf import ServiceStateChange
+    from zeroconf.asyncio import AsyncServiceInfo
 
     from music_assistant.mass import MusicAssistant
 
@@ -57,8 +57,9 @@ class YandexStationProvider(PlayerProvider):
             return
 
         # Initialize Yandex session
-        x_token = self.config.get_value(CONF_X_TOKEN)
-        music_token = self.config.get_value(CONF_MUSIC_TOKEN)
+        x_token = str(self.config.get_value(CONF_X_TOKEN))
+        music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
+        music_token = str(music_token_val) if music_token_val else None
 
         if not x_token:
             self.logger.warning("No x_token configured, cannot discover devices")
@@ -84,29 +85,28 @@ class YandexStationProvider(PlayerProvider):
 
         self._discovery_done = True
 
-    def on_mdns_service_state_change(
+    async def on_mdns_service_state_change(
         self,
-        zeroconf: Zeroconf,
-        service_type: str,
         name: str,
-        service_info: ServiceInfo | None = None,
+        state_change: ServiceStateChange,
+        info: AsyncServiceInfo | None,
     ) -> None:
         """Handle mDNS discovery callback (called by MA core)."""
-        if not service_info or not service_info.addresses:
+        if not info or not info.addresses:
             return
 
         try:
-            properties = {
-                k.decode(): v.decode() if isinstance(v, bytes) else v
-                for k, v in service_info.properties.items()
+            properties: dict[str, Any] = {
+                k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v
+                for k, v in info.properties.items()
             }
 
             device_id = properties.get("deviceId", "")
             platform = properties.get("platform", "")
-            host = str(ipaddress.ip_address(service_info.addresses[0]))
-            port = service_info.port
+            host = str(ipaddress.ip_address(info.addresses[0]))
+            port = info.port or 0
 
-            if not device_id:
+            if not device_id or not port:
                 return
 
             player_id = f"ys_{device_id}"
@@ -122,7 +122,7 @@ class YandexStationProvider(PlayerProvider):
 
             self._pending_discoveries.add(player_id)
 
-            device_info = {
+            device_info: dict[str, Any] = {
                 "quasar_info": {
                     "device_id": device_id,
                     "platform": platform,
@@ -142,15 +142,12 @@ class YandexStationProvider(PlayerProvider):
                         )
                         break
 
-            asyncio.run_coroutine_threadsafe(
-                self._create_player(player_id, device_info),
-                loop=self.mass.loop,
-            )
+            await self._create_player(player_id, device_info)
 
         except Exception:
             _LOGGER.exception("Error processing mDNS discovery for %s", name)
 
-    async def _create_player(self, player_id: str, device_info: dict) -> None:
+    async def _create_player(self, player_id: str, device_info: dict[str, Any]) -> None:
         """Create and register a new YandexStationPlayer."""
         try:
             if not self._session:

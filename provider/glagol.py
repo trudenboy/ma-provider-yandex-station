@@ -38,29 +38,29 @@ class YandexGlagol:
     url: str | None = None
     ws: ClientWebSocketResponse | None = None
 
-    update_handler: Callable[[dict | None], None] | None = None
+    update_handler: Callable[[dict[str, Any] | None], None] | None = None
 
     def __init__(self, session: YandexSession, device: dict[str, Any]) -> None:
         """Initialize Glagol client for a device."""
         self.session = session
         self.device = device
-        self._waiters: dict[str, asyncio.Future[dict]] = {}
+        self._waiters: dict[str, asyncio.Future[dict[str, Any]]] = {}
         self._connect_task: asyncio.Task[None] | None = None
 
     @property
     def name(self) -> str:
         """Return device display name."""
-        return self.device.get("name", "Unknown")
+        return str(self.device.get("name", "Unknown"))
 
     @property
     def device_id(self) -> str:
         """Return Quasar device ID."""
-        return self.device["quasar_info"]["device_id"]
+        return str(self.device["quasar_info"]["device_id"])
 
     @property
     def platform(self) -> str:
         """Return device platform identifier."""
-        return self.device["quasar_info"]["platform"]
+        return str(self.device["quasar_info"]["platform"])
 
     @property
     def connected(self) -> bool:
@@ -79,7 +79,7 @@ class YandexGlagol:
         if resp.get("status") != "ok":
             msg = f"Failed to get device token: {resp}"
             raise RuntimeError(msg)
-        return resp["token"]
+        return resp["token"]  # type: ignore[no-any-return]
 
     async def start(self) -> None:
         """Start or restart the WebSocket connection."""
@@ -121,7 +121,11 @@ class YandexGlagol:
             if not self.device_token:
                 self.device_token = await self.get_device_token()
 
-            self.ws = await self.session.ws_connect(self.url, heartbeat=WS_HEARTBEAT, ssl=False)
+            self.ws = await self.session.ws_connect(
+                self.url,  # type: ignore[arg-type]  # url checked in start()
+                heartbeat=WS_HEARTBEAT,
+                ssl=False,
+            )
             await self._ping(command="softwareVersion")
 
             async for msg in self.ws:
@@ -208,7 +212,7 @@ class YandexGlagol:
                 }
             )
 
-            future: asyncio.Future[dict] = loop.create_future()
+            future: asyncio.Future[dict[str, Any]] = loop.create_future()
             self._waiters[request_id] = future
             await asyncio.wait_for(future, WS_COMMAND_TIMEOUT)
             return self._waiters.pop(request_id).result()
