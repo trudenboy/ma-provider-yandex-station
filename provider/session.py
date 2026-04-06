@@ -153,6 +153,58 @@ class YandexSession:
         if not self.music_token and self.x_token:
             self.music_token = await self.get_music_token(self.x_token)
 
+    # ── QR code login flow (magic_x_token → x_token) ───────────
+
+    async def get_qr(self) -> tuple[str | None, str | None, str | None]:
+        """Start QR code auth session. Returns (qr_url, csrf_token, track_id) or (None, None, None)."""
+        _LOGGER.debug("Starting QR code auth")
+
+        # Step 1: Get CSRF token
+        async with self._session.get(f"{PASSPORT_URL}/am?app_platform=android") as r:
+            raw = await r.text()
+            m = re.search(r'"csrf_token"\s*value="([^"]+)"', raw)
+            if not m:
+                _LOGGER.error("Failed to get CSRF token for QR auth")
+                return None, None, None
+
+        # Step 2: Request QR code track_id
+        async with self._session.post(
+            f"{PASSPORT_URL}/registration-validations/auth/password/submit",
+            data={
+                "csrf_token": m[1],
+                "retpath": "https://passport.yandex.ru/profile",
+                "with_code": 1,
+            },
+        ) as r:
+            resp = await r.json()
+
+        if resp.get("status") != "ok":
+            _LOGGER.error("Failed to create QR session: %s", resp)
+            return None, None, None
+
+        csrf_token = resp["csrf_token"]
+        track_id = resp["track_id"]
+        qr_url = f"{PASSPORT_URL}/auth/magic/code/?track_id={track_id}"
+        _LOGGER.info("QR auth URL: %s", qr_url)
+        return qr_url, csrf_token, track_id
+
+    async def login_qr(self, csrf_token: str, track_id: str) -> LoginResponse:
+        """Check if QR code was scanned and approved. Exchange for x_token if so."""
+        _LOGGER.debug("Checking QR auth status")
+        self._auth_payload = {"csrf_token": csrf_token, "track_id": track_id}
+
+        async with self._session.post(
+            f"{PASSPORT_URL}/auth/new/magic/status/",
+            data=self._auth_payload,
+        ) as r:
+            resp = await r.json()
+
+        if resp.get("status") != "ok":
+            return LoginResponse({"status": "error", "errors": ["qr.not_scanned"]})
+
+        # QR approved — exchange cookies for x_token
+        return await self.login_cookies()
+
     # ── Passport login flow (username/password → x_token) ────────
 
     async def login_username(self, username: str) -> LoginResponse:
@@ -190,7 +242,6 @@ class YandexSession:
 
         _LOGGER.debug("Submitting password for passport login")
 
-        # Step 3: Submit password
         async with self._session.post(
             f"{PASSPORT_URL}/registration-validations/auth/multi_step/commit_password",
             data={
@@ -204,15 +255,12 @@ class YandexSession:
         if resp.get("status") != "ok":
             return LoginResponse(resp)
 
-        # Step 4: Follow redirect to finalize session cookies
-        redirect_url = resp.get("redirect_url")
-        if redirect_url:
-            if redirect_url.startswith("/"):
-                redirect_url = f"{PASSPORT_URL}{redirect_url}"
-            async with self._session.get(redirect_url, allow_redirects=True):
-                pass
+        # If Yandex returns a redirect (2FA challenge), password login can't complete
+        if "redirect_url" in resp:
+            _LOGGER.info("Password login returned redirect (2FA). Use QR login instead.")
+            return LoginResponse({"status": "error", "errors": ["redirect.unsupported"]})
 
-        # Step 5: Exchange session cookies for x_token
+        # No redirect — exchange session cookies for x_token
         return await self.login_cookies()
 
     async def login_cookies(self) -> LoginResponse:
@@ -236,7 +284,9 @@ class YandexSession:
         ) as r:
             resp = await r.json()
 
+        _LOGGER.debug("token_by_sessionid response keys=%s", list(resp.keys()))
         if "access_token" not in resp:
+            _LOGGER.warning("token_by_sessionid failed: %s", resp)
             return LoginResponse({"status": "error", "errors": ["token.exchange_failed"]})
 
         x_token = resp["access_token"]

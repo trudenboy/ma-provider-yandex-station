@@ -14,6 +14,12 @@ CONF_PASSWORD = "password"
 # Config action keys
 CONF_ACTION_LOGIN = "action_login"
 CONF_ACTION_CLEAR_AUTH = "action_clear_auth"
+CONF_ACTION_QR_START = "action_qr_start"
+CONF_ACTION_QR_CHECK = "action_qr_check"
+
+# Temporary QR auth state (stored in config values between action calls)
+CONF_QR_CSRF = "_qr_csrf"
+CONF_QR_TRACK_ID = "_qr_track_id"
 
 # Yandex Passport OAuth credentials (for obtaining x_token from session)
 PASSPORT_CLIENT_ID = "c0ebe342af7d48fbbbfcf2d2eedb8f9e"
