@@ -1,0 +1,39 @@
+name: Изменение upstream API
+description: Сообщить о критическом изменении в upstream API провайдера yandex_station
+labels: ["incident:upstream", "priority:high"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Используйте этот шаблон для сообщения об изменениях в API upstream-сервиса, влияющих на провайдер.
+
+  - type: input
+    id: upstream_ref
+    attributes:
+      label: Upstream репозиторий / коммит / PR
+      description: Ссылка на upstream изменение (коммит, PR, запись changelog или объявление).
+      placeholder: "e.g. https://github.com/upstream/repo/pull/123"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_changed
+    attributes:
+      label: Что изменилось в upstream
+      description: Опишите изменение API — новые эндпоинты, удалённые поля, изменения авторизации и т.д.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Влияние на провайдер yandex_station
+      description: Какие функции провайдера нарушены или затронуты?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_fix
+    attributes:
+      label: Предложение по исправлению (необязательно)
+      description: Если у вас есть идеи по адаптации провайдера, опишите их здесь.

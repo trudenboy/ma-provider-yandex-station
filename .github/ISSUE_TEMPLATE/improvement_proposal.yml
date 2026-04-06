@@ -1,0 +1,44 @@
+name: Предложение по улучшению
+description: Предложить улучшение или новую функцию для провайдера yandex_station
+labels: ["incident:proposal", "enhancement", "priority:medium"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Используйте этот шаблон для предложения улучшений или новых функций для провайдера.
+        Для ошибок используйте шаблон «Отчёт об ошибке».
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Текущее поведение / ограничение
+      description: Что вы не можете сделать сегодня или что работает неоптимально?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_change
+    attributes:
+      label: Предлагаемое улучшение
+      description: Опишите, что вы хотели бы изменить или добавить.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Мотивация / сценарий использования
+      description: Почему это улучшение ценно? Какой сценарий использования оно обеспечивает?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: willing_to_implement
+    attributes:
+      label: Готовы помочь с реализацией?
+      options:
+        - "Нет"
+        - "Да — могу создать PR"
+        - "Да — могу помочь с тестированием"
+    validations:
+      required: false

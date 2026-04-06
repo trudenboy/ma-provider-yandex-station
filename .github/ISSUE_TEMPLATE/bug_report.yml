@@ -1,0 +1,58 @@
+name: Отчёт об ошибке
+description: Сообщить об ошибке в провайдере yandex_station
+labels: ["incident:bug", "priority:medium"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что сообщаете об ошибке! Пожалуйста, заполните как можно больше деталей.
+
+  - type: input
+    id: provider_version
+    attributes:
+      label: Версия провайдера
+      description: |
+        Найдите в `manifest.json` → поле `version`, или в теге последнего GitHub Release.
+      placeholder: "e.g. 2.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: ma_version
+    attributes:
+      label: Версия Music Assistant
+      placeholder: "e.g. 2.3.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Перейти в ...
+        2. Нажать на ...
+        3. Увидеть ошибку
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактическое поведение
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Соответствующие логи
+      description: Вставьте соответствующий вывод логов здесь.
+      render: text

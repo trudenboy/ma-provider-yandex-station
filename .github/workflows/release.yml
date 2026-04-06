@@ -1,0 +1,33 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (semver, e.g. 1.2.0)"
+        required: true
+        type: string
+      prerelease:
+        description: "Pre-release?"
+        type: boolean
+        default: false
+      target_branch:
+        description: "Target branch in fork for sync (default: integration/dev)"
+        default: "integration/dev"
+        type: string
+
+permissions:
+  contents: write  # Required to create tags and releases
+  actions: write   # Required to trigger sync-to-fork workflow
+  issues: write    # Required by report-failure job in reusable workflow
+
+jobs:
+  release:
+    uses: trudenboy/ma-provider-tools/.github/workflows/reusable-release.yml@main
+    with:
+      manifest_path: provider/manifest.json
+      provider_path: provider/
+
+      version: ${{ inputs.version }}
+      prerelease: ${{ inputs.prerelease }}
+      target_branch: ${{ inputs.target_branch }}
+    secrets: inherit
