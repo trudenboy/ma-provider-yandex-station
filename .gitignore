@@ -58,3 +58,5 @@ secrets.yaml
 
 # Playwright MCP snapshots
 .playwright-mcp/
+qr-svg-page.png
+qr-with-back.png

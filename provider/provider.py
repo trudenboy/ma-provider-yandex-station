@@ -50,8 +50,8 @@ class YandexStationProvider(PlayerProvider):
         """Discover Yandex Station players.
 
         Two-phase discovery:
-        1. mDNS (handled by MA core via manifest.json mdns_discovery)
-        2. Quasar API fallback for devices not on local network
+        1. Cloud: Quasar API (requires session cookies from x_token)
+        2. Local: mDNS (handled by MA core via manifest.json mdns_discovery)
         """
         if self._discovery_done:
             return
@@ -67,21 +67,43 @@ class YandexStationProvider(PlayerProvider):
 
         self._http_session = ClientSession()
         self._session = YandexSession(self._http_session, x_token=x_token, music_token=music_token)
+
+        # Login with x_token to get session cookies (required for Quasar IoT API)
+        try:
+            logged_in = await self._session.login_token(x_token)
+            if not logged_in:
+                self.logger.error("Failed to login with x_token — cannot discover devices")
+                return
+        except Exception:
+            self.logger.exception("Error during token login")
+            return
+
         await self._session.ensure_music_token()
 
-        # Load device list from Quasar cloud API for metadata
+        # Load device list from Quasar cloud API
         self._quasar = YandexQuasar(self._session)
+        speakers: list[dict[str, Any]] = []
         try:
             speakers = await self._quasar.get_speakers()
-            self.logger.debug("Found %d speakers via Quasar API", len(speakers))
+            self.logger.info("Found %d speakers via Quasar API", len(speakers))
 
-            # Enrich devices with config (device_id, platform) if missing
             for speaker in speakers:
                 if "quasar_info" not in speaker:
                     await self._quasar.load_device_config(speaker)
         except Exception:
             self.logger.exception("Failed to load speakers from Quasar")
-            speakers = []
+
+        # Register all cloud-discovered speakers as players
+        for speaker in speakers:
+            qi = speaker.get("quasar_info", {})
+            device_id = qi.get("device_id", "")
+            if not device_id:
+                continue
+            player_id = f"ys_{device_id}"
+            self.logger.info(
+                "Registering speaker: %s [%s]", speaker.get("name"), qi.get("platform")
+            )
+            await self._create_player(player_id, speaker)
 
         self._discovery_done = True
 
@@ -114,10 +136,14 @@ class YandexStationProvider(PlayerProvider):
             if player_id in self._pending_discoveries:
                 return
 
-            # Check if player already registered — just update connection info
+            # Check if player already registered (cloud-discovered) — connect Glagol
             existing = self.mass.players.get_player(player_id)
             if existing and isinstance(existing, YandexStationPlayer):
-                existing.update_connection(host, port)
+                if not existing.glagol.connected:
+                    existing.update_connection(host, port)
+                    await existing.async_setup()
+                else:
+                    existing.update_connection(host, port)
                 return
 
             self._pending_discoveries.add(player_id)
@@ -154,6 +180,11 @@ class YandexStationProvider(PlayerProvider):
                 self.logger.warning("Session not initialized, skipping player creation")
                 return
 
+            # Skip if already registered
+            existing = self.mass.players.get_player(player_id)
+            if existing is not None:
+                return
+
             glagol = YandexGlagol(self._session, device_info)
 
             player = YandexStationPlayer(
@@ -162,7 +193,9 @@ class YandexStationProvider(PlayerProvider):
                 device_info=device_info,
                 glagol=glagol,
             )
-            await player.async_setup()
+            # Only start Glagol if host/port are available (mDNS discovered)
+            if device_info.get("host") and device_info.get("port"):
+                await player.async_setup()
             await self.mass.players.register_or_update(player)
 
         except Exception:
