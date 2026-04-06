@@ -1,0 +1,15 @@
+{
+  "type": "player",
+  "domain": "yandex_station",
+  "name": "Yandex Station",
+  "description": "Play music on Yandex Station smart speakers via local Glagol protocol.",
+  "codeowners": ["@trudenboy"],
+  "credits": [
+    "[AlexxIT/YandexStation](https://github.com/AlexxIT/YandexStation)"
+  ],
+  "requirements": ["PyJWT>=2.0.0"],
+  "documentation": "https://trudenboy.github.io/ma-provider-yandex-station/",
+  "multi_instance": false,
+  "builtin": false,
+  "mdns_discovery": ["_yandexio._tcp.local."]
+}

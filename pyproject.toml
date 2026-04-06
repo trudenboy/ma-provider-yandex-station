@@ -1,0 +1,12 @@
+[tool.codespell]
+skip = "*.min.js"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+  "integration: integration tests requiring a real MA server instance",
+]
+filterwarnings = [
+  "ignore:coroutine.*was never awaited:RuntimeWarning",
+]
