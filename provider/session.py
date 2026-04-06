@@ -156,7 +156,10 @@ class YandexSession:
     # ── QR code login flow (magic_x_token → x_token) ───────────
 
     async def get_qr(self) -> tuple[str | None, str | None, str | None]:
-        """Start QR code auth session. Returns (qr_url, csrf_token, track_id) or (None, None, None)."""
+        """Start QR code auth session.
+
+        Returns (qr_url, csrf_token, track_id) or (None, None, None).
+        """
         _LOGGER.debug("Starting QR code auth")
 
         # Step 1: Get CSRF token
@@ -372,11 +375,11 @@ class YandexSession:
 
         headers = kwargs.pop("headers", {})
         headers["Authorization"] = f"OAuth {self.music_token}"
-        async with self._session.get(url, headers=headers, **kwargs) as r:
-            if r.status == 200:
-                return r
-            if r.status == 403:
-                self.music_token = None
+        r: ClientResponse = await self._session.get(url, headers=headers, **kwargs)
+        if r.status == 200:
+            return r
+        if r.status == 403:
+            self.music_token = None
 
         if retry:
             _LOGGER.debug("Retry Glagol request %s", url)

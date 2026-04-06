@@ -114,18 +114,20 @@ class YandexGlagol:
 
     async def _connect(self, fails: int) -> None:
         """Maintain persistent WebSocket connection with reconnect."""
-        _LOGGER.debug("[%s] Connecting locally", self.name)
+        _LOGGER.info("[%s] Connecting to %s", self.name, self.url)
         fails += 1  # Will be reset on first message
 
         try:
             if not self.device_token:
                 self.device_token = await self.get_device_token()
+                _LOGGER.info("[%s] Got device token", self.name)
 
             self.ws = await self.session.ws_connect(
                 self.url,  # type: ignore[arg-type]  # url checked in start()
                 heartbeat=WS_HEARTBEAT,
                 ssl=False,
             )
+            _LOGGER.info("[%s] WebSocket connected", self.name)
             await self._ping(command="softwareVersion")
 
             async for msg in self.ws:
@@ -149,7 +151,7 @@ class YandexGlagol:
             self.device_token = None
 
         except (ClientConnectorError, ConnectionResetError, ServerTimeoutError) as e:
-            _LOGGER.debug("[%s] Connection error: %r", self.name, e)
+            _LOGGER.warning("[%s] Connection error: %r", self.name, e)
 
         except (asyncio.CancelledError, RuntimeError) as e:
             if isinstance(e, RuntimeError) and e.args[0] != "Session is closed":

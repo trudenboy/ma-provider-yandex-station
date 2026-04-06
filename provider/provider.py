@@ -66,7 +66,9 @@ class YandexStationProvider(PlayerProvider):
             return
 
         self._http_session = ClientSession()
-        self._session = YandexSession(self._http_session, x_token=x_token, music_token=music_token)
+        self._session = YandexSession(
+            self._http_session, x_token=x_token, music_token=music_token or None
+        )
 
         # Login with x_token to get session cookies (required for Quasar IoT API)
         try:
@@ -94,12 +96,28 @@ class YandexStationProvider(PlayerProvider):
             self.logger.exception("Failed to load speakers from Quasar")
 
         # Register all cloud-discovered speakers as players
+        # Enrich with local connection info from glagol API (mDNS fallback)
+        local_speakers: dict[str, dict[str, Any]] = {}
+        try:
+            local_list = await self._quasar.get_local_speakers()
+            for ls in local_list:
+                local_speakers[ls["device_id"]] = ls
+            self.logger.info("Found %d local speakers via Glagol API", len(local_speakers))
+        except Exception:
+            self.logger.debug("Failed to get local speakers from Glagol API")
+
         for speaker in speakers:
             qi = speaker.get("quasar_info", {})
             device_id = qi.get("device_id", "")
             if not device_id:
                 continue
             player_id = f"ys_{device_id}"
+            # Merge local connection info (IP/port from glagol API)
+            if device_id in local_speakers:
+                ls = local_speakers[device_id]
+                speaker.setdefault("host", ls["host"])
+                speaker.setdefault("port", ls["port"])
+                speaker.setdefault("glagol", ls.get("glagol", {}))
             self.logger.info(
                 "Registering speaker: %s [%s]", speaker.get("name"), qi.get("platform")
             )
@@ -193,9 +211,14 @@ class YandexStationProvider(PlayerProvider):
                 device_info=device_info,
                 glagol=glagol,
             )
-            # Only start Glagol if host/port are available (mDNS discovered)
-            if device_info.get("host") and device_info.get("port"):
+            # Only start Glagol if host/port are available (mDNS or glagol API)
+            host = device_info.get("host")
+            port = device_info.get("port")
+            if host and port:
+                self.logger.info("Starting Glagol for %s at %s:%s", player_id, host, port)
                 await player.async_setup()
+            else:
+                self.logger.info("No host/port for %s — cloud-only", player_id)
             await self.mass.players.register_or_update(player)
 
         except Exception:

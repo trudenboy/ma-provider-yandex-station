@@ -71,18 +71,31 @@ class YandexQuasar:
             device["quasar_info"] = resp["quasar_info"]
 
     async def get_local_speakers(self) -> list[dict[str, Any]]:
-        """Get device list via Glagol device_list API (includes IP/port)."""
+        """Get device list via Glagol device_list API (includes IP/port).
+
+        Returns devices with keys: device_id, name, platform, host, port, glagol.
+        Only returns devices that have networkInfo with IP addresses.
+        """
         try:
             r = await self.session.get("https://quasar.yandex.net/glagol/device_list")
             resp = await r.json()
-            return [
-                {
-                    "device_id": d["id"],
-                    "name": d["name"],
-                    "platform": d["platform"],
-                }
-                for d in resp.get("devices", [])
-            ]
+            result: list[dict[str, Any]] = []
+            for d in resp.get("devices", []):
+                ni = d.get("networkInfo") or {}
+                ips = ni.get("ip_addresses") or []
+                if not ips:
+                    continue
+                result.append(
+                    {
+                        "device_id": d["id"],
+                        "name": d.get("name", ""),
+                        "platform": d.get("platform", ""),
+                        "host": ips[0],
+                        "port": ni.get("external_port", 1961),
+                        "glagol": d.get("glagol", {}),
+                    }
+                )
+            return result
         except Exception:
             _LOGGER.exception("Failed to load local speakers")
             return []
