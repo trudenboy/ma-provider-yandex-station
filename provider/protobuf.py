@@ -16,6 +16,9 @@ class Protobuf:
         self.pos = 0
 
     def read(self, length: int) -> bytes:
+        if self.pos + length > len(self.raw):
+            msg = "Read past end of buffer"
+            raise IndexError(msg)
         self.pos += length
         return self.raw[self.pos - length : self.pos]
 
@@ -53,7 +56,13 @@ class Protobuf:
             elif typ == 2:  # LEN
                 raw_bytes = self.read_bytes()
                 try:
-                    v = Protobuf(raw_bytes).read_dict()
+                    nested = Protobuf(raw_bytes)
+                    parsed = nested.read_dict()
+                    # Only accept as nested message if ALL bytes were consumed
+                    if nested.pos == len(nested.raw) and parsed:
+                        v = parsed
+                    else:
+                        v = raw_bytes
                 except Exception:
                     v = raw_bytes
             elif typ == 5:  # I32
