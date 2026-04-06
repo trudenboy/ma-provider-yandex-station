@@ -32,6 +32,7 @@ class YandexQuasar:
     devices: list[dict[str, Any]] | None = None
 
     def __init__(self, session: YandexSession) -> None:
+        """Initialize with an authenticated session."""
         self.session = session
 
     async def get_devices(self) -> list[dict[str, Any]]:
@@ -46,8 +47,7 @@ class YandexQuasar:
         devices: list[dict[str, Any]] = []
         for house in resp.get("households", []):
             devices.extend(
-                {**device, "house_name": house.get("name", "")}
-                for device in house.get("all", [])
+                {**device, "house_name": house.get("name", "")} for device in house.get("all", [])
             )
 
         self.devices = devices

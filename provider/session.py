@@ -8,14 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import json
 import logging
 import pickle
 import re
 import time
 from typing import TYPE_CHECKING, Any
 
-from aiohttp import ClientSession
+if TYPE_CHECKING:
+    from aiohttp import ClientResponse, ClientSession
 
 from .constants import (
     API_REQUEST_INTERVAL,
@@ -24,9 +24,6 @@ from .constants import (
     MUSIC_TOKEN_URL,
 )
 
-if TYPE_CHECKING:
-    from aiohttp import ClientResponse
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -34,26 +31,32 @@ class LoginResponse:
     """Wrapper for Yandex Passport login responses."""
 
     def __init__(self, resp: dict[str, Any]) -> None:
+        """Wrap a raw Yandex Passport response dict."""
         self.raw = resp
 
     @property
     def ok(self) -> bool:
+        """Return True if login succeeded."""
         return self.raw.get("status") == "ok"
 
     @property
     def errors(self) -> list[str]:
+        """Return list of error codes."""
         return self.raw.get("errors", [])
 
     @property
     def error(self) -> str:
+        """Return first error code."""
         return self.raw["errors"][0]
 
     @property
     def x_token(self) -> str:
+        """Return the X-Token from response."""
         return self.raw["x_token"]
 
     @property
     def error_captcha_required(self) -> bool:
+        """Return True if captcha is required."""
         return "captcha.required" in self.errors
 
 
@@ -74,6 +77,7 @@ class YandexSession:
         music_token: str | None = None,
         cookie: str | None = None,
     ) -> None:
+        """Initialize with aiohttp session and optional credentials."""
         self._session = session
         self.x_token = x_token
         self.music_token = music_token
@@ -83,7 +87,7 @@ class YandexSession:
             try:
                 raw = base64.b64decode(cookie)
                 self._session.cookie_jar._cookies = pickle.loads(raw)  # noqa: S301
-                self._session.cookie_jar.clear(lambda x: False)
+                self._session.cookie_jar.clear(lambda _x: False)
             except Exception:
                 _LOGGER.warning("Failed to restore cookies from saved state")
 
@@ -149,9 +153,7 @@ class YandexSession:
 
     async def get(self, url: str, **kwargs: Any) -> ClientResponse:
         """GET request with automatic auth for Glagol/Music API."""
-        if url.startswith(
-            ("https://quasar.yandex.net/glagol/", "https://api.music.yandex.net/")
-        ):
+        if url.startswith(("https://quasar.yandex.net/glagol/", "https://api.music.yandex.net/")):
             return await self._request_glagol(url, **kwargs)
         return await self._request("get", url, **kwargs)
 
@@ -206,9 +208,7 @@ class YandexSession:
         msg = f"{url} returned {r.status}"
         raise RuntimeError(msg)
 
-    async def _request_glagol(
-        self, url: str, retry: int = 2, **kwargs: Any
-    ) -> ClientResponse:
+    async def _request_glagol(self, url: str, retry: int = 2, **kwargs: Any) -> ClientResponse:
         """Request to Glagol/Music API with music_token auth."""
         await self.ensure_music_token()
 
@@ -232,7 +232,5 @@ class YandexSession:
     @property
     def cookie(self) -> str:
         """Serialize cookies to base64 for persistent storage."""
-        raw = pickle.dumps(
-            self._session.cookie_jar._cookies, pickle.HIGHEST_PROTOCOL
-        )
+        raw = pickle.dumps(self._session.cookie_jar._cookies, pickle.HIGHEST_PROTOCOL)
         return base64.b64encode(raw).decode()

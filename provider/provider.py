@@ -65,9 +65,7 @@ class YandexStationProvider(PlayerProvider):
             return
 
         self._http_session = ClientSession()
-        self._session = YandexSession(
-            self._http_session, x_token=x_token, music_token=music_token
-        )
+        self._session = YandexSession(self._http_session, x_token=x_token, music_token=music_token)
         await self._session.ensure_music_token()
 
         # Load device list from Quasar cloud API for metadata
@@ -140,11 +138,7 @@ class YandexStationProvider(PlayerProvider):
                     qi = cloud_device.get("quasar_info", {})
                     if qi.get("device_id") == device_id:
                         device_info.update(
-                            {
-                                k: v
-                                for k, v in cloud_device.items()
-                                if k not in ("host", "port")
-                            }
+                            {k: v for k, v in cloud_device.items() if k not in ("host", "port")}
                         )
                         break
 
@@ -156,9 +150,7 @@ class YandexStationProvider(PlayerProvider):
         except Exception:
             _LOGGER.exception("Error processing mDNS discovery for %s", name)
 
-    async def _create_player(
-        self, player_id: str, device_info: dict
-    ) -> None:
+    async def _create_player(self, player_id: str, device_info: dict) -> None:
         """Create and register a new YandexStationPlayer."""
         try:
             if not self._session:

@@ -12,10 +12,12 @@ class Protobuf:
     """Minimal protobuf wire-format parser."""
 
     def __init__(self, raw: str | bytes) -> None:
+        """Initialize from base64 string or raw bytes."""
         self.raw = base64.b64decode(raw) if isinstance(raw, str) else raw
         self.pos = 0
 
     def read(self, length: int) -> bytes:
+        """Read exactly `length` bytes from buffer."""
         if self.pos + length > len(self.raw):
             msg = "Read past end of buffer"
             raise IndexError(msg)
@@ -23,11 +25,13 @@ class Protobuf:
         return self.raw[self.pos - length : self.pos]
 
     def read_byte(self) -> int:
+        """Read a single byte."""
         res = self.raw[self.pos]
         self.pos += 1
         return res
 
     def read_varint(self) -> int:
+        """Read a variable-length integer."""
         res = 0
         shift = 0
         while True:
@@ -39,10 +43,12 @@ class Protobuf:
         return res
 
     def read_bytes(self) -> bytes:
+        """Read a length-prefixed byte string."""
         length = self.read_varint()
         return self.read(length)
 
     def read_dict(self) -> dict:
+        """Parse the buffer into a tag→value dict."""
         res: dict = {}
         while self.pos < len(self.raw):
             b = self.read_varint()
@@ -59,10 +65,7 @@ class Protobuf:
                     nested = Protobuf(raw_bytes)
                     parsed = nested.read_dict()
                     # Only accept as nested message if ALL bytes were consumed
-                    if nested.pos == len(nested.raw) and parsed:
-                        v = parsed
-                    else:
-                        v = raw_bytes
+                    v = parsed if nested.pos == len(nested.raw) and parsed else raw_bytes
                 except Exception:
                     v = raw_bytes
             elif typ == 5:  # I32

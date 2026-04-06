@@ -9,11 +9,10 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from music_assistant_models.enums import (
+    PlaybackState,
     PlayerFeature,
     PlayerType,
-    PlaybackState,
 )
-from music_assistant_models.player import PlayerSource
 
 from music_assistant.models.player import DeviceInfo, Player, PlayerMedia
 
@@ -113,9 +112,7 @@ class YandexStationPlayer(Player):
 
     async def volume_set(self, volume_level: int) -> None:
         """Set volume level (0-100)."""
-        await self.glagol.send(
-            {"command": "setVolume", "volume": round(volume_level / 100, 2)}
-        )
+        await self.glagol.send({"command": "setVolume", "volume": round(volume_level / 100, 2)})
 
     async def volume_mute(self, muted: bool) -> None:
         """Mute/unmute. Yandex Station doesn't have native mute, simulate with volume."""
@@ -127,9 +124,7 @@ class YandexStationPlayer(Player):
 
     async def play_media(self, media: PlayerMedia) -> None:
         """Play media on the Yandex Station via radio_play command."""
-        stream_url = await self.provider.mass.streams.resolve_stream_url(
-            self.player_id, media
-        )
+        stream_url = await self.provider.mass.streams.resolve_stream_url(self.player_id, media)
 
         payload: dict[str, Any] = {
             "streamUrl": stream_url,

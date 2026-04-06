@@ -7,11 +7,13 @@ Stripped of Home Assistant dependencies; uses pure aiohttp + asyncio.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientConnectorError, ClientWebSocketResponse, ServerTimeoutError
 
@@ -39,6 +41,7 @@ class YandexGlagol:
     update_handler: Callable[[dict | None], None] | None = None
 
     def __init__(self, session: YandexSession, device: dict[str, Any]) -> None:
+        """Initialize Glagol client for a device."""
         self.session = session
         self.device = device
         self._waiters: dict[str, asyncio.Future[dict]] = {}
@@ -46,18 +49,22 @@ class YandexGlagol:
 
     @property
     def name(self) -> str:
+        """Return device display name."""
         return self.device.get("name", "Unknown")
 
     @property
     def device_id(self) -> str:
+        """Return Quasar device ID."""
         return self.device["quasar_info"]["device_id"]
 
     @property
     def platform(self) -> str:
+        """Return device platform identifier."""
         return self.device["quasar_info"]["platform"]
 
     @property
     def connected(self) -> bool:
+        """Return True if WebSocket is open."""
         return self.ws is not None and not self.ws.closed
 
     async def get_device_token(self) -> str:
@@ -106,7 +113,7 @@ class YandexGlagol:
             self._connect_task = None
 
     async def _connect(self, fails: int) -> None:
-        """Persistent WebSocket connection loop with reconnect."""
+        """Maintain persistent WebSocket connection with reconnect."""
         _LOGGER.debug("[%s] Connecting locally", self.name)
         fails += 1  # Will be reset on first message
 
@@ -114,9 +121,7 @@ class YandexGlagol:
             if not self.device_token:
                 self.device_token = await self.get_device_token()
 
-            self.ws = await self.session.ws_connect(
-                self.url, heartbeat=WS_HEARTBEAT, ssl=False
-            )
+            self.ws = await self.session.ws_connect(self.url, heartbeat=WS_HEARTBEAT, ssl=False)
             await self._ping(command="softwareVersion")
 
             async for msg in self.ws:
@@ -162,9 +167,7 @@ class YandexGlagol:
             return
 
         if fails:
-            delay = WS_RECONNECT_BASE_DELAY * min(
-                fails - 1, WS_RECONNECT_MAX_MULTIPLIER
-            )
+            delay = WS_RECONNECT_BASE_DELAY * min(fails - 1, WS_RECONNECT_MAX_MULTIPLIER)
             _LOGGER.debug("[%s] Reconnecting in %ds", self.name, delay)
             await asyncio.sleep(delay)
 
@@ -174,17 +177,15 @@ class YandexGlagol:
         """Send a ping/keepalive message."""
         if not self.ws or self.ws.closed:
             return
-        try:
+        with contextlib.suppress(Exception):
             await self.ws.send_json(
                 {
                     "conversationToken": self.device_token,
                     "id": str(uuid.uuid4()),
                     "payload": {"command": command},
-                    "sentTime": int(round(time.time() * 1000)),
+                    "sentTime": round(time.time() * 1000),
                 }
             )
-        except Exception:
-            pass
 
     async def send(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Send a command and wait for response."""
@@ -203,7 +204,7 @@ class YandexGlagol:
                     "conversationToken": self.device_token,
                     "id": request_id,
                     "payload": payload,
-                    "sentTime": int(round(time.time() * 1000)),
+                    "sentTime": round(time.time() * 1000),
                 }
             )
 
