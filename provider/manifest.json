@@ -7,7 +7,7 @@
   "credits": [
     "[AlexxIT/YandexStation](https://github.com/AlexxIT/YandexStation)"
   ],
-  "requirements": ["PyJWT>=2.0.0", "qrcode>=7.0"],
+  "requirements": ["PyJWT>=2.0.0"],
   "documentation": "https://trudenboy.github.io/ma-provider-yandex-station/",
   "multi_instance": false,
   "builtin": false,

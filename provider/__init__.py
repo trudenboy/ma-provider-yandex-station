@@ -6,8 +6,8 @@ Adapted from AlexxIT/YandexStation (MIT license).
 
 from __future__ import annotations
 
-import base64
-import io
+import asyncio
+import contextlib
 import logging
 from typing import TYPE_CHECKING
 
@@ -19,14 +19,12 @@ from music_assistant_models.errors import LoginFailed
 from .constants import (
     CONF_ACTION_CLEAR_AUTH,
     CONF_ACTION_LOGIN,
-    CONF_ACTION_QR_CHECK,
     CONF_ACTION_QR_START,
     CONF_MUSIC_TOKEN,
     CONF_PASSWORD,
-    CONF_QR_CSRF,
-    CONF_QR_TRACK_ID,
     CONF_USERNAME,
     CONF_X_TOKEN,
+    PASSPORT_URL,
 )
 from .provider import YandexStationProvider
 from .session import YandexSession
@@ -42,57 +40,30 @@ _LOGGER = logging.getLogger(__name__)
 
 SUPPORTED_FEATURES: set[ProviderFeature] = set()
 
-# Module-level state for QR code web endpoint
-_qr_route_registered = False
-_qr_image_b64: str = ""
+# QR auth polling interval and timeout
+_QR_POLL_INTERVAL = 3
+_QR_POLL_TIMEOUT = 300
 
 
-async def _handle_auth_action(
-    mass: MusicAssistant,
-    action: str | None,
-    values: dict[str, ConfigValueType] | None,
-) -> str | None:
-    """Handle login/logout actions. Returns error message or None on success."""
-    if values is None or action is None:
-        return None
-
-    if action == CONF_ACTION_QR_START:
-        return await _handle_qr_start(mass, values)
-
-    if action == CONF_ACTION_QR_CHECK:
-        return await _handle_qr_check(values)
-
-    if action == CONF_ACTION_LOGIN:
-        return await _handle_password_login(values)
-
-    if action == CONF_ACTION_CLEAR_AUTH:
-        values[CONF_X_TOKEN] = None
-        values[CONF_MUSIC_TOKEN] = None
-        values[CONF_QR_CSRF] = None
-        values[CONF_QR_TRACK_ID] = None
-
-    return None
+async def _fetch_qr_svg(track_id: str) -> str:
+    """Fetch QR code SVG directly from Yandex passport."""
+    url = f"{PASSPORT_URL}/auth/magic/code/?track_id={track_id}"
+    try:
+        async with ClientSession() as session, session.get(url) as resp:
+            if resp.status == 200:
+                return await resp.text()
+    except Exception:
+        _LOGGER.exception("Error fetching QR SVG")
+    return ""
 
 
-def _generate_qr_image(data: str) -> str:
-    """Generate QR code as base64-encoded PNG."""
-    import qrcode  # noqa: PLC0415
+def _build_qr_page(qr_svg: str, status_path: str, callback_path: str) -> str:
+    """Build HTML page with QR code and auto-polling JavaScript.
 
-    qr = qrcode.QRCode(box_size=8, border=2)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image()
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode()
-
-
-async def _serve_qr_page(request: web.Request) -> web.Response:
-    """Serve HTML page with QR code image."""
-    _ = request  # unused
-    if not _qr_image_b64:
-        return web.Response(text="No QR code available. Click 'Get QR Code' first.", status=404)
-    html = f"""<!DOCTYPE html>
+    Uses relative paths so it works regardless of Docker networking.
+    The browser resolves paths from window.location.origin.
+    """
+    return f"""<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -102,83 +73,152 @@ async def _serve_qr_page(request: web.Request) -> web.Response:
          padding: 40px 20px; background: #1a1a2e; color: #e0e0e0; }}
   h1 {{ font-size: 1.5em; margin-bottom: 0.3em; }}
   p {{ color: #aaa; margin-bottom: 24px; }}
-  img {{ border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.4);
-         background: white; padding: 16px; max-width: 90vw; }}
-  .hint {{ margin-top: 24px; font-size: 0.9em; color: #888; }}
+  .qr-container {{ display: inline-block; background: white; padding: 24px;
+                   border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }}
+  .qr-container svg {{ width: 280px; height: 280px; }}
+  #status {{ margin-top: 24px; font-size: 1em; color: #888; }}
+  .success {{ color: #4ade80 !important; font-weight: 600; }}
+  .spinner {{ display: inline-block; width: 18px; height: 18px;
+              border: 2px solid #555; border-top-color: #3b82f6;
+              border-radius: 50%; animation: spin 0.8s linear infinite;
+              vertical-align: middle; margin-right: 8px; }}
+  @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
 </style>
 </head><body>
 <h1>📱 Scan with Yandex App</h1>
-<p>Open Yandex app on your phone → Profile → Login via QR</p>
-<img src="data:image/png;base64,{_qr_image_b64}" alt="QR Code">
-<p class="hint">After scanning, go back to Music Assistant and click<br><b>Check QR Status</b></p>
+<p>Open the <b>Yandex</b> app → tap the QR scanner → scan this code</p>
+<div class="qr-container">{qr_svg}</div>
+<p id="status"><span class="spinner"></span> Waiting for scan...</p>
+<script>
+(function() {{
+  let tries = 0;
+  const maxTries = {_QR_POLL_TIMEOUT // _QR_POLL_INTERVAL};
+  const statusUrl = window.location.origin + "{status_path}";
+  const callbackUrl = window.location.origin + "{callback_path}";
+  async function poll() {{
+    tries++;
+    try {{
+      const r = await fetch(statusUrl);
+      const d = await r.json();
+      if (d.status === "ok") {{
+        document.getElementById("status").className = "success";
+        document.getElementById("status").textContent =
+          "✅ Authenticated! Redirecting...";
+        setTimeout(() => window.location.href =
+          callbackUrl + "?result=ok", 500);
+        return;
+      }}
+    }} catch(e) {{}}
+    if (tries < maxTries) setTimeout(poll, {_QR_POLL_INTERVAL * 1000});
+    else document.getElementById("status").textContent =
+      "⏰ Timeout. Close and try again.";
+  }}
+  setTimeout(poll, {_QR_POLL_INTERVAL * 1000});
+}})();
+</script>
 </body></html>"""
-    return web.Response(text=html, content_type="text/html")
 
 
-def _ensure_qr_route(mass: MusicAssistant) -> None:
-    """Register QR code web endpoint (idempotent)."""
-    global _qr_route_registered  # noqa: PLW0603
-    if _qr_route_registered:
-        return
+async def _create_qr_session() -> tuple[str, str, str, str] | None:
+    """Create QR session and return (svg, csrf_token, track_id, session_id) or None."""
+    async with ClientSession() as http_session:
+        session = YandexSession(http_session)
+        qr_url, csrf_token, track_id = await session.get_qr()
+
+    if not qr_url or not track_id or not csrf_token:
+        return None
+
+    svg = await _fetch_qr_svg(track_id)
+    if not svg or "<svg" not in svg:
+        return None
+
+    session_id = f"yandex_qr_{track_id[:16]}"
+    return svg, csrf_token, track_id, session_id
+
+
+async def _poll_qr_until_scanned(csrf_token: str, track_id: str, result: list[str]) -> None:
+    """Poll Yandex for QR scan status until scanned or cancelled."""
+    for _ in range(_QR_POLL_TIMEOUT // _QR_POLL_INTERVAL):
+        await asyncio.sleep(_QR_POLL_INTERVAL)
+        try:
+            async with ClientSession() as poll_session:
+                s = YandexSession(poll_session)
+                resp = await s.login_qr(csrf_token, track_id)
+            if resp.ok and resp.x_token:
+                result.append(resp.x_token)
+                return
+        except Exception:
+            _LOGGER.debug("QR poll error, retrying...")
+
+
+async def _handle_qr_login(
+    mass: MusicAssistant,
+    values: dict[str, ConfigValueType],
+) -> str | None:
+    """Handle QR code login using AuthenticationHelper for popup flow."""
+    from music_assistant.helpers.auth import AuthenticationHelper  # noqa: PLC0415
+
     try:
-        mass.webserver.register_dynamic_route("/yandex_station/qr", _serve_qr_page, "GET")
-        _qr_route_registered = True
-        _LOGGER.debug("Registered QR code endpoint at /yandex_station/qr")
-    except RuntimeError:
-        # Route already registered
-        _qr_route_registered = True
-
-
-async def _handle_qr_start(mass: MusicAssistant, values: dict[str, ConfigValueType]) -> str | None:
-    """Start QR code auth — get QR URL from Yandex and generate image."""
-    global _qr_image_b64  # noqa: PLW0603
-    try:
-        async with ClientSession() as http_session:
-            session = YandexSession(http_session)
-            qr_url, csrf_token, track_id = await session.get_qr()
-
-        if not qr_url:
+        qr_session = await _create_qr_session()
+        if qr_session is None:
             return "Failed to generate QR code. Try again."
 
-        # Generate QR code image and register web endpoint
-        _qr_image_b64 = _generate_qr_image(qr_url)
-        _ensure_qr_route(mass)
+        svg, csrf_token, track_id, session_id = qr_session
 
-        # Store QR session state for the check step
-        values[CONF_QR_CSRF] = csrf_token
-        values[CONF_QR_TRACK_ID] = track_id
+        # Use frontend's session_id for AUTH_SESSION event matching
+        fe_session_id = str(values.get("session_id", session_id))
+
+        async with AuthenticationHelper(mass, fe_session_id) as auth_helper:
+            qr_path = f"/yandex_station/qr/{session_id}"
+            status_path = f"/yandex_station/qr/{session_id}/status"
+            # Use just the path for the popup URL — the frontend resolves
+            # it from the browser's origin (avoids Docker internal IP issue)
+            qr_page_url = qr_path
+            # Callback path (for JS redirect in QR page)
+            cb_path = auth_helper._cb_path
+            x_token_result: list[str] = []
+
+            async def serve_qr(request: web.Request) -> web.Response:
+                _ = request
+                html = _build_qr_page(svg, status_path, cb_path)
+                return web.Response(text=html, content_type="text/html")
+
+            async def serve_status(request: web.Request) -> web.Response:
+                _ = request
+                if x_token_result:
+                    return web.json_response({"status": "ok"})
+                return web.json_response({"status": "waiting"})
+
+            unregister_qr = mass.webserver.register_dynamic_route(qr_path, serve_qr, "GET")
+            unregister_status = mass.webserver.register_dynamic_route(
+                status_path, serve_status, "GET"
+            )
+
+            try:
+                poll_task = asyncio.create_task(
+                    _poll_qr_until_scanned(csrf_token, track_id, x_token_result)
+                )
+                try:
+                    await auth_helper.authenticate(qr_page_url, _QR_POLL_TIMEOUT)
+                except LoginFailed:
+                    pass  # Timeout is handled below
+                finally:
+                    poll_task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await poll_task
+            finally:
+                unregister_qr()
+                unregister_status()
+
+        if x_token_result:
+            values[CONF_X_TOKEN] = x_token_result[0]
+            return None
+
+        return "QR code was not scanned in time. Please try again."
+
     except Exception:
-        _LOGGER.exception("Error starting QR auth")
-        return "Unexpected error generating QR code. Check server logs."
-    return None
-
-
-async def _handle_qr_check(values: dict[str, ConfigValueType]) -> str | None:
-    """Check if QR code was scanned and exchange for x_token."""
-    csrf = values.get(CONF_QR_CSRF)
-    track_id = values.get(CONF_QR_TRACK_ID)
-    if not csrf or not track_id:
-        return "No active QR session. Click 'Get QR Code' first."
-
-    try:
-        async with ClientSession() as http_session:
-            session = YandexSession(http_session)
-            resp = await session.login_qr(str(csrf), str(track_id))
-
-        if not resp.ok:
-            errors = resp.errors
-            if "qr.not_scanned" in errors:
-                return "QR code not scanned yet. Open the link, scan with Yandex app, then try again."
-            return f"QR auth failed: {', '.join(errors)}"
-
-        # Success
-        values[CONF_X_TOKEN] = resp.x_token
-        values[CONF_QR_CSRF] = None
-        values[CONF_QR_TRACK_ID] = None
-    except Exception:
-        _LOGGER.exception("Error checking QR auth status")
+        _LOGGER.exception("Error during QR auth")
         return "Unexpected error during QR auth. Check server logs."
-    return None
 
 
 async def _handle_password_login(values: dict[str, ConfigValueType]) -> str | None:
@@ -230,35 +270,30 @@ async def get_config_entries(
     values: dict[str, ConfigValueType] | None = None,
 ) -> tuple[ConfigEntry, ...]:
     """Return Config entries to setup this provider."""
-    auth_error = await _handle_auth_action(mass, action, values)
+    auth_error: str | None = None
+
+    if values is not None and action is not None:
+        if action == CONF_ACTION_QR_START:
+            auth_error = await _handle_qr_login(mass, values)
+        elif action == CONF_ACTION_LOGIN:
+            auth_error = await _handle_password_login(values)
+        elif action == CONF_ACTION_CLEAR_AUTH:
+            values[CONF_X_TOKEN] = None
+            values[CONF_MUSIC_TOKEN] = None
 
     x_token = (values or {}).get(CONF_X_TOKEN)
     is_authenticated = x_token not in (None, "")
 
-    # QR session state
-    qr_track_id = (values or {}).get(CONF_QR_TRACK_ID)
-    has_qr_session = qr_track_id not in (None, "")
-
-    # Build QR page URL using MA webserver base URL
-    qr_page_url = ""
-    if has_qr_session:
-        qr_page_url = f"{mass.webserver.base_url}/yandex_station/qr"
-
     # Build status label
     if auth_error:
         label_text = f"⚠️ {auth_error}"
-    elif not is_authenticated and has_qr_session:
-        label_text = (
-            f"📱 Open this page to scan the QR code: {qr_page_url} — "
-            "Then click 'Check QR Status' below."
-        )
     elif not is_authenticated:
         label_text = (
             "Authenticate with your Yandex account. "
             "QR code login is recommended (works with 2FA). "
             "Password login works for accounts without 2FA."
         )
-    elif action in (CONF_ACTION_LOGIN, CONF_ACTION_QR_CHECK):
+    elif action in (CONF_ACTION_LOGIN, CONF_ACTION_QR_START):
         label_text = "✅ Authenticated successfully! Click Save to complete setup."
     else:
         label_text = "✅ Authenticated to Yandex. No further action required."
@@ -270,24 +305,16 @@ async def get_config_entries(
             type=ConfigEntryType.LABEL,
             label=label_text,
         ),
-        # ── QR code login (primary method, shown when not authenticated) ──
+        # ── QR code login (primary method) ──
         ConfigEntry(
             key=CONF_ACTION_QR_START,
             type=ConfigEntryType.ACTION,
-            label="Get QR Code",
-            description="Generate a QR code link for login via Yandex app.",
+            label="Login with QR Code",
+            description="Opens a popup with a QR code. Scan with Yandex app to login.",
             action=CONF_ACTION_QR_START,
-            hidden=is_authenticated or has_qr_session,
+            hidden=is_authenticated,
         ),
-        ConfigEntry(
-            key=CONF_ACTION_QR_CHECK,
-            type=ConfigEntryType.ACTION,
-            label="Check QR Status",
-            description="Check if QR code was scanned and approved.",
-            action=CONF_ACTION_QR_CHECK,
-            hidden=is_authenticated or not has_qr_session,
-        ),
-        # ── Password login (fallback, shown when not authenticated) ──
+        # ── Password login (fallback) ──
         ConfigEntry(
             key=CONF_USERNAME,
             type=ConfigEntryType.STRING,
@@ -345,23 +372,6 @@ async def get_config_entries(
             value=values.get(CONF_MUSIC_TOKEN, "") if values else "",
             category="advanced",
             advanced=True,
-        ),
-        # ── Hidden QR state fields ──
-        ConfigEntry(
-            key=CONF_QR_CSRF,
-            type=ConfigEntryType.STRING,
-            label="QR CSRF",
-            required=False,
-            hidden=True,
-            value=values.get(CONF_QR_CSRF, "") if values else "",
-        ),
-        ConfigEntry(
-            key=CONF_QR_TRACK_ID,
-            type=ConfigEntryType.STRING,
-            label="QR Track ID",
-            required=False,
-            hidden=True,
-            value=values.get(CONF_QR_TRACK_ID, "") if values else "",
         ),
     )
 
