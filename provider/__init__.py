@@ -6,10 +6,12 @@ Adapted from AlexxIT/YandexStation (MIT license).
 
 from __future__ import annotations
 
+import base64
+import io
 import logging
 from typing import TYPE_CHECKING
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, web
 from music_assistant_models.config_entries import ConfigEntry
 from music_assistant_models.enums import ConfigEntryType, ProviderFeature
 from music_assistant_models.errors import LoginFailed
@@ -40,8 +42,13 @@ _LOGGER = logging.getLogger(__name__)
 
 SUPPORTED_FEATURES: set[ProviderFeature] = set()
 
+# Module-level state for QR code web endpoint
+_qr_route_registered = False
+_qr_image_b64: str = ""
+
 
 async def _handle_auth_action(
+    mass: MusicAssistant,
     action: str | None,
     values: dict[str, ConfigValueType] | None,
 ) -> str | None:
@@ -50,7 +57,7 @@ async def _handle_auth_action(
         return None
 
     if action == CONF_ACTION_QR_START:
-        return await _handle_qr_start(values)
+        return await _handle_qr_start(mass, values)
 
     if action == CONF_ACTION_QR_CHECK:
         return await _handle_qr_check(values)
@@ -67,8 +74,64 @@ async def _handle_auth_action(
     return None
 
 
-async def _handle_qr_start(values: dict[str, ConfigValueType]) -> str | None:
-    """Start QR code auth — get QR URL from Yandex."""
+def _generate_qr_image(data: str) -> str:
+    """Generate QR code as base64-encoded PNG."""
+    import qrcode  # noqa: PLC0415
+
+    qr = qrcode.QRCode(box_size=8, border=2)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image()
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+async def _serve_qr_page(request: web.Request) -> web.Response:
+    """Serve HTML page with QR code image."""
+    _ = request  # unused
+    if not _qr_image_b64:
+        return web.Response(text="No QR code available. Click 'Get QR Code' first.", status=404)
+    html = f"""<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yandex Station — Scan QR Code</title>
+<style>
+  body {{ font-family: -apple-system, sans-serif; text-align: center;
+         padding: 40px 20px; background: #1a1a2e; color: #e0e0e0; }}
+  h1 {{ font-size: 1.5em; margin-bottom: 0.3em; }}
+  p {{ color: #aaa; margin-bottom: 24px; }}
+  img {{ border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+         background: white; padding: 16px; max-width: 90vw; }}
+  .hint {{ margin-top: 24px; font-size: 0.9em; color: #888; }}
+</style>
+</head><body>
+<h1>📱 Scan with Yandex App</h1>
+<p>Open Yandex app on your phone → Profile → Login via QR</p>
+<img src="data:image/png;base64,{_qr_image_b64}" alt="QR Code">
+<p class="hint">After scanning, go back to Music Assistant and click<br><b>Check QR Status</b></p>
+</body></html>"""
+    return web.Response(text=html, content_type="text/html")
+
+
+def _ensure_qr_route(mass: MusicAssistant) -> None:
+    """Register QR code web endpoint (idempotent)."""
+    global _qr_route_registered  # noqa: PLW0603
+    if _qr_route_registered:
+        return
+    try:
+        mass.webserver.register_dynamic_route("/yandex_station/qr", _serve_qr_page, "GET")
+        _qr_route_registered = True
+        _LOGGER.debug("Registered QR code endpoint at /yandex_station/qr")
+    except RuntimeError:
+        # Route already registered
+        _qr_route_registered = True
+
+
+async def _handle_qr_start(mass: MusicAssistant, values: dict[str, ConfigValueType]) -> str | None:
+    """Start QR code auth — get QR URL from Yandex and generate image."""
+    global _qr_image_b64  # noqa: PLW0603
     try:
         async with ClientSession() as http_session:
             session = YandexSession(http_session)
@@ -76,6 +139,10 @@ async def _handle_qr_start(values: dict[str, ConfigValueType]) -> str | None:
 
         if not qr_url:
             return "Failed to generate QR code. Try again."
+
+        # Generate QR code image and register web endpoint
+        _qr_image_b64 = _generate_qr_image(qr_url)
+        _ensure_qr_route(mass)
 
         # Store QR session state for the check step
         values[CONF_QR_CSRF] = csrf_token
@@ -157,13 +224,13 @@ async def _handle_password_login(values: dict[str, ConfigValueType]) -> str | No
 
 
 async def get_config_entries(
-    mass: MusicAssistant,  # noqa: ARG001
+    mass: MusicAssistant,
     instance_id: str | None = None,  # noqa: ARG001
     action: str | None = None,
     values: dict[str, ConfigValueType] | None = None,
 ) -> tuple[ConfigEntry, ...]:
     """Return Config entries to setup this provider."""
-    auth_error = await _handle_auth_action(action, values)
+    auth_error = await _handle_auth_action(mass, action, values)
 
     x_token = (values or {}).get(CONF_X_TOKEN)
     is_authenticated = x_token not in (None, "")
@@ -171,16 +238,18 @@ async def get_config_entries(
     # QR session state
     qr_track_id = (values or {}).get(CONF_QR_TRACK_ID)
     has_qr_session = qr_track_id not in (None, "")
-    qr_url = ""
+
+    # Build QR page URL using MA webserver base URL
+    qr_page_url = ""
     if has_qr_session:
-        qr_url = f"https://passport.yandex.ru/auth/magic/code/?track_id={qr_track_id}"
+        qr_page_url = f"{mass.webserver.base_url}/yandex_station/qr"
 
     # Build status label
     if auth_error:
         label_text = f"⚠️ {auth_error}"
     elif not is_authenticated and has_qr_session:
         label_text = (
-            f"📱 Open this link and scan the QR code with your Yandex app: {qr_url} "
+            f"📱 Open this page to scan the QR code: {qr_page_url} — "
             "Then click 'Check QR Status' below."
         )
     elif not is_authenticated:
