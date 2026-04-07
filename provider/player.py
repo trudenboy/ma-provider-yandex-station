@@ -250,7 +250,7 @@ class YandexStationPlayer(Player):
         self._needs_replay = False
         _LOGGER.info("[%s] play_media called: %s", self.player_id, media.title or media.uri)
         stream_url = await self.provider.mass.streams.resolve_stream_url(self.player_id, media)
-        _LOGGER.debug("[%s] Stream URL: %s", self.player_id, stream_url)
+        _LOGGER.debug("[%s] Stream URL resolved (length=%d)", self.player_id, len(stream_url))
 
         payload: dict[str, Any] = {
             "streamUrl": stream_url,

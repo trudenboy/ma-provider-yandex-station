@@ -146,6 +146,20 @@ class YandexStationProvider(PlayerProvider):
         info: AsyncServiceInfo | None,
     ) -> None:
         """Handle mDNS discovery callback (called by MA core)."""
+        if state_change.name == "Removed":
+            if info and info.properties:
+                props = info.properties
+                dev_id_raw = props.get(b"deviceId") or props.get("deviceId")
+                if dev_id_raw:
+                    dev_id = dev_id_raw.decode() if isinstance(dev_id_raw, bytes) else dev_id_raw
+                    player_id = f"ys_{dev_id}"
+                    existing = self.mass.players.get_player(player_id)
+                    if existing and isinstance(existing, YandexStationPlayer):
+                        existing.available = False
+                        existing.update_state()
+                        _LOGGER.debug("Marked player %s unavailable (mDNS removed)", player_id)
+            return
+
         if not info or not info.addresses:
             return
 
@@ -209,8 +223,10 @@ class YandexStationProvider(PlayerProvider):
         """Create and register a new YandexStationPlayer."""
         try:
             if not self._session:
-                self.logger.warning("Session not initialized, skipping player creation")
-                return
+                # Lazily initialize session for mDNS events arriving before discover_players
+                if not await self._init_session():
+                    self.logger.warning("Session not initialized, skipping player creation")
+                    return
 
             # Skip if already registered
             existing = self.mass.players.get_player(player_id)
