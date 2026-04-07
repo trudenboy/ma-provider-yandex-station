@@ -16,6 +16,7 @@ from music_assistant_models.enums import (
     PlayerFeature,
     PlayerType,
 )
+from music_assistant_models.errors import PlayerCommandFailed
 
 from music_assistant.constants import CONF_ENTRY_HTTP_PROFILE_DEFAULT_3, CONF_ENTRY_OUTPUT_CODEC
 from music_assistant.models.player import DeviceInfo, Player, PlayerMedia
@@ -259,7 +260,12 @@ class YandexStationPlayer(Player):
         result = await self.glagol.send(_external_command("radio_play", payload))
         _LOGGER.debug("[%s] radio_play result: %s", self.player_id, result)
 
-        if result and result.get("status") == "SUCCESS":
+        if not result or result.get("error"):
+            error_msg = (result or {}).get("error", "unknown error")
+            msg = f"radio_play failed: {error_msg}"
+            raise PlayerCommandFailed(msg)
+
+        if result.get("status") == "SUCCESS":
             # Glagol doesn't update playerState for externalCommandBypass playback,
             # so we set state optimistically.
             self._external_playing = True

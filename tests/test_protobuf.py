@@ -2,22 +2,7 @@
 
 from __future__ import annotations
 
-import importlib
-
-_mod = None
-for _name in (
-    "music_assistant.providers.yandex_station.protobuf",
-    "provider.protobuf",
-):
-    try:
-        _mod = importlib.import_module(_name)
-        break
-    except ModuleNotFoundError:
-        continue
-
-assert _mod is not None, "Could not import protobuf module"
-dumps = _mod.dumps
-loads = _mod.loads
+from music_assistant.providers.yandex_station.protobuf import dumps, loads
 
 
 def test_roundtrip_simple() -> None:

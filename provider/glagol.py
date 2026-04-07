@@ -101,9 +101,9 @@ class YandexGlagol:
             # First connection
             self.url = new_url
             self._connect_task = asyncio.create_task(self._connect(0))
-        elif host not in self.url:
-            # IP changed
-            _LOGGER.debug("[%s] IP address changed, reconnecting", self.name)
+        elif new_url != self.url:
+            # Endpoint changed (IP or port)
+            _LOGGER.debug("[%s] WebSocket endpoint changed, reconnecting", self.name)
             self.url = new_url
             if self.ws:
                 await self.ws.close()
@@ -267,10 +267,11 @@ class YandexGlagol:
             return future.result()
 
         except TimeoutError:
-            self._waiters.pop(request_id, None)
             return {"error": "timeout"}
 
         except Exception as e:
             _LOGGER.error("[%s] Send error: %r", self.name, e)
-            self._waiters.pop(request_id, None)
             return {"error": repr(e)}
+
+        finally:
+            self._waiters.pop(request_id, None)

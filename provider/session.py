@@ -168,6 +168,13 @@ class YandexSession:
         r: ClientResponse = await getattr(self._session, method)(url, **kwargs)
         if r.status == 200:
             return r
+
+        # Release the failed response to avoid connection leaks
+        try:
+            await r.read()
+        finally:
+            r.release()
+
         if r.status == 400:
             retry = 0
         elif r.status == 401:
@@ -191,6 +198,13 @@ class YandexSession:
         r: ClientResponse = await self._session.get(url, headers=headers, **kwargs)
         if r.status == 200:
             return r
+
+        # Release the failed response to avoid connection leaks
+        try:
+            await r.read()
+        finally:
+            r.release()
+
         if r.status == 403:
             self.music_token = None
 

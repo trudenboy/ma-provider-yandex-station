@@ -48,13 +48,15 @@ class YandexStationProvider(PlayerProvider):
 
     async def _init_session(self) -> bool:
         """Initialize Yandex HTTP session and login. Return True on success."""
-        x_token = str(self.config.get_value(CONF_X_TOKEN))
+        x_token_val = self.config.get_value(CONF_X_TOKEN)
         music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
         music_token = str(music_token_val) if music_token_val else None
 
-        if not x_token:
+        if not x_token_val:
             self.logger.warning("No x_token configured, cannot discover devices")
             return False
+
+        x_token = str(x_token_val)
 
         self._http_session = ClientSession()
         self._session = YandexSession(

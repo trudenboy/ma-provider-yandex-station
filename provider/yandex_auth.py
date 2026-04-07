@@ -18,6 +18,13 @@ from yarl import URL
 
 from music_assistant.helpers.auth import AuthenticationHelper
 
+from .constants import (
+    MUSIC_CLIENT_ID,
+    MUSIC_CLIENT_SECRET,
+    MUSIC_TOKEN_URL,
+    PASSPORT_API_URL,
+)
+
 if TYPE_CHECKING:
     from music_assistant import MusicAssistant
 
@@ -27,14 +34,8 @@ _LOGGER = logging.getLogger(__name__)
 PASSPORT_CLIENT_ID = "c0ebe342af7d48fbbbfcf2d2eedb8f9e"
 PASSPORT_CLIENT_SECRET = "ad0a908f0aa341a182a37ecd75bc319e"
 
-# Yandex Music OAuth credentials (from yandex-music-api)
-MUSIC_CLIENT_ID = "23cabbbdc6cd418abb4b39c32c41195d"
-MUSIC_CLIENT_SECRET = "53bc75238f0c4d08a118e51fe9203300"
-
-# Endpoints
+# Passport web URL (distinct from API URL in constants.py)
 PASSPORT_URL = "https://passport.yandex.ru"
-PASSPORT_API_URL = "https://mobileproxy.passport.yandex.net"
-MUSIC_TOKEN_URL = "https://oauth.mobile.yandex.net/1/token"
 
 # Mobile User-Agent required for Yandex Passport to return CSRF token in HTML
 _MOBILE_USER_AGENT = (
@@ -267,14 +268,31 @@ async def login_with_cookies(cookies: str) -> tuple[str, str]:
         except json.JSONDecodeError as err:
             raise LoginFailed("Invalid JSON in cookies") from err
 
-        # Find yandex domain from cookies
-        for item in raw:
+        if not isinstance(raw, list):
+            raise LoginFailed("Invalid JSON cookies format. Expected an array of cookie objects.")
+
+        validated_cookies: list[str] = []
+
+        # Find yandex domain from cookies and validate required fields
+        for idx, item in enumerate(raw):
+            if not isinstance(item, dict):
+                raise LoginFailed(
+                    f"Invalid JSON cookies format. Cookie at index {idx} must be an object."
+                )
+
             domain = item.get("domain", "")
             if domain.startswith(".yandex."):
                 host = domain
-                break
 
-        cookies = "; ".join(f"{p['name']}={p['value']}" for p in raw)
+            if "name" not in item or "value" not in item:
+                raise LoginFailed(
+                    f"Invalid JSON cookies format. Cookie at index {idx} must contain "
+                    "'name' and 'value'."
+                )
+
+            validated_cookies.append(f"{item['name']}={item['value']}")
+
+        cookies = "; ".join(validated_cookies)
 
     if "=" not in cookies:
         raise LoginFailed("Invalid cookie format. Expected 'key=value; ...' or JSON array.")
