@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1] - 2026-04-07
+
+- fix: remove duplicate type annotation for _auth_payload (mypy no-redef) (`a11e504`)
+- fix: add --frozen to uv run in pre-commit to prevent uv.lock modification in CI (`27e7f4f`)
+- fix: add changelog marker for release workflow (`0000d88`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
