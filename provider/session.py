@@ -1,7 +1,8 @@
-"""Yandex Session — authentication and HTTP client.
+"""Yandex Session — HTTP client with cookie/CSRF management.
 
 Adapted from AlexxIT/YandexStation (MIT license).
-Stripped of Home Assistant dependencies; uses pure aiohttp.
+Authentication flows moved to yandex_auth.py; this module handles
+only HTTP requests with automatic cookie refresh and CSRF token management.
 """
 
 from __future__ import annotations
@@ -23,49 +24,13 @@ from .constants import (
     MUSIC_CLIENT_SECRET,
     MUSIC_TOKEN_URL,
     PASSPORT_API_URL,
-    PASSPORT_CLIENT_ID,
-    PASSPORT_CLIENT_SECRET,
-    PASSPORT_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class LoginResponse:
-    """Wrapper for Yandex Passport login responses."""
-
-    def __init__(self, resp: dict[str, Any]) -> None:
-        """Wrap a raw Yandex Passport response dict."""
-        self.raw = resp
-
-    @property
-    def ok(self) -> bool:
-        """Return True if login succeeded."""
-        return self.raw.get("status") == "ok"
-
-    @property
-    def errors(self) -> list[str]:
-        """Return list of error codes."""
-        return list(self.raw.get("errors", []))
-
-    @property
-    def error(self) -> str:
-        """Return first error code."""
-        return str(self.raw["errors"][0])
-
-    @property
-    def x_token(self) -> str:
-        """Return the X-Token from response."""
-        return str(self.raw["x_token"])
-
-    @property
-    def error_captcha_required(self) -> bool:
-        """Return True if captcha is required."""
-        return "captcha.required" in self.errors
-
-
 class YandexSession:
-    """Yandex authentication session and HTTP client.
+    """Yandex HTTP client with cookie/CSRF management.
 
     Manages x_token (long-lived ~1 year), music_token (for Glagol API),
     cookies, and CSRF tokens for Quasar API.
@@ -119,7 +84,7 @@ class YandexSession:
         payload = {"type": "x-token", "retpath": "https://www.yandex.ru"}
         headers = {"Ya-Consumer-Authorization": f"OAuth {x_token}"}
         async with self._session.post(
-            "https://mobileproxy.passport.yandex.net/1/bundle/auth/x_token/",
+            f"{PASSPORT_API_URL}/1/bundle/auth/x_token/",
             data=payload,
             headers=headers,
         ) as r:
@@ -152,163 +117,6 @@ class YandexSession:
         """Ensure music_token is available, fetching it if needed."""
         if not self.music_token and self.x_token:
             self.music_token = await self.get_music_token(self.x_token)
-
-    # ── QR code login flow (magic_x_token → x_token) ───────────
-
-    async def get_qr(self) -> tuple[str | None, str | None, str | None]:
-        """Start QR code auth session.
-
-        Returns (qr_url, csrf_token, track_id) or (None, None, None).
-        """
-        _LOGGER.debug("Starting QR code auth")
-
-        # Step 1: Get CSRF token
-        async with self._session.get(f"{PASSPORT_URL}/am?app_platform=android") as r:
-            raw = await r.text()
-            m = re.search(r'"csrf_token"\s*value="([^"]+)"', raw)
-            if not m:
-                _LOGGER.error("Failed to get CSRF token for QR auth")
-                return None, None, None
-
-        # Step 2: Request QR code track_id
-        async with self._session.post(
-            f"{PASSPORT_URL}/registration-validations/auth/password/submit",
-            data={
-                "csrf_token": m[1],
-                "retpath": "https://passport.yandex.ru/profile",
-                "with_code": 1,
-            },
-        ) as r:
-            resp = await r.json()
-
-        if resp.get("status") != "ok":
-            _LOGGER.error("Failed to create QR session: %s", resp)
-            return None, None, None
-
-        csrf_token = resp["csrf_token"]
-        track_id = resp["track_id"]
-        qr_url = f"{PASSPORT_URL}/auth/magic/code/?track_id={track_id}"
-        _LOGGER.info("QR auth URL: %s", qr_url)
-        return qr_url, csrf_token, track_id
-
-    async def login_qr(self, csrf_token: str, track_id: str) -> LoginResponse:
-        """Check if QR code was scanned and approved. Exchange for x_token if so."""
-        _LOGGER.debug("Checking QR auth status")
-        self._auth_payload = {"csrf_token": csrf_token, "track_id": track_id}
-
-        async with self._session.post(
-            f"{PASSPORT_URL}/auth/new/magic/status/",
-            data=self._auth_payload,
-        ) as r:
-            resp = await r.json()
-
-        if resp.get("status") != "ok":
-            return LoginResponse({"status": "error", "errors": ["qr.not_scanned"]})
-
-        # QR approved — exchange cookies for x_token
-        return await self.login_cookies()
-
-    # ── Passport login flow (username/password → x_token) ────────
-
-    async def login_username(self, username: str) -> LoginResponse:
-        """Start multi-step auth: get CSRF token, submit username, return track_id."""
-        _LOGGER.debug("Starting passport login for %s", username)
-
-        # Step 1: Get CSRF token from passport page
-        async with self._session.get(f"{PASSPORT_URL}/am?app_platform=android") as r:
-            raw = await r.text()
-            m = re.search(r'"csrf_token"\s*value="([^"]+)"', raw)
-            if not m:
-                return LoginResponse({"status": "error", "errors": ["csrf_token.not_found"]})
-            self._auth_payload = {"csrf_token": m[1]}
-
-        # Step 2: Submit username
-        async with self._session.post(
-            f"{PASSPORT_URL}/registration-validations/auth/multi_step/start",
-            data={**self._auth_payload, "login": username},
-        ) as r:
-            resp = await r.json()
-
-        if resp.get("can_register") is True:
-            return LoginResponse({"status": "error", "errors": ["account.not_found"]})
-
-        if not resp.get("can_authorize"):
-            return LoginResponse({"status": "error", "errors": ["auth.not_available"]})
-
-        self._auth_payload["track_id"] = resp["track_id"]
-        return LoginResponse(resp)
-
-    async def login_password(self, password: str) -> LoginResponse:
-        """Submit password in multi-step auth flow, then obtain x_token."""
-        if not hasattr(self, "_auth_payload") or "track_id" not in self._auth_payload:
-            return LoginResponse({"status": "error", "errors": ["auth.no_track_id"]})
-
-        _LOGGER.debug("Submitting password for passport login")
-
-        async with self._session.post(
-            f"{PASSPORT_URL}/registration-validations/auth/multi_step/commit_password",
-            data={
-                **self._auth_payload,
-                "password": password,
-                "retpath": f"{PASSPORT_URL}/am/finish?status=ok&from=Login",
-            },
-        ) as r:
-            resp = await r.json()
-
-        if resp.get("status") != "ok":
-            return LoginResponse(resp)
-
-        # If Yandex returns a redirect (2FA challenge), password login can't complete
-        if "redirect_url" in resp:
-            _LOGGER.info("Password login returned redirect (2FA). Use QR login instead.")
-            return LoginResponse({"status": "error", "errors": ["redirect.unsupported"]})
-
-        # No redirect — exchange session cookies for x_token
-        return await self.login_cookies()
-
-    async def login_cookies(self) -> LoginResponse:
-        """Exchange current session cookies for x_token."""
-        cookies = "; ".join(
-            f"{c.key}={c.value}"
-            for c in self._session.cookie_jar
-            if c["domain"].endswith("yandex.ru")
-        )
-
-        async with self._session.post(
-            f"{PASSPORT_API_URL}/1/bundle/oauth/token_by_sessionid",
-            data={
-                "client_id": PASSPORT_CLIENT_ID,
-                "client_secret": PASSPORT_CLIENT_SECRET,
-            },
-            headers={
-                "Ya-Client-Host": "passport.yandex.ru",
-                "Ya-Client-Cookie": cookies,
-            },
-        ) as r:
-            resp = await r.json()
-
-        _LOGGER.debug("token_by_sessionid response keys=%s", list(resp.keys()))
-        if "access_token" not in resp:
-            _LOGGER.warning("token_by_sessionid failed: %s", resp)
-            return LoginResponse({"status": "error", "errors": ["token.exchange_failed"]})
-
-        x_token = resp["access_token"]
-        self.x_token = x_token
-
-        # Validate token and get user info
-        return await self.validate_token(x_token)
-
-    async def validate_token(self, x_token: str) -> LoginResponse:
-        """Validate x_token and return user info."""
-        async with self._session.get(
-            f"{PASSPORT_API_URL}/1/bundle/account/short_info/",
-            params={"avatar_size": "islands-300"},
-            headers={"Authorization": f"OAuth {x_token}"},
-        ) as r:
-            resp = await r.json()
-
-        resp["x_token"] = x_token
-        return LoginResponse(resp)
 
     # ── HTTP methods ─────────────────────────────────────────────
 
