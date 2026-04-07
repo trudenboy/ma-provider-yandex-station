@@ -19,6 +19,7 @@ from music_assistant_models.enums import (
 from music_assistant.constants import CONF_ENTRY_HTTP_PROFILE_DEFAULT_3, CONF_ENTRY_OUTPUT_CODEC
 from music_assistant.models.player import DeviceInfo, Player, PlayerMedia
 
+from . import protobuf
 from .constants import CONF_VOICE_CONTROL
 
 CONF_ENTRY_VOICE_CONTROL = ConfigEntry(
@@ -33,8 +34,6 @@ CONF_ENTRY_VOICE_CONTROL = ConfigEntry(
     required=False,
     advanced=True,
 )
-
-from . import protobuf
 
 if TYPE_CHECKING:
     from .glagol import YandexGlagol
@@ -332,13 +331,80 @@ class YandexStationPlayer(Player):
 
     # ── State updates from Glagol WebSocket ──────────────────────
 
+    def _handle_voice_interrupt(self, alice_state: str) -> None:
+        """Handle Alice activation during bypass playback."""
+        _LOGGER.info(
+            "[%s] Alice active (%s) during bypass — pausing MA queue",
+            self.player_id,
+            alice_state,
+        )
+        self._external_playing = False
+        self._external_media = None
+        self._needs_replay = True
+        self._attr_playback_state = PlaybackState.PAUSED
+        self._alice_spoke = False
+        self._pre_voice_volume = self._attr_volume_level or 0
+        if self._voice_resume_task:
+            self._voice_resume_task.cancel()
+            self._voice_resume_task = None
+
+    def _handle_voice_end(self, alice_state: str) -> None:
+        """Handle end of voice interaction — decide whether to auto-resume."""
+        if alice_state == "SPEAKING":
+            self._alice_spoke = True
+
+        if (
+            self._prev_alice_state in ("LISTENING", "SPEAKING")
+            and alice_state == "IDLE"
+            and not self._voice_resume_task
+        ):
+            current_volume = self._attr_volume_level or 0
+            volume_changed = current_volume != self._pre_voice_volume
+
+            if self._alice_spoke or volume_changed:
+                reason = "speech" if self._alice_spoke else "volume change"
+                _LOGGER.info(
+                    "[%s] Voice command ended (%s) — scheduling auto-resume",
+                    self.player_id,
+                    reason,
+                )
+                self._voice_resume_task = asyncio.create_task(self._delayed_resume())
+            else:
+                _LOGGER.info("[%s] Silent voice command — staying paused", self.player_id)
+                self._needs_replay = True
+
+    def _update_playback_state(self, playing: bool, alice_state: str) -> None:
+        """Update playback state from Glagol data."""
+        if self._external_playing:
+            if self._voice_control_enabled and alice_state not in ("IDLE", ""):
+                self._handle_voice_interrupt(alice_state)
+            else:
+                self._attr_playback_state = PlaybackState.PLAYING
+                self._attr_powered = True
+        elif playing:
+            if self._needs_replay:
+                _LOGGER.info(
+                    "[%s] Native player active after voice cmd — accepting",
+                    self.player_id,
+                )
+                self._needs_replay = False
+                if self._voice_resume_task:
+                    self._voice_resume_task.cancel()
+                    self._voice_resume_task = None
+            self._attr_playback_state = PlaybackState.PLAYING
+            self._attr_powered = True
+        else:
+            if self._voice_control_enabled and self._needs_replay:
+                self._handle_voice_end(alice_state)
+            if self._attr_playback_state == PlaybackState.PLAYING:
+                self._attr_playback_state = PlaybackState.IDLE
+
     def _on_glagol_update(self, data: dict[str, Any] | None) -> None:
         """Handle state update from Glagol WebSocket.
 
         Called from the WebSocket receive loop (already in asyncio context).
         """
         if data is None:
-            # Disconnected
             self._attr_available = False
             self.update_state()
             return
@@ -352,7 +418,6 @@ class YandexStationPlayer(Player):
             )
             return
 
-        # Log full state once on first update or state change
         player_state = state.get("playerState", {})
         playing = state.get("playing", False)
         extra = player_state.get("extra", {})
@@ -373,79 +438,9 @@ class YandexStationPlayer(Player):
         if "volume" in state:
             self._attr_volume_level = round(state["volume"] * 100)
 
-        # Alice state
         alice_state = state.get("aliceState", "")
 
-        # Player state — Glagol doesn't report externalCommandBypass playback,
-        # so we preserve our optimistic state when _external_playing is True.
-        if self._external_playing:
-            if self._voice_control_enabled and alice_state not in ("IDLE", ""):
-                # Voice command detected during bypass playback.
-                # Pause MA queue and start analyzing what the user wants.
-                _LOGGER.info(
-                    "[%s] Alice active (%s) during bypass — pausing MA queue",
-                    self.player_id,
-                    alice_state,
-                )
-                self._external_playing = False
-                self._external_media = None
-                self._needs_replay = True
-                self._attr_playback_state = PlaybackState.PAUSED
-                self._alice_spoke = False
-                self._pre_voice_volume = self._attr_volume_level or 0
-                if self._voice_resume_task:
-                    self._voice_resume_task.cancel()
-                    self._voice_resume_task = None
-            else:
-                self._attr_playback_state = PlaybackState.PLAYING
-                self._attr_powered = True
-        elif playing:
-            if self._needs_replay:
-                _LOGGER.info(
-                    "[%s] Native player active after voice cmd — accepting",
-                    self.player_id,
-                )
-                self._needs_replay = False
-                if self._voice_resume_task:
-                    self._voice_resume_task.cancel()
-                    self._voice_resume_task = None
-            self._attr_playback_state = PlaybackState.PLAYING
-            self._attr_powered = True
-        else:
-            if self._voice_control_enabled and self._needs_replay:
-                # Track whether Alice spoke (informational response)
-                if alice_state == "SPEAKING":
-                    self._alice_spoke = True
-
-                # Detect end of voice interaction: transition to IDLE
-                if (
-                    self._prev_alice_state in ("LISTENING", "SPEAKING")
-                    and alice_state == "IDLE"
-                    and not self._voice_resume_task
-                ):
-                    current_volume = self._attr_volume_level or 0
-                    volume_changed = current_volume != self._pre_voice_volume
-
-                    if self._alice_spoke or volume_changed:
-                        # Alice answered a question or volume was adjusted — resume
-                        reason = "speech" if self._alice_spoke else "volume change"
-                        _LOGGER.info(
-                            "[%s] Voice command ended (%s) — scheduling auto-resume",
-                            self.player_id,
-                            reason,
-                        )
-                        self._voice_resume_task = asyncio.create_task(self._delayed_resume())
-                    else:
-                        # Silent command (стоп/пауза) — stay paused, let user resume via UI
-                        _LOGGER.info(
-                            "[%s] Silent voice command — staying paused",
-                            self.player_id,
-                        )
-                        self._needs_replay = True  # Play button will resume
-
-            # Only our own pause() sets PAUSED — don't override it here.
-            if self._attr_playback_state == PlaybackState.PLAYING:
-                self._attr_playback_state = PlaybackState.IDLE
+        self._update_playback_state(playing, alice_state)
 
         self._prev_alice_state = alice_state
 
