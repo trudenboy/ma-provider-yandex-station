@@ -347,7 +347,9 @@ class YandexStationPlayer(Player):
 
         state = data.get("state", {})
         if not state:
-            _LOGGER.debug("[%s] No 'state' in Glagol data, keys: %s", self.player_id, list(data.keys()))
+            _LOGGER.debug(
+                "[%s] No 'state' in Glagol data, keys: %s", self.player_id, list(data.keys())
+            )
             return
 
         # Log full state once on first update or state change
@@ -382,7 +384,8 @@ class YandexStationPlayer(Player):
                 # Pause MA queue and start analyzing what the user wants.
                 _LOGGER.info(
                     "[%s] Alice active (%s) during bypass — pausing MA queue",
-                    self.player_id, alice_state,
+                    self.player_id,
+                    alice_state,
                 )
                 self._external_playing = False
                 self._external_media = None
@@ -428,13 +431,15 @@ class YandexStationPlayer(Player):
                         reason = "speech" if self._alice_spoke else "volume change"
                         _LOGGER.info(
                             "[%s] Voice command ended (%s) — scheduling auto-resume",
-                            self.player_id, reason,
+                            self.player_id,
+                            reason,
                         )
                         self._voice_resume_task = asyncio.create_task(self._delayed_resume())
                     else:
                         # Silent command (стоп/пауза) — stay paused, let user resume via UI
                         _LOGGER.info(
-                            "[%s] Silent voice command — staying paused", self.player_id,
+                            "[%s] Silent voice command — staying paused",
+                            self.player_id,
                         )
                         self._needs_replay = True  # Play button will resume
 
