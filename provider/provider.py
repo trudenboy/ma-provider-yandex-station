@@ -72,7 +72,8 @@ class YandexStationProvider(PlayerProvider):
             await self._session.ensure_music_token()
         except Exception:
             self.logger.exception("Error during token login")
-            await self._http_session.close()
+            if self._http_session:
+                await self._http_session.close()
             self._http_session = None
             self._session = None
             return False
@@ -93,6 +94,7 @@ class YandexStationProvider(PlayerProvider):
             return
 
         # Load device list from Quasar cloud API
+        assert self._session is not None  # guaranteed by _init_session()
         self._quasar = YandexQuasar(self._session)
         speakers: list[dict[str, Any]] = []
         try:
