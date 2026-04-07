@@ -14,6 +14,7 @@ CONF_COOKIES = "cookies"
 CONF_ACTION_AUTH_QR = "action_auth_qr"
 CONF_ACTION_AUTH_COOKIES = "action_auth_cookies"
 CONF_ACTION_CLEAR_AUTH = "action_clear_auth"
+CONF_VOICE_CONTROL = "voice_control"
 
 # Yandex API endpoints
 GLAGOL_TOKEN_URL = "https://quasar.yandex.net/glagol/token"

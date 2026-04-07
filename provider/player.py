@@ -18,6 +18,22 @@ from music_assistant_models.enums import (
 
 from music_assistant.constants import CONF_ENTRY_HTTP_PROFILE_DEFAULT_3, CONF_ENTRY_OUTPUT_CODEC
 from music_assistant.models.player import DeviceInfo, Player, PlayerMedia
+from music_assistant_models.config_entries import ConfigEntry, ConfigEntryType, ConfigValueType
+
+from .constants import CONF_VOICE_CONTROL
+
+CONF_ENTRY_VOICE_CONTROL = ConfigEntry(
+    key=CONF_VOICE_CONTROL,
+    type=ConfigEntryType.BOOLEAN,
+    label="Experimental: Voice control integration",
+    description=(
+        "Auto-resume MA queue after voice commands like 'Алиса, стоп' or 'Алиса, дальше'. "
+        "Experimental — may cause unexpected behavior."
+    ),
+    default_value=False,
+    required=False,
+    advanced=True,
+)
 
 from . import protobuf
 
@@ -78,6 +94,10 @@ class YandexStationPlayer(Player):
         self._external_media: PlayerMedia | None = None
         # Set after pause of external playback — play() must re-trigger queue
         self._needs_replay = False
+        # Track previous alice state to detect LISTENING→IDLE transitions
+        self._prev_alice_state: str = ""
+        # Timer for auto-resume after voice command
+        self._voice_resume_task: asyncio.Task[None] | None = None
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -118,7 +138,13 @@ class YandexStationPlayer(Player):
         return [
             CONF_ENTRY_OUTPUT_CODEC,
             CONF_ENTRY_HTTP_PROFILE_DEFAULT_3,
+            CONF_ENTRY_VOICE_CONTROL,
         ]
+
+    @property
+    def _voice_control_enabled(self) -> bool:
+        """Whether experimental voice control integration is enabled."""
+        return bool(self._config.get_value(CONF_VOICE_CONTROL))
 
     def update_connection(self, host: str, port: int) -> None:
         """Update connection info when mDNS reports new IP."""
@@ -282,8 +308,25 @@ class YandexStationPlayer(Player):
 
     async def on_unload(self) -> None:
         """Clean up on player unload."""
+        if self._voice_resume_task:
+            self._voice_resume_task.cancel()
         await super().on_unload()
         await self.glagol.stop()
+
+    async def _delayed_resume(self) -> None:
+        """Auto-resume MA queue after a voice command that didn't start native player."""
+        try:
+            await asyncio.sleep(3)
+            if self._needs_replay:
+                _LOGGER.info("[%s] Auto-resuming MA queue after voice command", self.player_id)
+                self._needs_replay = False
+                queue = self.mass.player_queues.get_active_queue(self.player_id)
+                if queue:
+                    await self.mass.player_queues.resume(queue.queue_id)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._voice_resume_task = None
 
     # ── State updates from Glagol WebSocket ──────────────────────
 
@@ -332,8 +375,8 @@ class YandexStationPlayer(Player):
         # Player state — Glagol doesn't report externalCommandBypass playback,
         # so we preserve our optimistic state when _external_playing is True.
         if self._external_playing:
-            # Detect when user spoke to Alice during bypass playback
-            if alice_state not in ("IDLE", ""):
+            if self._voice_control_enabled and alice_state not in ("IDLE", ""):
+                # Experimental: detect voice command during bypass playback
                 _LOGGER.info(
                     "[%s] Alice active (%s) during bypass — pausing MA queue",
                     self.player_id, alice_state,
@@ -342,24 +385,38 @@ class YandexStationPlayer(Player):
                 self._external_media = None
                 self._needs_replay = True
                 self._attr_playback_state = PlaybackState.PAUSED
+                if self._voice_resume_task:
+                    self._voice_resume_task.cancel()
+                    self._voice_resume_task = None
             else:
                 self._attr_playback_state = PlaybackState.PLAYING
                 self._attr_powered = True
         elif playing:
             if self._needs_replay:
-                # Native player started after voice command during bypass.
-                # User likely said "дальше" — native player is now active.
-                # Let it play, clear our replay flag.
                 _LOGGER.info("[%s] Native player active after voice cmd — accepting", self.player_id)
                 self._needs_replay = False
+                if self._voice_resume_task:
+                    self._voice_resume_task.cancel()
+                    self._voice_resume_task = None
             self._attr_playback_state = PlaybackState.PLAYING
             self._attr_powered = True
         else:
-            # Glagol always reports stale progress from the last native track,
-            # so we can't use progress > 0 to detect PAUSED.
+            # Experimental: auto-resume after voice command
+            if (
+                self._voice_control_enabled
+                and self._needs_replay
+                and self._prev_alice_state in ("LISTENING", "SPEAKING")
+                and alice_state == "IDLE"
+                and not self._voice_resume_task
+            ):
+                _LOGGER.info("[%s] Voice command ended, scheduling MA resume", self.player_id)
+                self._voice_resume_task = asyncio.create_task(self._delayed_resume())
+
             # Only our own pause() sets PAUSED — don't override it here.
             if self._attr_playback_state == PlaybackState.PLAYING:
                 self._attr_playback_state = PlaybackState.IDLE
+
+        self._prev_alice_state = alice_state
 
         # Power detection from alice state (only when not in external playback)
         if not self._external_playing:
