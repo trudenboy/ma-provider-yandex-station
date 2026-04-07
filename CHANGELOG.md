@@ -30,6 +30,13 @@
 
 ---
 
+## [0.3.0] - 2026-04-07
+
+- feat(player): add power control and update_form helper (`a5dc2c0`)
+- chore: update changelog for v0.2.0 [skip ci] (`f2a9246`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
