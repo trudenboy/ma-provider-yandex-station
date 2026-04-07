@@ -7,7 +7,7 @@
   "credits": [
     "[AlexxIT/YandexStation](https://github.com/AlexxIT/YandexStation)"
   ],
-  "requirements": ["PyJWT>=2.0.0"],
+  "requirements": [],
   "documentation": "https://www.music-assistant.io/player-support/yandex-station/",
   "stage": "beta",
   "multi_instance": false,
