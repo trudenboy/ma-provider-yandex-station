@@ -98,6 +98,9 @@ class YandexStationPlayer(Player):
         self._prev_alice_state: str = ""
         # Timer for auto-resume after voice command
         self._voice_resume_task: asyncio.Task[None] | None = None
+        # Voice command analysis: did Alice speak? Was volume changed?
+        self._alice_spoke: bool = False
+        self._pre_voice_volume: int = 0
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -376,7 +379,8 @@ class YandexStationPlayer(Player):
         # so we preserve our optimistic state when _external_playing is True.
         if self._external_playing:
             if self._voice_control_enabled and alice_state not in ("IDLE", ""):
-                # Experimental: detect voice command during bypass playback
+                # Voice command detected during bypass playback.
+                # Pause MA queue and start analyzing what the user wants.
                 _LOGGER.info(
                     "[%s] Alice active (%s) during bypass — pausing MA queue",
                     self.player_id, alice_state,
@@ -385,6 +389,8 @@ class YandexStationPlayer(Player):
                 self._external_media = None
                 self._needs_replay = True
                 self._attr_playback_state = PlaybackState.PAUSED
+                self._alice_spoke = False
+                self._pre_voice_volume = self._attr_volume_level or 0
                 if self._voice_resume_task:
                     self._voice_resume_task.cancel()
                     self._voice_resume_task = None
@@ -401,16 +407,34 @@ class YandexStationPlayer(Player):
             self._attr_playback_state = PlaybackState.PLAYING
             self._attr_powered = True
         else:
-            # Experimental: auto-resume after voice command
-            if (
-                self._voice_control_enabled
-                and self._needs_replay
-                and self._prev_alice_state in ("LISTENING", "SPEAKING")
-                and alice_state == "IDLE"
-                and not self._voice_resume_task
-            ):
-                _LOGGER.info("[%s] Voice command ended, scheduling MA resume", self.player_id)
-                self._voice_resume_task = asyncio.create_task(self._delayed_resume())
+            if self._voice_control_enabled and self._needs_replay:
+                # Track whether Alice spoke (informational response)
+                if alice_state == "SPEAKING":
+                    self._alice_spoke = True
+
+                # Detect end of voice interaction: transition to IDLE
+                if (
+                    self._prev_alice_state in ("LISTENING", "SPEAKING")
+                    and alice_state == "IDLE"
+                    and not self._voice_resume_task
+                ):
+                    current_volume = self._attr_volume_level or 0
+                    volume_changed = current_volume != self._pre_voice_volume
+
+                    if self._alice_spoke or volume_changed:
+                        # Alice answered a question or volume was adjusted — resume
+                        reason = "speech" if self._alice_spoke else "volume change"
+                        _LOGGER.info(
+                            "[%s] Voice command ended (%s) — scheduling auto-resume",
+                            self.player_id, reason,
+                        )
+                        self._voice_resume_task = asyncio.create_task(self._delayed_resume())
+                    else:
+                        # Silent command (стоп/пауза) — stay paused, let user resume via UI
+                        _LOGGER.info(
+                            "[%s] Silent voice command — staying paused", self.player_id,
+                        )
+                        self._needs_replay = True  # Play button will resume
 
             # Only our own pause() sets PAUSED — don't override it here.
             if self._attr_playback_state == PlaybackState.PLAYING:
