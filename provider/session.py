@@ -220,7 +220,7 @@ class YandexSession:
             m = re.search(r'"csrf_token"\s*value="([^"]+)"', raw)
             if not m:
                 return LoginResponse({"status": "error", "errors": ["csrf_token.not_found"]})
-            self._auth_payload: dict[str, str] = {"csrf_token": m[1]}
+            self._auth_payload = {"csrf_token": m[1]}
 
         # Step 2: Submit username
         async with self._session.post(
