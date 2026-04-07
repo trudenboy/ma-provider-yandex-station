@@ -8,6 +8,12 @@
 
 ---
 
+## [0.1.2] - 2026-04-07
+
+- chore: update changelog for v0.1.1 [skip ci] (`8826bda`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
