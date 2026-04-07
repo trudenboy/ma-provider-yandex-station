@@ -9,6 +9,7 @@
   ],
   "requirements": ["PyJWT>=2.0.0"],
   "documentation": "https://trudenboy.github.io/ma-provider-yandex-station/",
+  "stage": "alpha",
   "multi_instance": false,
   "builtin": false,
   "mdns_discovery": ["_yandexio._tcp.local."]
