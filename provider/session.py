@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
-import pickle
 import re
 import time
 from typing import TYPE_CHECKING, Any
+
+import yarl
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse, ClientSession
@@ -36,9 +38,6 @@ class YandexSession:
     cookies, and CSRF tokens for Quasar API.
     """
 
-    csrf_token: str | None = None
-    last_ts: float = 0
-
     def __init__(
         self,
         session: ClientSession,
@@ -50,13 +49,19 @@ class YandexSession:
         self._session = session
         self.x_token = x_token
         self.music_token = music_token
+        self.csrf_token: str | None = None
+        self.last_ts: float = 0
 
-        # Restore cookies from base64-encoded pickle
+        # Restore cookies from JSON-serialized list
         if cookie:
             try:
-                raw = base64.b64decode(cookie)
-                self._session.cookie_jar._cookies = pickle.loads(raw)  # type: ignore[attr-defined]  # noqa: S301
-                self._session.cookie_jar.clear(lambda _x: False)
+                raw = base64.b64decode(cookie).decode()
+                cookie_list: list[dict[str, str]] = json.loads(raw)
+                for c in cookie_list:
+                    self._session.cookie_jar.update_cookies(
+                        {c["name"]: c["value"]},
+                        response_url=yarl.URL(c.get("domain", "https://yandex.ru")),
+                    )
             except Exception:
                 _LOGGER.warning("Failed to restore cookies from saved state")
 
@@ -200,6 +205,15 @@ class YandexSession:
 
     @property
     def cookie(self) -> str:
-        """Serialize cookies to base64 for persistent storage."""
-        raw = pickle.dumps(self._session.cookie_jar._cookies, pickle.HIGHEST_PROTOCOL)  # type: ignore[attr-defined]
+        """Serialize cookies to base64 JSON for persistent storage."""
+        cookies: list[dict[str, str]] = []
+        for cookie in self._session.cookie_jar:
+            cookies.append(
+                {
+                    "name": cookie.key,
+                    "value": cookie.value,
+                    "domain": f"https://{cookie['domain']}" if cookie.get("domain") else "",
+                }
+            )
+        raw = json.dumps(cookies).encode()
         return base64.b64encode(raw).decode()

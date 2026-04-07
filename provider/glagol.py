@@ -15,7 +15,12 @@ import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from aiohttp import ClientConnectorError, ClientWebSocketResponse, ServerTimeoutError
+from aiohttp import (
+    ClientConnectorError,
+    ClientWebSocketResponse,
+    ServerTimeoutError,
+    WSMsgType,
+)
 
 from .constants import (
     GLAGOL_TOKEN_URL,
@@ -135,6 +140,15 @@ class YandexGlagol:
                 if isinstance(msg.data, ServerTimeoutError):
                     raise msg.data
 
+                if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSING, WSMsgType.CLOSED):
+                    _LOGGER.debug("[%s] WS close frame received", self.name)
+                    break
+                if msg.type == WSMsgType.ERROR:
+                    _LOGGER.warning("[%s] WS error frame: %s", self.name, msg.data)
+                    break
+                if msg.type != WSMsgType.TEXT:
+                    continue
+
                 data = json.loads(msg.data)
                 fails = 0  # Any message = reset fails
 
@@ -236,6 +250,8 @@ class YandexGlagol:
 
         request_id = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
+        future: asyncio.Future[dict[str, Any]] = loop.create_future()
+        self._waiters[request_id] = future
 
         try:
             await self.ws.send_json(
@@ -247,10 +263,8 @@ class YandexGlagol:
                 }
             )
 
-            future: asyncio.Future[dict[str, Any]] = loop.create_future()
-            self._waiters[request_id] = future
             await asyncio.wait_for(future, WS_COMMAND_TIMEOUT)
-            return self._waiters.pop(request_id).result()
+            return future.result()
 
         except TimeoutError:
             self._waiters.pop(request_id, None)

@@ -102,7 +102,7 @@ def dumps(data: dict[int, str]) -> bytes:
     """Encode dict to protobuf wire format (string values only)."""
     b = bytearray()
     for tag, value in data.items():
-        b.append(tag << 3 | 2)
+        _append_varint(b, tag << 3 | 2)
         encoded = value.encode()
         _append_varint(b, len(encoded))
         b.extend(encoded)

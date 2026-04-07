@@ -241,6 +241,8 @@ class YandexStationPlayer(Player):
             await self.volume_set(0)
         elif hasattr(self, "_saved_volume"):
             await self.volume_set(self._saved_volume)
+        self._attr_volume_muted = muted
+        self.update_state()
 
     async def play_media(self, media: PlayerMedia) -> None:
         """Play media on the Yandex Station via radio_play command."""

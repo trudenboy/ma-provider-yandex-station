@@ -46,6 +46,39 @@ class YandexStationProvider(PlayerProvider):
         self._pending_discoveries: set[str] = set()
         self._discovery_done = False
 
+    async def _init_session(self) -> bool:
+        """Initialize Yandex HTTP session and login. Return True on success."""
+        x_token = str(self.config.get_value(CONF_X_TOKEN))
+        music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
+        music_token = str(music_token_val) if music_token_val else None
+
+        if not x_token:
+            self.logger.warning("No x_token configured, cannot discover devices")
+            return False
+
+        self._http_session = ClientSession()
+        self._session = YandexSession(
+            self._http_session, x_token=x_token, music_token=music_token or None
+        )
+
+        try:
+            logged_in = await self._session.login_token(x_token)
+            if not logged_in:
+                self.logger.error("Failed to login with x_token — cannot discover devices")
+                await self._http_session.close()
+                self._http_session = None
+                self._session = None
+                return False
+            await self._session.ensure_music_token()
+        except Exception:
+            self.logger.exception("Error during token login")
+            await self._http_session.close()
+            self._http_session = None
+            self._session = None
+            return False
+
+        return True
+
     async def discover_players(self) -> None:
         """Discover Yandex Station players.
 
@@ -56,31 +89,8 @@ class YandexStationProvider(PlayerProvider):
         if self._discovery_done:
             return
 
-        # Initialize Yandex session
-        x_token = str(self.config.get_value(CONF_X_TOKEN))
-        music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
-        music_token = str(music_token_val) if music_token_val else None
-
-        if not x_token:
-            self.logger.warning("No x_token configured, cannot discover devices")
+        if not await self._init_session():
             return
-
-        self._http_session = ClientSession()
-        self._session = YandexSession(
-            self._http_session, x_token=x_token, music_token=music_token or None
-        )
-
-        # Login with x_token to get session cookies (required for Quasar IoT API)
-        try:
-            logged_in = await self._session.login_token(x_token)
-            if not logged_in:
-                self.logger.error("Failed to login with x_token — cannot discover devices")
-                return
-        except Exception:
-            self.logger.exception("Error during token login")
-            return
-
-        await self._session.ensure_music_token()
 
         # Load device list from Quasar cloud API
         self._quasar = YandexQuasar(self._session)
