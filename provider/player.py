@@ -37,6 +37,24 @@ def _external_command(name: str, payload: dict[str, Any] | str | None = None) ->
     }
 
 
+def _update_form(name: str, **kwargs: str) -> dict[str, Any]:
+    """Build a serverAction command to invoke a named form/scenario."""
+    return {
+        "command": "serverAction",
+        "serverActionEventPayload": {
+            "type": "server_action",
+            "name": "update_form",
+            "payload": {
+                "form_update": {
+                    "name": name,
+                    "slots": [{"type": "string", "name": k, "value": v} for k, v in kwargs.items()],
+                },
+                "resubmit": True,
+            },
+        },
+    }
+
+
 class YandexStationPlayer(Player):
     """Represents a single Yandex Station smart speaker."""
 
@@ -56,9 +74,10 @@ class YandexStationPlayer(Player):
         self._attr_type = PlayerType.PLAYER
         self._attr_name = device_info.get("name", "Yandex Station")
         self._attr_available = False
-        self._attr_powered = True  # Yandex Station is always powered on
+        self._attr_powered = True
         self._attr_needs_poll = False  # We get state from WebSocket
         self._attr_supported_features = {
+            PlayerFeature.POWER,
             PlayerFeature.PLAY_MEDIA,
             PlayerFeature.PLAY_ANNOUNCEMENT,
             PlayerFeature.VOLUME_SET,
@@ -87,6 +106,19 @@ class YandexStationPlayer(Player):
         self.mass.create_task(self.glagol.start())
 
     # ── Transport controls ───────────────────────────────────────
+
+    async def power(self, powered: bool) -> None:
+        """Power on/off the station.
+
+        Power on: resumes playback via player_continue scenario.
+        Power off: sends station to home screen via go_home scenario.
+        """
+        if powered:
+            await self.glagol.send(_update_form("personal_assistant.scenarios.player_continue"))
+        else:
+            await self.glagol.send(_update_form("personal_assistant.scenarios.quasar.go_home"))
+        self._attr_powered = powered
+        self.update_state()
 
     async def play(self) -> None:
         """Send PLAY command."""
@@ -198,6 +230,13 @@ class YandexStationPlayer(Player):
         # Volume (0.0-1.0 → 0-100)
         if "volume" in state:
             self._attr_volume_level = round(state["volume"] * 100)
+
+        # Alice state → power detection
+        alice_state = state.get("aliceState", "")
+        if alice_state == "IDLE" and not state.get("playing", False):
+            self._attr_powered = self._attr_powered  # keep user-set value
+        else:
+            self._attr_powered = True  # any activity means powered on
 
         # Player state
         player_state = state.get("playerState", {})
