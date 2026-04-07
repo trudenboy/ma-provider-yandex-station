@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.0.0] - 2026-04-07
+
+### 🎉 First stable release
+
+#### Core
+- Local playback via Glagol WebSocket `externalCommandBypass` / `radio_play`
+- Auto-discovery via mDNS (`_yandexio._tcp.local.`)
+- Cloud discovery fallback via Quasar IoT API + Glagol device_list API
+- Real-time state updates from Glagol WebSocket
+
+#### Authentication
+- QR code authentication (scan with Yandex app)
+- Cookies-based authentication (advanced fallback)
+- Automatic token refresh (x_token → music_token → device_token)
+
+#### Transport Controls
+- Play / Pause / Stop / Resume
+- Next / Previous track
+- Seek (rewind)
+- Volume set / mute
+- Power on/off via Yandex scenarios
+
+#### Playback
+- FLAC lossless streaming with forced Content-Length
+- Track info display (title, artist, cover, duration)
+- Automatic track transitions on queue advancement
+- Pause via radio_play with unreachable URL (fully local, no cloud)
+- Resume via MA queue replay
+
+#### Announcements
+- Native TTS via Alice's voice (repeat_phrase)
+- Audio announcement fallback via stream URL
+
+#### Voice Control (Experimental, off by default)
+- Detect Alice activation during bypass playback
+- Auto-resume after informational queries (weather, etc.)
+- Auto-resume after volume adjustments
+- Stay paused on control commands (стоп, пауза)
+- Accept native playback when Alice starts her own music
+
+---
+
 ## [0.1.1] - 2026-04-07
 
 - fix: remove duplicate type annotation for _auth_payload (mypy no-redef) (`a11e504`)
