@@ -9,7 +9,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from music_assistant_models.config_entries import ConfigEntry, ConfigValueType
+from music_assistant_models.config_entries import ConfigEntry, ConfigEntryType, ConfigValueType
 from music_assistant_models.enums import (
     PlaybackState,
     PlayerFeature,
@@ -18,7 +18,6 @@ from music_assistant_models.enums import (
 
 from music_assistant.constants import CONF_ENTRY_HTTP_PROFILE_DEFAULT_3, CONF_ENTRY_OUTPUT_CODEC
 from music_assistant.models.player import DeviceInfo, Player, PlayerMedia
-from music_assistant_models.config_entries import ConfigEntry, ConfigEntryType, ConfigValueType
 
 from .constants import CONF_VOICE_CONTROL
 
@@ -357,7 +356,7 @@ class YandexStationPlayer(Player):
         extra = player_state.get("extra", {})
 
         _LOGGER.debug(
-            "[%s] State: playing=%s, volume=%s, progress=%s, duration=%s, title=%s, extra_keys=%s, alice=%s",
+            "[%s] playing=%s vol=%s prog=%s dur=%s title=%s extra=%s alice=%s",
             self.player_id,
             playing,
             state.get("volume"),
@@ -399,7 +398,10 @@ class YandexStationPlayer(Player):
                 self._attr_powered = True
         elif playing:
             if self._needs_replay:
-                _LOGGER.info("[%s] Native player active after voice cmd — accepting", self.player_id)
+                _LOGGER.info(
+                    "[%s] Native player active after voice cmd — accepting",
+                    self.player_id,
+                )
                 self._needs_replay = False
                 if self._voice_resume_task:
                     self._voice_resume_task.cancel()
