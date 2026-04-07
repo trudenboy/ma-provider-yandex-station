@@ -14,13 +14,15 @@ from music_assistant_models.enums import ConfigEntryType, ProviderFeature
 from music_assistant_models.errors import LoginFailed
 
 from .constants import (
+    CONF_ACTION_AUTH_COOKIES,
     CONF_ACTION_AUTH_QR,
     CONF_ACTION_CLEAR_AUTH,
+    CONF_COOKIES,
     CONF_MUSIC_TOKEN,
     CONF_X_TOKEN,
 )
 from .provider import YandexStationProvider
-from .yandex_auth import perform_qr_auth
+from .yandex_auth import login_with_cookies, perform_qr_auth
 
 if TYPE_CHECKING:
     from music_assistant_models.config_entries import ConfigValueType, ProviderConfig
@@ -52,6 +54,16 @@ async def get_config_entries(
         x_token, music_token = await perform_qr_auth(mass, str(session_id))
         values[CONF_X_TOKEN] = x_token
         values[CONF_MUSIC_TOKEN] = music_token
+
+    # Handle cookies auth action
+    if action == CONF_ACTION_AUTH_COOKIES:
+        cookies_val = values.get(CONF_COOKIES)
+        if not cookies_val:
+            raise LoginFailed("Cookies field is empty")
+        x_token, music_token = await login_with_cookies(str(cookies_val))
+        values[CONF_X_TOKEN] = x_token
+        values[CONF_MUSIC_TOKEN] = music_token
+        values[CONF_COOKIES] = None  # don't persist raw cookies
 
     # Handle clear auth action
     if action == CONF_ACTION_CLEAR_AUTH:
@@ -87,6 +99,31 @@ async def get_config_entries(
             action=CONF_ACTION_AUTH_QR,
             action_label="Login with QR code",
             hidden=is_authenticated,
+        ),
+        # Cookies authentication (advanced fallback)
+        ConfigEntry(
+            key=CONF_COOKIES,
+            type=ConfigEntryType.SECURE_STRING,
+            label="Browser Cookies",
+            description=(
+                "Open passport.yandex.ru/profile in your browser, "
+                'use "Copy Cookies" extension to copy cookies, paste here. '
+                "Supports JSON array or raw cookie string."
+            ),
+            required=False,
+            hidden=is_authenticated,
+            advanced=True,
+            value="",
+        ),
+        ConfigEntry(
+            key=CONF_ACTION_AUTH_COOKIES,
+            type=ConfigEntryType.ACTION,
+            label="Login with Cookies",
+            description="Authenticate using browser cookies from passport.yandex.ru.",
+            action=CONF_ACTION_AUTH_COOKIES,
+            action_label="Login with Cookies",
+            hidden=is_authenticated,
+            advanced=True,
         ),
         # Clear auth
         ConfigEntry(

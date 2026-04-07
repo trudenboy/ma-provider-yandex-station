@@ -8,9 +8,11 @@ DOMAIN = "yandex_station"
 CONF_X_TOKEN = "x_token"
 CONF_MUSIC_TOKEN = "music_token"
 CONF_COOKIE = "cookie"
+CONF_COOKIES = "cookies"
 
 # Config action keys
 CONF_ACTION_AUTH_QR = "action_auth_qr"
+CONF_ACTION_AUTH_COOKIES = "action_auth_cookies"
 CONF_ACTION_CLEAR_AUTH = "action_clear_auth"
 
 # Yandex API endpoints

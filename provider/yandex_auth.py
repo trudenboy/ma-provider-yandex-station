@@ -241,3 +241,64 @@ async def refresh_music_token(x_token: str) -> str:
     async with aiohttp.ClientSession() as session:
         auth = YandexQRAuth(session)
         return await auth.get_music_token(x_token)
+
+
+async def login_with_cookies(cookies: str) -> tuple[str, str]:
+    """Authenticate using browser cookies from passport.yandex.ru.
+
+    Supports two formats:
+    - JSON from "Copy Cookies" Chrome extension: [{"name":"...", "value":"...", "domain":"..."}]
+    - Raw cookie string: "key1=value1; key2=value2"
+
+    Returns (x_token, music_token).
+    """
+    import json  # noqa: PLC0415
+
+    cookies = cookies.strip()
+    if not cookies:
+        raise LoginFailed("Empty cookies string")
+
+    host = "passport.yandex.ru"
+
+    if cookies.startswith("["):
+        # JSON format from Copy Cookies extension
+        try:
+            raw = json.loads(cookies)
+        except json.JSONDecodeError as err:
+            raise LoginFailed("Invalid JSON in cookies") from err
+
+        # Find yandex domain from cookies
+        for item in raw:
+            domain = item.get("domain", "")
+            if domain.startswith(".yandex."):
+                host = domain
+                break
+
+        cookies = "; ".join(f"{p['name']}={p['value']}" for p in raw)
+
+    if "=" not in cookies:
+        raise LoginFailed("Invalid cookie format. Expected 'key=value; ...' or JSON array.")
+
+    async with aiohttp.ClientSession() as session:
+        auth = YandexQRAuth(session)
+
+        data = await auth._post_json(
+            f"{PASSPORT_API_URL}/1/bundle/oauth/token_by_sessionid",
+            data={
+                "client_id": PASSPORT_CLIENT_ID,
+                "client_secret": PASSPORT_CLIENT_SECRET,
+            },
+            headers={
+                "Ya-Client-Host": host,
+                "Ya-Client-Cookie": cookies,
+            },
+        )
+
+        if "access_token" not in data:
+            raise LoginFailed("Failed to exchange cookies for x_token. Are the cookies valid?")
+
+        x_token = str(data["access_token"])
+        music_token = await auth.get_music_token(x_token)
+
+        _LOGGER.debug("Cookie auth complete, obtained both tokens")
+        return x_token, music_token
