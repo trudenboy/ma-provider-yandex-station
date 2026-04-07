@@ -238,6 +238,13 @@ class YandexStationPlayer(Player):
             self._attr_powered = True
             self._attr_elapsed_time = 0
             self._attr_elapsed_time_last_updated = time.time()
+            self.set_current_media(
+                uri=media.uri or "",
+                title=media.title or "",
+                artist=media.artist or "",
+                duration=media.duration or None,
+                image_url=media.image_url or None,
+            )
             self.update_state()
 
     async def play_announcement(
@@ -355,21 +362,32 @@ class YandexStationPlayer(Player):
         progress = player_state.get("progress", 0)
         duration = player_state.get("duration", 0)
 
-        self._attr_elapsed_time = progress
-        self._attr_elapsed_time_last_updated = time.time()
-
-        # Current media info
-        title = player_state.get("title")
-        subtitle = player_state.get("subtitle")
-
-        if title or playing:
+        if self._external_playing and self._external_media:
+            # Glagol reports stale progress/media from native player.
+            # Keep our optimistic elapsed_time ticking and use external media info.
             self.set_current_media(
-                uri=player_state.get("id", ""),
-                title=title or "",
-                artist=subtitle or "",
-                duration=int(duration) if duration else None,
+                uri=self._external_media.uri or "",
+                title=self._external_media.title or "",
+                artist=self._external_media.artist or "",
+                duration=self._external_media.duration or None,
+                image_url=self._external_media.image_url or None,
             )
-        elif not playing:
-            self._attr_current_media = None
+        else:
+            self._attr_elapsed_time = progress
+            self._attr_elapsed_time_last_updated = time.time()
+
+            # Current media info
+            title = player_state.get("title")
+            subtitle = player_state.get("subtitle")
+
+            if title or playing:
+                self.set_current_media(
+                    uri=player_state.get("id", ""),
+                    title=title or "",
+                    artist=subtitle or "",
+                    duration=int(duration) if duration else None,
+                )
+            elif not playing:
+                self._attr_current_media = None
 
         self.update_state()
