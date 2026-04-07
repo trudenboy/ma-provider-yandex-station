@@ -79,6 +79,26 @@
 
 ---
 
+## [1.0.0] - 2026-04-07
+
+- fix(player): import ConfigEntryType from enums for mypy (`c57d39f`)
+- refactor(player): extract voice control methods, fix E402 import order (`d21da16`)
+- style: apply ruff formatter (`6743a48`)
+- fix: resolve ruff lint errors (line length, duplicate imports) (`7e62bb3`)
+- chore: update documentation URL to music-assistant.io (`d1b2a41`)
+- chore: add Alice gradient icon as provider icon (`b68da33`)
+- chore: prepare v1.0.0 release — stage beta, updated README and CHANGELOG (`6c3ada3`)
+- fix(player): smart voice control — distinguish commands from queries (`1ddc25b`)
+- feat(player): add experimental voice control toggle (off by default) (`067351f`)
+- feat(player): detect voice commands during bypass playback (`d568c7f`)
+- fix(player): show correct track info during bypass playback (`eb19f80`)
+- fix(player): use local radio_play for bypass pause instead of cloud sendText (`afe6bd3`)
+- fix(player): implement pause/resume for externalCommandBypass playback (`39f649c`)
+- fix(player): use forced_content_length HTTP profile for playback (`cd4baa1`)
+- chore: update changelog for v0.3.0 [skip ci] (`fccb5cd`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
