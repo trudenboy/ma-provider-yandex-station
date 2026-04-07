@@ -193,6 +193,35 @@ class YandexGlagol:
                 }
             )
 
+    async def send_tts(self, text: str) -> dict[str, Any] | None:
+        """Speak text using Alice's TTS via repeat_phrase scenario."""
+        return await self.send(
+            {
+                "command": "serverAction",
+                "serverActionEventPayload": {
+                    "type": "server_action",
+                    "name": "update_form",
+                    "payload": {
+                        "form_update": {
+                            "name": "personal_assistant.scenarios.quasar.iot.repeat_phrase",
+                            "slots": [
+                                {
+                                    "type": "string",
+                                    "name": "phrase_to_repeat",
+                                    "value": text,
+                                }
+                            ],
+                        },
+                        "resubmit": True,
+                    },
+                },
+            }
+        )
+
+    async def send_text(self, text: str) -> dict[str, Any] | None:
+        """Send text as if user spoke it (voice command simulation)."""
+        return await self.send({"command": "sendText", "text": text})
+
     async def send(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Send a command and wait for response."""
         if not self.ws or self.ws.closed:

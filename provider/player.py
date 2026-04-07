@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -59,6 +60,7 @@ class YandexStationPlayer(Player):
         self._attr_needs_poll = False  # We get state from WebSocket
         self._attr_supported_features = {
             PlayerFeature.PLAY_MEDIA,
+            PlayerFeature.PLAY_ANNOUNCEMENT,
             PlayerFeature.VOLUME_SET,
             PlayerFeature.VOLUME_MUTE,
             PlayerFeature.PAUSE,
@@ -137,6 +139,39 @@ class YandexStationPlayer(Player):
             payload["imageUrl"] = media.image_url[8:]
 
         await self.glagol.send(_external_command("radio_play", payload))
+
+    async def play_announcement(
+        self, announcement: PlayerMedia, volume_level: int | None = None
+    ) -> None:
+        """Play announcement using Alice's native TTS.
+
+        Extracts text from announcement title and speaks it via repeat_phrase.
+        Falls back to streaming the audio URL if no title is available.
+        """
+        # Adjust volume before announcement if requested
+        saved_volume: int | None = None
+        if volume_level is not None and volume_level != self._attr_volume_level:
+            saved_volume = self._attr_volume_level
+            await self.volume_set(volume_level)
+
+        text = announcement.title
+        if text:
+            _LOGGER.debug("[%s] TTS announcement: %s", self.player_id, text)
+            await self.glagol.send_tts(text)
+        else:
+            # No text available — stream the audio URL directly
+            _LOGGER.debug("[%s] Audio announcement: %s", self.player_id, announcement.uri)
+            await self.glagol.send(
+                _external_command(
+                    "radio_play",
+                    {"streamUrl": announcement.uri, "force_restart_player": True},
+                )
+            )
+
+        # Restore volume after a brief delay for TTS to start
+        if saved_volume is not None:
+            await asyncio.sleep(3)
+            await self.volume_set(saved_volume)
 
     async def on_unload(self) -> None:
         """Clean up on player unload."""
