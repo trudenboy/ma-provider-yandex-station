@@ -16,3 +16,6 @@ Music Assistant поддерживает [Yandex Station](https://yandex.ru/alic
 
 
 Инструкция по подключению — на странице [Настройка](configuration/).
+
+
+
