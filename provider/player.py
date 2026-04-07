@@ -162,10 +162,13 @@ class YandexStationPlayer(Player):
         """Send PAUSE command.
 
         Glagol 'stop' only affects the native player, not externalCommandBypass.
-        Use Alice's text command to stop all playback.
+        Send a radio_play with invalid URL to replace current bypass stream —
+        the station will fail to fetch it and stop. Fully local, no cloud needed.
         """
         if self._external_playing:
-            await self.glagol.send_text("стоп")
+            await self.glagol.send(
+                _external_command("radio_play", {"streamUrl": "http://0.0.0.0/stop.flac"})
+            )
             self._needs_replay = True
         else:
             await self.glagol.send({"command": "stop"})
@@ -177,7 +180,9 @@ class YandexStationPlayer(Player):
     async def stop(self) -> None:
         """Send STOP command."""
         if self._external_playing:
-            await self.glagol.send_text("стоп")
+            await self.glagol.send(
+                _external_command("radio_play", {"streamUrl": "http://0.0.0.0/stop.flac"})
+            )
         else:
             await self.glagol.send({"command": "stop"})
         self._external_playing = False
@@ -332,10 +337,12 @@ class YandexStationPlayer(Player):
         elif playing:
             self._attr_playback_state = PlaybackState.PLAYING
             self._attr_powered = True
-        elif player_state.get("progress", 0) > 0:
-            self._attr_playback_state = PlaybackState.PAUSED
         else:
-            self._attr_playback_state = PlaybackState.IDLE
+            # Glagol always reports stale progress from the last native track,
+            # so we can't use progress > 0 to detect PAUSED.
+            # Only our own pause() sets PAUSED — don't override it here.
+            if self._attr_playback_state == PlaybackState.PLAYING:
+                self._attr_playback_state = PlaybackState.IDLE
 
         # Power detection from alice state (only when not in external playback)
         if not self._external_playing:
