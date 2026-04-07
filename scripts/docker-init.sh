@@ -35,7 +35,7 @@ PYEOF
 )
 if [ -n "$DEPS" ]; then
     echo "==> Installing provider dependencies: $DEPS"
-    /app/venv/bin/uv pip install $DEPS 2>/dev/null || /app/venv/bin/pip install --quiet $DEPS
+    /app/venv/bin/pip install --quiet $DEPS
 fi
 
 echo "==> Starting Music Assistant..."

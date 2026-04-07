@@ -12,10 +12,12 @@
 
 services:
   ma:
-    image: ghcr.io/music-assistant/server:beta
+    image: ghcr.io/music-assistant/server:nightly
     ports:
       - "8095:8095"
       - "8097:8097"
+      - "8099:8099"
+      - "8927:8927"
     privileged: true
     restart: "no"
     volumes:
