@@ -23,6 +23,13 @@
 
 ---
 
+## [0.2.0] - 2026-04-07
+
+- feat(player): add native TTS announcements via Alice voice (`2e6a806`)
+- chore: update changelog for v0.1.3 [skip ci] (`0e47cfb`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
