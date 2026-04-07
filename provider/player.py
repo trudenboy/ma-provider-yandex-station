@@ -76,6 +76,8 @@ class YandexStationPlayer(Player):
         # Track external (radio_play) playback since Glagol doesn't report it
         self._external_playing = False
         self._external_media: PlayerMedia | None = None
+        # Set after pause of external playback — play() must re-trigger queue
+        self._needs_replay = False
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -143,18 +145,45 @@ class YandexStationPlayer(Player):
         self.update_state()
 
     async def play(self) -> None:
-        """Send PLAY command."""
+        """Send PLAY command.
+
+        After external playback was stopped via Alice, native 'play' has nothing
+        to resume.  Re-trigger queue playback through MA instead.
+        """
+        if self._needs_replay:
+            self._needs_replay = False
+            queue = self.mass.player_queues.get_active_queue(self.player_id)
+            if queue:
+                await self.mass.player_queues.resume(queue.queue_id)
+                return
         await self.glagol.send({"command": "play"})
 
     async def pause(self) -> None:
-        """Send PAUSE command."""
-        await self.glagol.send({"command": "stop"})
+        """Send PAUSE command.
+
+        Glagol 'stop' only affects the native player, not externalCommandBypass.
+        Use Alice's text command to stop all playback.
+        """
+        if self._external_playing:
+            await self.glagol.send_text("стоп")
+            self._needs_replay = True
+        else:
+            await self.glagol.send({"command": "stop"})
         self._external_playing = False
+        self._external_media = None
+        self._attr_playback_state = PlaybackState.PAUSED
+        self.update_state()
 
     async def stop(self) -> None:
         """Send STOP command."""
-        await self.glagol.send({"command": "stop"})
+        if self._external_playing:
+            await self.glagol.send_text("стоп")
+        else:
+            await self.glagol.send({"command": "stop"})
         self._external_playing = False
+        self._external_media = None
+        self._attr_playback_state = PlaybackState.IDLE
+        self.update_state()
 
     async def next_track(self) -> None:
         """Send NEXT command."""
@@ -182,6 +211,7 @@ class YandexStationPlayer(Player):
 
     async def play_media(self, media: PlayerMedia) -> None:
         """Play media on the Yandex Station via radio_play command."""
+        self._needs_replay = False
         _LOGGER.info("[%s] play_media called: %s", self.player_id, media.title or media.uri)
         stream_url = await self.provider.mass.streams.resolve_stream_url(self.player_id, media)
         _LOGGER.debug("[%s] Stream URL: %s", self.player_id, stream_url)
