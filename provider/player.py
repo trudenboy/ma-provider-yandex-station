@@ -332,16 +332,26 @@ class YandexStationPlayer(Player):
         # Player state — Glagol doesn't report externalCommandBypass playback,
         # so we preserve our optimistic state when _external_playing is True.
         if self._external_playing:
-            # Still trust volume updates from Glagol, but keep PLAYING state.
-            # Detect when station has stopped our stream (e.g. user said "Алиса, стоп")
+            # Detect when user spoke to Alice during bypass playback
             if alice_state not in ("IDLE", ""):
-                _LOGGER.debug("[%s] Alice active (%s) — clearing external playback", self.player_id, alice_state)
+                _LOGGER.info(
+                    "[%s] Alice active (%s) during bypass — pausing MA queue",
+                    self.player_id, alice_state,
+                )
                 self._external_playing = False
                 self._external_media = None
+                self._needs_replay = True
+                self._attr_playback_state = PlaybackState.PAUSED
             else:
                 self._attr_playback_state = PlaybackState.PLAYING
                 self._attr_powered = True
         elif playing:
+            if self._needs_replay:
+                # Native player started after voice command during bypass.
+                # User likely said "дальше" — native player is now active.
+                # Let it play, clear our replay flag.
+                _LOGGER.info("[%s] Native player active after voice cmd — accepting", self.player_id)
+                self._needs_replay = False
             self._attr_playback_state = PlaybackState.PLAYING
             self._attr_powered = True
         else:
