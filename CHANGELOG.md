@@ -14,6 +14,15 @@
 
 ---
 
+## [0.1.3] - 2026-04-07
+
+- chore: set provider stage to alpha (`bff1236`)
+- feat(auth): add cookies-based authentication as advanced fallback (`1ee1f42`)
+- refactor: extract auth into yandex_auth.py module (`25cb48c`)
+- chore: update changelog for v0.1.2 [skip ci] (`967490b`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
