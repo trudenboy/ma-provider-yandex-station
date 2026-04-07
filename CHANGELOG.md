@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- changelog entries will be added here by release workflow -->
+
 ## [0.0.1] - 2026-04-06
 
 ### Added
