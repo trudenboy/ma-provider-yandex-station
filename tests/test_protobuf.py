@@ -11,7 +11,9 @@ def test_roundtrip_simple() -> None:
     encoded = dumps(data)
     decoded = loads(encoded)
     assert decoded[1] == b"radio_play"
-    assert b"streamUrl" in bytes(decoded[2])
+    val = decoded[2]
+    assert isinstance(val, (bytes, bytearray, memoryview))
+    assert b"streamUrl" in bytes(val)
 
 
 def test_dumps_produces_bytes() -> None:
