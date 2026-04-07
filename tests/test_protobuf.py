@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from provider.protobuf import dumps, loads
+try:
+    from music_assistant.providers.yandex_station.protobuf import dumps, loads
+except ModuleNotFoundError:
+    from provider.protobuf import dumps, loads
 
 
 def test_roundtrip_simple() -> None:
