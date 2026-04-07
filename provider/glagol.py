@@ -28,7 +28,8 @@ from .constants import (
 if TYPE_CHECKING:
     from .session import YandexSession
 
-_LOGGER = logging.getLogger(__name__)
+PROV_LOGGER_BASE = "music_assistant.Yandex Station"
+_LOGGER = logging.getLogger(f"{PROV_LOGGER_BASE}.glagol")
 
 
 class YandexGlagol:
@@ -141,6 +142,7 @@ class YandexGlagol:
                 request_id = data.get("requestId")
                 if request_id in self._waiters:
                     result: dict[str, Any] = {"status": data.get("status", "unknown")}
+                    _LOGGER.debug("[%s] Response for %s: status=%s", self.name, request_id, result["status"])
                     self._waiters[request_id].set_result(result)
 
                 # Dispatch state update

@@ -9,12 +9,14 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from music_assistant_models.config_entries import ConfigEntry, ConfigValueType
 from music_assistant_models.enums import (
     PlaybackState,
     PlayerFeature,
     PlayerType,
 )
 
+from music_assistant.constants import CONF_ENTRY_HTTP_PROFILE_DEFAULT_3, CONF_ENTRY_OUTPUT_CODEC
 from music_assistant.models.player import DeviceInfo, Player, PlayerMedia
 
 from . import protobuf
@@ -23,7 +25,8 @@ if TYPE_CHECKING:
     from .glagol import YandexGlagol
     from .provider import YandexStationProvider
 
-_LOGGER = logging.getLogger(__name__)
+PROV_LOGGER_BASE = "music_assistant.Yandex Station"
+_LOGGER = logging.getLogger(f"{PROV_LOGGER_BASE}.player")
 
 
 def _external_command(name: str, payload: dict[str, Any] | str | None = None) -> dict[str, Any]:
@@ -70,6 +73,10 @@ class YandexStationPlayer(Player):
         self._device_info = device_info
         self.glagol = glagol
 
+        # Track external (radio_play) playback since Glagol doesn't report it
+        self._external_playing = False
+        self._external_media: PlayerMedia | None = None
+
         # Static attributes
         self._attr_type = PlayerType.PLAYER
         self._attr_name = device_info.get("name", "Yandex Station")
@@ -95,6 +102,21 @@ class YandexStationPlayer(Player):
         """Set up the Glagol WebSocket connection."""
         self.glagol.update_handler = self._on_glagol_update
         await self.glagol.start()
+
+    async def get_config_entries(
+        self,
+        action: str | None = None,
+        values: dict[str, ConfigValueType] | None = None,
+    ) -> list[ConfigEntry]:
+        """Return player-specific config entries.
+
+        Yandex Station requires Content-Length in HTTP responses (no chunked encoding),
+        so we default to forced_content_length HTTP profile.
+        """
+        return [
+            CONF_ENTRY_OUTPUT_CODEC,
+            CONF_ENTRY_HTTP_PROFILE_DEFAULT_3,
+        ]
 
     def update_connection(self, host: str, port: int) -> None:
         """Update connection info when mDNS reports new IP."""
@@ -127,10 +149,12 @@ class YandexStationPlayer(Player):
     async def pause(self) -> None:
         """Send PAUSE command."""
         await self.glagol.send({"command": "stop"})
+        self._external_playing = False
 
     async def stop(self) -> None:
         """Send STOP command."""
         await self.glagol.send({"command": "stop"})
+        self._external_playing = False
 
     async def next_track(self) -> None:
         """Send NEXT command."""
@@ -158,19 +182,28 @@ class YandexStationPlayer(Player):
 
     async def play_media(self, media: PlayerMedia) -> None:
         """Play media on the Yandex Station via radio_play command."""
+        _LOGGER.info("[%s] play_media called: %s", self.player_id, media.title or media.uri)
         stream_url = await self.provider.mass.streams.resolve_stream_url(self.player_id, media)
+        _LOGGER.debug("[%s] Stream URL: %s", self.player_id, stream_url)
 
         payload: dict[str, Any] = {
             "streamUrl": stream_url,
             "force_restart_player": True,
         }
-        if media.title:
-            payload["title"] = media.title
-        if media.image_url and media.image_url.startswith("https://"):
-            # Yandex expects image URL without protocol prefix
-            payload["imageUrl"] = media.image_url[8:]
 
-        await self.glagol.send(_external_command("radio_play", payload))
+        result = await self.glagol.send(_external_command("radio_play", payload))
+        _LOGGER.debug("[%s] radio_play result: %s", self.player_id, result)
+
+        if result and result.get("status") == "SUCCESS":
+            # Glagol doesn't update playerState for externalCommandBypass playback,
+            # so we set state optimistically.
+            self._external_playing = True
+            self._external_media = media
+            self._attr_playback_state = PlaybackState.PLAYING
+            self._attr_powered = True
+            self._attr_elapsed_time = 0
+            self._attr_elapsed_time_last_updated = time.time()
+            self.update_state()
 
     async def play_announcement(
         self, announcement: PlayerMedia, volume_level: int | None = None
@@ -226,28 +259,60 @@ class YandexStationPlayer(Player):
         self._attr_available = True
 
         state = data.get("state", {})
+        if not state:
+            _LOGGER.debug("[%s] No 'state' in Glagol data, keys: %s", self.player_id, list(data.keys()))
+            return
+
+        # Log full state once on first update or state change
+        player_state = state.get("playerState", {})
+        playing = state.get("playing", False)
+        extra = player_state.get("extra", {})
+
+        _LOGGER.debug(
+            "[%s] State: playing=%s, volume=%s, progress=%s, duration=%s, title=%s, extra_keys=%s, alice=%s",
+            self.player_id,
+            playing,
+            state.get("volume"),
+            player_state.get("progress"),
+            player_state.get("duration"),
+            (player_state.get("title", "") or "")[:30],
+            list(extra.keys()) if extra else None,
+            state.get("aliceState"),
+        )
 
         # Volume (0.0-1.0 → 0-100)
         if "volume" in state:
             self._attr_volume_level = round(state["volume"] * 100)
 
-        # Alice state → power detection
+        # Alice state
         alice_state = state.get("aliceState", "")
-        if alice_state == "IDLE" and not state.get("playing", False):
-            self._attr_powered = self._attr_powered  # keep user-set value
-        else:
-            self._attr_powered = True  # any activity means powered on
 
-        # Player state
-        player_state = state.get("playerState", {})
-        playing = state.get("playing", False)
-
-        if playing:
+        # Player state — Glagol doesn't report externalCommandBypass playback,
+        # so we preserve our optimistic state when _external_playing is True.
+        if self._external_playing:
+            # Still trust volume updates from Glagol, but keep PLAYING state.
+            # Detect when station has stopped our stream (e.g. user said "Алиса, стоп")
+            if alice_state not in ("IDLE", ""):
+                _LOGGER.debug("[%s] Alice active (%s) — clearing external playback", self.player_id, alice_state)
+                self._external_playing = False
+                self._external_media = None
+            else:
+                self._attr_playback_state = PlaybackState.PLAYING
+                self._attr_powered = True
+        elif playing:
             self._attr_playback_state = PlaybackState.PLAYING
+            self._attr_powered = True
         elif player_state.get("progress", 0) > 0:
             self._attr_playback_state = PlaybackState.PAUSED
         else:
             self._attr_playback_state = PlaybackState.IDLE
+
+        # Power detection from alice state (only when not in external playback)
+        if not self._external_playing:
+            if alice_state == "IDLE" and not playing:
+                self._attr_powered = self._attr_powered  # keep user-set value
+            else:
+                self._attr_powered = True
 
         # Elapsed time
         progress = player_state.get("progress", 0)
