@@ -149,13 +149,15 @@ class YandexStationProvider(PlayerProvider):
         if state_change.name == "Removed":
             if info and info.properties:
                 props = info.properties
-                dev_id_raw = props.get(b"deviceId") or props.get("deviceId")
+                dev_id_raw = props.get(b"deviceId")
                 if dev_id_raw:
-                    dev_id = dev_id_raw.decode() if isinstance(dev_id_raw, bytes) else dev_id_raw
+                    dev_id = (
+                        dev_id_raw.decode() if isinstance(dev_id_raw, bytes) else str(dev_id_raw)
+                    )
                     player_id = f"ys_{dev_id}"
                     existing = self.mass.players.get_player(player_id)
                     if existing and isinstance(existing, YandexStationPlayer):
-                        existing.available = False
+                        existing._attr_available = False
                         existing.update_state()
                         _LOGGER.debug("Marked player %s unavailable (mDNS removed)", player_id)
             return
@@ -227,6 +229,8 @@ class YandexStationProvider(PlayerProvider):
                 if not await self._init_session():
                     self.logger.warning("Session not initialized, skipping player creation")
                     return
+
+            assert self._session is not None  # guaranteed by _init_session()
 
             # Skip if already registered
             existing = self.mass.players.get_player(player_id)
