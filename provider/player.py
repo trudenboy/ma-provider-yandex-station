@@ -9,8 +9,9 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from music_assistant_models.config_entries import ConfigEntry, ConfigEntryType, ConfigValueType
+from music_assistant_models.config_entries import ConfigEntry, ConfigValueType
 from music_assistant_models.enums import (
+    ConfigEntryType,
     PlaybackState,
     PlayerFeature,
     PlayerType,
