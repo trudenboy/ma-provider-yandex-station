@@ -8,7 +8,7 @@
     "[AlexxIT/YandexStation](https://github.com/AlexxIT/YandexStation)"
   ],
   "requirements": ["PyJWT>=2.0.0"],
-  "documentation": "https://trudenboy.github.io/ma-provider-yandex-station/",
+  "documentation": "https://www.music-assistant.io/player-support/yandex-station/",
   "stage": "beta",
   "multi_instance": false,
   "builtin": false,
