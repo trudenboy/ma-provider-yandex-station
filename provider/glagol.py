@@ -118,6 +118,21 @@ class YandexGlagol:
             self._connect_task.cancel()
             self._connect_task = None
 
+    def _handle_message(self, data: dict[str, Any]) -> None:
+        """Process a received WebSocket message."""
+        request_id = data.get("requestId")
+        if request_id in self._waiters:
+            result: dict[str, Any] = {"status": data.get("status", "unknown")}
+            _LOGGER.debug(
+                "[%s] Response for %s: status=%s", self.name, request_id, result["status"]
+            )
+            future = self._waiters[request_id]
+            if not future.done():
+                future.set_result(result)
+
+        if self.update_handler:
+            self.update_handler(data)
+
     async def _connect(self, fails: int) -> None:
         """Maintain persistent WebSocket connection with reconnect."""
         _LOGGER.info("[%s] Connecting to %s", self.name, self.url)
@@ -151,19 +166,7 @@ class YandexGlagol:
 
                 data = json.loads(msg.data)
                 fails = 0  # Any message = reset fails
-
-                # Handle response waiters
-                request_id = data.get("requestId")
-                if request_id in self._waiters:
-                    result: dict[str, Any] = {"status": data.get("status", "unknown")}
-                    _LOGGER.debug(
-                        "[%s] Response for %s: status=%s", self.name, request_id, result["status"]
-                    )
-                    self._waiters[request_id].set_result(result)
-
-                # Dispatch state update
-                if self.update_handler:
-                    self.update_handler(data)
+                self._handle_message(data)
 
             # Connection closed normally — clear device token for next reconnect
             self.device_token = None
