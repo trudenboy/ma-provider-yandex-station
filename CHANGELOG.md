@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.1.0] - 2026-04-10
+
+### 🔐 Authentication migration to `ya-passport-auth`
+
+#### Changed
+- Migrated all Yandex Passport authentication to the [`ya-passport-auth`](https://github.com/trudenboy/ya-passport-auth) library
+- QR code auth, music token refresh, device token, cookie refresh — all delegated to `PassportClient`
+- Tokens wrapped in `SecretStr` throughout the codebase for secret hygiene
+- `YandexSession` now accepts a shared `PassportClient` instance (shared aiohttp session + cookie jar)
+- `YandexGlagol` uses `PassportClient.get_glagol_device_token()` instead of direct HTTP calls
+- Removed 4 hardcoded constants (`GLAGOL_TOKEN_URL`, `MUSIC_TOKEN_URL`, `MUSIC_CLIENT_ID`, `MUSIC_CLIENT_SECRET`) — now in the library
+- Cookie domain normalization for browser-exported JSON cookies
+- Proper `content_type` validation and `JSONDecodeError` handling in cookie auth
+
+#### Added
+- 13 unit tests for all auth functions (`test_yandex_auth.py`)
+- Comprehensive MA module stubs in `conftest.py` for isolated testing
+
+---
+
 ## [1.0.0] - 2026-04-07
 
 ### 🎉 First stable release
