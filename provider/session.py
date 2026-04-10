@@ -1,8 +1,9 @@
 """Yandex Session — HTTP client with cookie/CSRF management.
 
 Adapted from AlexxIT/YandexStation (MIT license).
-Authentication flows moved to yandex_auth.py; this module handles
-only HTTP requests with automatic cookie refresh and CSRF token management.
+Authentication flows delegate to ``ya-passport-auth`` via an injected
+``PassportClient``; this module handles HTTP requests with automatic
+cookie refresh and CSRF token management.
 """
 
 from __future__ import annotations
@@ -11,22 +12,17 @@ import asyncio
 import base64
 import json
 import logging
-import re
 import time
 from typing import TYPE_CHECKING, Any
 
 import yarl
+from ya_passport_auth.exceptions import YaPassportError
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse, ClientSession
+    from ya_passport_auth import PassportClient, SecretStr
 
-from .constants import (
-    API_REQUEST_INTERVAL,
-    MUSIC_CLIENT_ID,
-    MUSIC_CLIENT_SECRET,
-    MUSIC_TOKEN_URL,
-    PASSPORT_API_URL,
-)
+from .constants import API_REQUEST_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,18 +31,22 @@ class YandexSession:
     """Yandex HTTP client with cookie/CSRF management.
 
     Manages x_token (long-lived ~1 year), music_token (for Glagol API),
-    cookies, and CSRF tokens for Quasar API.
+    cookies, and CSRF tokens for Quasar API.  Auth operations delegate to
+    the injected ``PassportClient`` which shares the same aiohttp session
+    and cookie jar.
     """
 
     def __init__(
         self,
         session: ClientSession,
-        x_token: str | None = None,
-        music_token: str | None = None,
+        client: PassportClient,
+        x_token: SecretStr | None = None,
+        music_token: SecretStr | None = None,
         cookie: str | None = None,
     ) -> None:
-        """Initialize with aiohttp session and optional credentials."""
+        """Initialize with aiohttp session, PassportClient, and optional credentials."""
         self._session = session
+        self._client = client
         self.x_token = x_token
         self.music_token = music_token
         self.csrf_token: str | None = None
@@ -67,45 +67,25 @@ class YandexSession:
 
     # ── Token management ─────────────────────────────────────────
 
-    async def get_music_token(self, x_token: str) -> str:
+    async def get_music_token(self) -> SecretStr:
         """Get music token using x-token (for Glagol API auth)."""
+        if not self.x_token:
+            msg = "No x_token available to refresh music token"
+            raise RuntimeError(msg)
         _LOGGER.debug("Requesting music token")
-        payload = {
-            "client_secret": MUSIC_CLIENT_SECRET,
-            "client_id": MUSIC_CLIENT_ID,
-            "grant_type": "x-token",
-            "access_token": x_token,
-        }
-        async with self._session.post(MUSIC_TOKEN_URL, data=payload) as r:
-            resp = await r.json()
-            if "access_token" not in resp:
-                msg = f"Failed to get music token: {resp}"
-                raise RuntimeError(msg)
-            return resp["access_token"]  # type: ignore[no-any-return]
+        return await self._client.refresh_music_token(self.x_token)
 
-    async def login_token(self, x_token: str) -> bool:
+    async def login_token(self) -> bool:
         """Login to Yandex with x-token to obtain session cookies."""
+        if not self.x_token:
+            return False
         _LOGGER.debug("Login with x-token")
-        payload = {"type": "x-token", "retpath": "https://www.yandex.ru"}
-        headers = {"Ya-Consumer-Authorization": f"OAuth {x_token}"}
-        async with self._session.post(
-            f"{PASSPORT_API_URL}/1/bundle/auth/x_token/",
-            data=payload,
-            headers=headers,
-        ) as r:
-            resp = await r.json()
-            if resp.get("status") != "ok":
-                _LOGGER.error("Login with token failed: %s", resp)
-                return False
-            host = resp["passport_host"]
-            track_id = resp["track_id"]
-
-        async with self._session.get(
-            f"{host}/auth/session/",
-            params={"track_id": track_id},
-            allow_redirects=False,
-        ) as r:
-            return r.status == 302
+        try:
+            await self._client.refresh_passport_cookies(self.x_token)
+            return True
+        except YaPassportError as err:
+            _LOGGER.error("Login with token failed: %s", err, exc_info=err)
+            return False
 
     async def refresh_cookies(self) -> bool:
         """Check cookies and refresh if needed."""
@@ -114,14 +94,12 @@ class YandexSession:
             if resp.get("storage", {}).get("user", {}).get("uid"):
                 return True
 
-        if not self.x_token:
-            return False
-        return await self.login_token(self.x_token)
+        return await self.login_token()
 
     async def ensure_music_token(self) -> None:
         """Ensure music_token is available, fetching it if needed."""
         if not self.music_token and self.x_token:
-            self.music_token = await self.get_music_token(self.x_token)
+            self.music_token = await self.get_music_token()
 
     # ── HTTP methods ─────────────────────────────────────────────
 
@@ -156,13 +134,12 @@ class YandexSession:
         if method != "get" and not url.startswith("https://rpc.alice.yandex.ru"):
             if self.csrf_token is None:
                 _LOGGER.debug("Refreshing CSRF token")
-                async with self._session.get("https://yandex.ru/quasar") as csrf_resp:
-                    raw = await csrf_resp.text()
-                    m = re.search('"csrfToken2":"(.+?)"', raw)
-                    if not m:
-                        msg = "Failed to obtain CSRF token"
-                        raise RuntimeError(msg)
-                    self.csrf_token = m[1]
+                try:
+                    csrf_secret = await self._client.get_quasar_csrf_token()
+                    self.csrf_token = csrf_secret.get_secret()
+                except YaPassportError as err:
+                    msg = "Failed to obtain CSRF token"
+                    raise RuntimeError(msg) from err
             kwargs.setdefault("headers", {})["x-csrf-token"] = self.csrf_token
 
         r: ClientResponse = await getattr(self._session, method)(url, **kwargs)
@@ -194,7 +171,8 @@ class YandexSession:
         await self.ensure_music_token()
 
         headers = kwargs.pop("headers", {})
-        headers["Authorization"] = f"OAuth {self.music_token}"
+        if self.music_token:
+            headers["Authorization"] = f"OAuth {self.music_token.get_secret()}"
         r: ClientResponse = await self._session.get(url, headers=headers, **kwargs)
         if r.status == 200:
             return r

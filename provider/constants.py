@@ -17,15 +17,9 @@ CONF_ACTION_CLEAR_AUTH = "action_clear_auth"
 CONF_VOICE_CONTROL = "voice_control"
 
 # Yandex API endpoints
-GLAGOL_TOKEN_URL = "https://quasar.yandex.net/glagol/token"
+PASSPORT_API_URL = "https://mobileproxy.passport.yandex.net"
 QUASAR_DEVICES_URL = "https://iot.quasar.yandex.ru/m/v3/user/devices"
 QUASAR_IOT_URL = "https://iot.quasar.yandex.ru"
-MUSIC_TOKEN_URL = "https://oauth.mobile.yandex.net/1/token"
-PASSPORT_API_URL = "https://mobileproxy.passport.yandex.net"
-
-# Music token OAuth credentials (from yandex-music-api)
-MUSIC_CLIENT_ID = "23cabbbdc6cd418abb4b39c32c41195d"
-MUSIC_CLIENT_SECRET = "53bc75238f0c4d08a118e51fe9203300"
 
 # mDNS service type for Yandex Station devices
 MDNS_TYPE = "_yandexio._tcp.local."

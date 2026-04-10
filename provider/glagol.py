@@ -23,7 +23,6 @@ from aiohttp import (
 )
 
 from .constants import (
-    GLAGOL_TOKEN_URL,
     WS_COMMAND_TIMEOUT,
     WS_HEARTBEAT,
     WS_RECONNECT_BASE_DELAY,
@@ -31,6 +30,8 @@ from .constants import (
 )
 
 if TYPE_CHECKING:
+    from ya_passport_auth import PassportClient, SecretStr
+
     from .session import YandexSession
 
 PROV_LOGGER_BASE = "music_assistant.Yandex Station"
@@ -40,15 +41,18 @@ _LOGGER = logging.getLogger(f"{PROV_LOGGER_BASE}.glagol")
 class YandexGlagol:
     """Local WebSocket client for Yandex Station via Glagol protocol."""
 
-    device_token: str | None = None
+    device_token: SecretStr | None = None
     url: str | None = None
     ws: ClientWebSocketResponse | None = None
 
     update_handler: Callable[[dict[str, Any] | None], None] | None = None
 
-    def __init__(self, session: YandexSession, device: dict[str, Any]) -> None:
+    def __init__(
+        self, session: YandexSession, client: PassportClient, device: dict[str, Any]
+    ) -> None:
         """Initialize Glagol client for a device."""
         self.session = session
+        self._client = client
         self.device = device
         self._waiters: dict[str, asyncio.Future[dict[str, Any]]] = {}
         self._connect_task: asyncio.Task[None] | None = None
@@ -73,19 +77,18 @@ class YandexGlagol:
         """Return True if WebSocket is open."""
         return self.ws is not None and not self.ws.closed
 
-    async def get_device_token(self) -> str:
+    async def get_device_token(self) -> SecretStr:
         """Fetch a device token for WebSocket authentication."""
         _LOGGER.debug("[%s] Refreshing device token", self.name)
-        payload = {
-            "device_id": self.device_id,
-            "platform": self.platform,
-        }
-        r = await self.session.get(GLAGOL_TOKEN_URL, params=payload)
-        resp = json.loads(await r.text())
-        if resp.get("status") != "ok":
-            msg = f"Failed to get device token: {resp}"
+        await self.session.ensure_music_token()
+        if not self.session.music_token:
+            msg = "No music token available to fetch device token"
             raise RuntimeError(msg)
-        return resp["token"]  # type: ignore[no-any-return]
+        return await self._client.get_glagol_device_token(
+            self.session.music_token,
+            device_id=self.device_id,
+            platform=self.platform,
+        )
 
     async def start(self) -> None:
         """Start or restart the WebSocket connection."""
@@ -202,12 +205,12 @@ class YandexGlagol:
 
     async def _ping(self, command: str = "ping") -> None:
         """Send a ping/keepalive message."""
-        if not self.ws or self.ws.closed:
+        if not self.ws or self.ws.closed or not self.device_token:
             return
         with contextlib.suppress(Exception):
             await self.ws.send_json(
                 {
-                    "conversationToken": self.device_token,
+                    "conversationToken": self.device_token.get_secret(),
                     "id": str(uuid.uuid4()),
                     "payload": {"command": command},
                     "sentTime": round(time.time() * 1000),
@@ -251,6 +254,10 @@ class YandexGlagol:
 
         _LOGGER.debug("[%s] => local | %s", self.name, payload)
 
+        if not self.device_token:
+            _LOGGER.warning("[%s] Cannot send: not connected (missing device token)", self.name)
+            return {"error": "not_connected"}
+
         request_id = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
@@ -259,7 +266,7 @@ class YandexGlagol:
         try:
             await self.ws.send_json(
                 {
-                    "conversationToken": self.device_token,
+                    "conversationToken": self.device_token.get_secret(),
                     "id": request_id,
                     "payload": payload,
                     "sentTime": round(time.time() * 1000),

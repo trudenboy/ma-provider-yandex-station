@@ -7,6 +7,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession
+from ya_passport_auth import PassportClient, SecretStr
 
 from music_assistant.models.player_provider import PlayerProvider
 
@@ -43,6 +44,7 @@ class YandexStationProvider(PlayerProvider):
         self._session: YandexSession | None = None
         self._quasar: YandexQuasar | None = None
         self._http_session: ClientSession | None = None
+        self._passport_client: PassportClient | None = None
         self._pending_discoveries: set[str] = set()
         self._discovery_done = False
 
@@ -50,37 +52,44 @@ class YandexStationProvider(PlayerProvider):
         """Initialize Yandex HTTP session and login. Return True on success."""
         x_token_val = self.config.get_value(CONF_X_TOKEN)
         music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
-        music_token = str(music_token_val) if music_token_val else None
 
         if not x_token_val:
             self.logger.warning("No x_token configured, cannot discover devices")
             return False
 
-        x_token = str(x_token_val)
+        x_token = SecretStr(str(x_token_val))
+        music_token = SecretStr(str(music_token_val)) if music_token_val else None
 
         self._http_session = ClientSession()
+        self._passport_client = PassportClient(session=self._http_session)
         self._session = YandexSession(
-            self._http_session, x_token=x_token, music_token=music_token or None
+            self._http_session,
+            self._passport_client,
+            x_token=x_token,
+            music_token=music_token,
         )
 
         try:
-            logged_in = await self._session.login_token(x_token)
+            logged_in = await self._session.login_token()
             if not logged_in:
                 self.logger.error("Failed to login with x_token — cannot discover devices")
-                await self._http_session.close()
-                self._http_session = None
-                self._session = None
+                await self._cleanup_session()
                 return False
             await self._session.ensure_music_token()
         except Exception:
             self.logger.exception("Error during token login")
-            if self._http_session:
-                await self._http_session.close()
-            self._http_session = None
-            self._session = None
+            await self._cleanup_session()
             return False
 
         return True
+
+    async def _cleanup_session(self) -> None:
+        """Close HTTP session and PassportClient."""
+        if self._http_session and not self._http_session.closed:
+            await self._http_session.close()
+        self._http_session = None
+        self._passport_client = None
+        self._session = None
 
     async def discover_players(self) -> None:
         """Discover Yandex Station players.
@@ -231,13 +240,14 @@ class YandexStationProvider(PlayerProvider):
                     return
 
             assert self._session is not None  # guaranteed by _init_session()
+            assert self._passport_client is not None  # guaranteed by _init_session()
 
             # Skip if already registered
             existing = self.mass.players.get_player(player_id)
             if existing is not None:
                 return
 
-            glagol = YandexGlagol(self._session, device_info)
+            glagol = YandexGlagol(self._session, self._passport_client, device_info)
 
             player = YandexStationPlayer(
                 provider=self,
@@ -262,5 +272,4 @@ class YandexStationProvider(PlayerProvider):
 
     async def unload(self, is_removed: bool = False) -> None:
         """Clean up on provider unload."""
-        if self._http_session and not self._http_session.closed:
-            await self._http_session.close()
+        await self._cleanup_session()
