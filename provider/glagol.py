@@ -255,8 +255,8 @@ class YandexGlagol:
         _LOGGER.debug("[%s] => local | %s", self.name, payload)
 
         if not self.device_token:
-            msg = "No device token available"
-            raise RuntimeError(msg)
+            _LOGGER.warning("[%s] Cannot send: not connected (missing device token)", self.name)
+            return {"error": "not_connected"}
 
         request_id = str(uuid.uuid4())
         loop = asyncio.get_running_loop()

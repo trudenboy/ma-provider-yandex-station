@@ -83,8 +83,8 @@ class YandexSession:
         try:
             await self._client.refresh_passport_cookies(self.x_token)
             return True
-        except YaPassportError:
-            _LOGGER.error("Login with token failed")
+        except YaPassportError as err:
+            _LOGGER.error("Login with token failed: %s", err, exc_info=err)
             return False
 
     async def refresh_cookies(self) -> bool:
