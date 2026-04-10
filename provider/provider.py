@@ -240,6 +240,7 @@ class YandexStationProvider(PlayerProvider):
                     return
 
             assert self._session is not None  # guaranteed by _init_session()
+            assert self._passport_client is not None  # guaranteed by _init_session()
 
             # Skip if already registered
             existing = self.mass.players.get_player(player_id)

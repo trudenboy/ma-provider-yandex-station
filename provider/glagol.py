@@ -85,7 +85,9 @@ class YandexGlagol:
             msg = "No music token available to fetch device token"
             raise RuntimeError(msg)
         return await self._client.get_glagol_device_token(
-            self.session.music_token, self.device_id, self.platform
+            self.session.music_token,
+            device_id=self.device_id,
+            platform=self.platform,
         )
 
     async def start(self) -> None:
@@ -203,7 +205,7 @@ class YandexGlagol:
 
     async def _ping(self, command: str = "ping") -> None:
         """Send a ping/keepalive message."""
-        if not self.ws or self.ws.closed:
+        if not self.ws or self.ws.closed or not self.device_token:
             return
         with contextlib.suppress(Exception):
             await self.ws.send_json(
@@ -251,6 +253,10 @@ class YandexGlagol:
             return {"error": "not_connected"}
 
         _LOGGER.debug("[%s] => local | %s", self.name, payload)
+
+        if not self.device_token:
+            msg = "No device token available"
+            raise RuntimeError(msg)
 
         request_id = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
