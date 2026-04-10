@@ -119,6 +119,20 @@
 
 ---
 
+## [1.1.0] - 2026-04-10
+
+- chore: bump version to 1.1.0, update changelog (`a13786f`)
+- refactor(auth): migrate to ya-passport-auth library (#19) (`ae443f9`)
+- chore: sync workflow wrappers from ma-provider-tools (#17) (`cac6963`)
+- chore: sync workflow wrappers from ma-provider-tools (#15) (`237c322`)
+- chore: sync workflow wrappers from ma-provider-tools (#13) (`57bac90`)
+- chore: sync workflow wrappers from ma-provider-tools (#11) (`8ebd65f`)
+- chore: sync workflow wrappers from ma-provider-tools (#8) (`01a5f7f`)
+- chore: add VERSION file (0.1.2) (`18f5215`)
+- chore: sync workflow wrappers from ma-provider-tools (#6) (`32c138a`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
