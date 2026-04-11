@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
@@ -282,9 +283,7 @@ async def test_login_with_cookies_raw_string() -> None:
 
 async def test_login_with_cookies_json_format() -> None:
     """JSON cookie array is converted to semicolon string and passed to library."""
-    import json as json_mod  # noqa: PLC0415
-
-    cookies_json = json_mod.dumps(
+    cookies_json = json.dumps(
         [
             {"name": "Session_id", "value": "abc123", "domain": ".yandex.ru"},
             {"name": "yandexuid", "value": "456", "domain": ".yandex.ru"},
