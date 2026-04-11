@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0] - 2026-04-11
+
+### 🔧 Upgrade ya-passport-auth to 1.2.0
+
+#### Fixed
+- **Quasar IoT 401 errors**: library's `refresh_passport_cookies` now follows redirect chain, setting cookies on `.yandex.ru` domain (no code changes needed)
+
+#### Changed
+- Replaced ~90 lines of custom cookie→x_token HTTP exchange with `PassportClient.login_cookies()` (~15 lines)
+- Removed `_PASSPORT_CLIENT_ID`, `_PASSPORT_CLIENT_SECRET` hardcoded credentials (now in library)
+- Removed `PASSPORT_API_URL` constant (no longer needed)
+- Removed `aiohttp` direct import from `yandex_auth.py`
+- Rewrote cookie login tests to mock `PassportClient.login_cookies()` instead of raw `aiohttp`
+
+#### Added
+- `test_login_with_cookies_auth_error_raises_login_failed` test (16 total)
+
+---
+
 ## [1.1.0] - 2026-04-10
 
 ### 🔐 Authentication migration to `ya-passport-auth`
