@@ -76,15 +76,50 @@ class YandexSession:
         return await self._client.refresh_music_token(self.x_token)
 
     async def login_token(self) -> bool:
-        """Login to Yandex with x-token to obtain session cookies."""
+        """Login to Yandex with x-token to obtain session cookies.
+
+        Bypasses ``PassportClient.refresh_passport_cookies`` because the
+        library uses ``retpath=passport.yandex.ru`` — the redirect chain
+        never reaches ``yandex.ru``, so cookies only land on
+        ``.passport.yandex.ru``.  Quasar IoT (``iot.quasar.yandex.ru``)
+        needs cookies on the broader ``.yandex.ru`` domain.
+
+        Using ``retpath=https://www.yandex.ru`` makes the chain go through
+        ``yandex.ru``, which sets the broad-domain cookies.
+        """
         if not self.x_token:
             return False
         _LOGGER.debug("Login with x-token")
         try:
-            await self._client.refresh_passport_cookies(self.x_token)
+            async with self._session.post(
+                "https://mobileproxy.passport.yandex.net/1/bundle/auth/x_token/",
+                data={"type": "x-token", "retpath": "https://www.yandex.ru"},
+                headers={
+                    "Ya-Consumer-Authorization": f"OAuth {self.x_token.get_secret()}",
+                },
+            ) as resp:
+                data = await resp.json()
+
+            if data.get("status") != "ok":
+                _LOGGER.error("x_token auth bundle failed: %s", data.get("errors"))
+                return False
+
+            track_id = data.get("track_id")
+            if not track_id:
+                _LOGGER.error("x_token auth bundle missing track_id")
+                return False
+
+            # Follow full redirect chain so cookies land on .yandex.ru
+            async with self._session.get(
+                "https://passport.yandex.ru/auth/session/",
+                headers={"track_id": str(track_id)},
+                allow_redirects=True,
+            ) as resp:
+                _LOGGER.debug("Session auth completed, status %d", resp.status)
+
             return True
-        except YaPassportError as err:
-            _LOGGER.error("Login with token failed: %s", err, exc_info=err)
+        except Exception:
+            _LOGGER.exception("Login with token failed")
             return False
 
     async def refresh_cookies(self) -> bool:
