@@ -76,49 +76,14 @@ class YandexSession:
         return await self._client.refresh_music_token(self.x_token)
 
     async def login_token(self) -> bool:
-        """Login to Yandex with x-token to obtain session cookies.
-
-        Bypasses ``PassportClient.refresh_passport_cookies`` because the
-        library sends ``track_id`` as a **header** while the Passport
-        session endpoint expects it as a **query parameter**.  Without a
-        recognised track_id the redirect chain completes but no session
-        cookies are set.
-        """
+        """Login to Yandex with x-token to obtain session cookies."""
         if not self.x_token:
             return False
         _LOGGER.debug("Login with x-token")
         try:
-            async with self._session.post(
-                "https://mobileproxy.passport.yandex.net/1/bundle/auth/x_token/",
-                data={"type": "x-token", "retpath": "https://www.yandex.ru"},
-                headers={
-                    "Ya-Consumer-Authorization": f"OAuth {self.x_token.get_secret()}",
-                },
-            ) as resp:
-                data = await resp.json()
-
-            if data.get("status") != "ok":
-                _LOGGER.error("x_token auth bundle failed: %s", data.get("errors"))
-                return False
-
-            track_id = data.get("track_id")
-            if not track_id:
-                _LOGGER.error("x_token auth bundle missing track_id")
-                return False
-
-            host = data.get("passport_host", "https://passport.yandex.ru")
-            # track_id MUST be a query parameter — the endpoint ignores headers
-            async with self._session.get(
-                f"{host}/auth/session/",
-                params={"track_id": str(track_id)},
-                allow_redirects=False,
-            ) as resp:
-                if resp.status != 302:
-                    _LOGGER.error("Session auth unexpected status %d", resp.status)
-                    return False
-
+            await self._client.refresh_passport_cookies(self.x_token)
             return True
-        except Exception:
+        except YaPassportError:
             _LOGGER.exception("Login with token failed")
             return False
 

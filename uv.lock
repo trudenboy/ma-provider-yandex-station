@@ -1200,7 +1200,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'test'", specifier = ">=0.14" },
     { name = "syrupy", marker = "extra == 'test'", specifier = ">=5.0" },
-    { name = "ya-passport-auth", specifier = ">=1.2.1" },
+    { name = "ya-passport-auth", specifier = ">=1.2.2" },
 ]
 provides-extras = ["test"]
 
@@ -2566,15 +2566,15 @@ wheels = [
 
 [[package]]
 name = "ya-passport-auth"
-version = "1.2.1"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/cb/dfdd26397179cf82da66c242db930fe0fa75bc6e6ff3a785392f51c2b670/ya_passport_auth-1.2.1.tar.gz", hash = "sha256:aac5e3f0a571dc6111771b9d68dfe72bf36b9f846f4a8f0088f822b106022833", size = 44910, upload-time = "2026-04-11T21:12:53.195Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/eb/7a/44f41c75272efdb370bc55aae6ce2326ca32ff4e1af285aa930cc23ffd19/ya_passport_auth-1.2.2.tar.gz", hash = "sha256:f700ccd89dbf057e5601ebe24d1735a2d07be2806444f9e6c8c1f77ea0ed2291", size = 45030, upload-time = "2026-04-11T21:34:19.286Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/71/6062a13d1dd1c65e28e570fb80a9bd56e694cab307f665d4d14c5e200aea/ya_passport_auth-1.2.1-py3-none-any.whl", hash = "sha256:39e7c7b9dbe9d8e83a08c32cdedf7b4b3953410713a205a21c3acc92f3eba26f", size = 32793, upload-time = "2026-04-11T21:12:51.856Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/5f/907041940511b60bf220c2eac24e9884d822189db6580342017b7968008f/ya_passport_auth-1.2.2-py3-none-any.whl", hash = "sha256:ab09714d5885561d0e4ea405aaa65d7580e203c62c891f06947990b9c7845ed7", size = 32797, upload-time = "2026-04-11T21:34:18.181Z" },
 ]
 
 [[package]]
