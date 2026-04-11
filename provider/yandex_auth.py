@@ -6,7 +6,7 @@ This module exposes helpers consumed by the provider:
 * ``perform_qr_auth``  — full QR login (UI popup → tokens)
 * ``refresh_music_token`` — x_token → fresh music token
 * ``validate_x_token``  — quick liveness check for an x_token
-* ``login_with_cookies`` — browser cookies → tokens (custom, not in library)
+* ``login_with_cookies`` — browser cookies → tokens
 """
 
 from __future__ import annotations
@@ -15,24 +15,16 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-import aiohttp
 from music_assistant_models.errors import LoginFailed
 from ya_passport_auth import PassportClient, SecretStr
 from ya_passport_auth.exceptions import QRTimeoutError, YaPassportError
 
 from music_assistant.helpers.auth import AuthenticationHelper
 
-from .constants import PASSPORT_API_URL
-
 if TYPE_CHECKING:
     from music_assistant import MusicAssistant
 
 _LOGGER = logging.getLogger(__name__)
-
-# Yandex Passport OAuth credentials (public, from Yandex Music Android app)
-# Used only for cookie→x_token exchange (not handled by the library)
-_PASSPORT_CLIENT_ID = "c0ebe342af7d48fbbbfcf2d2eedb8f9e"
-_PASSPORT_CLIENT_SECRET = "ad0a908f0aa341a182a37ecd75bc319e"
 
 
 async def perform_qr_auth(mass: MusicAssistant, session_id: str) -> tuple[str, str]:
@@ -86,9 +78,6 @@ async def validate_x_token(x_token: SecretStr) -> bool:
 async def login_with_cookies(cookies_input: str) -> tuple[str, str]:
     """Authenticate using browser cookies from passport.yandex.ru.
 
-    The library does not support cookie→x_token exchange, so we keep
-    the custom POST here and delegate only x_token→music_token.
-
     Supports two formats:
     - JSON from "Copy Cookies" Chrome extension: [{"name":"...", "value":"...", "domain":"..."}]
     - Raw cookie string: "key1=value1; key2=value2"
@@ -99,7 +88,6 @@ async def login_with_cookies(cookies_input: str) -> tuple[str, str]:
     if not cookies_input:
         raise LoginFailed("Empty cookies string")
 
-    host = "passport.yandex.ru"
     cookies = cookies_input
 
     if cookies_input.startswith("["):
@@ -117,11 +105,6 @@ async def login_with_cookies(cookies_input: str) -> tuple[str, str]:
                 raise LoginFailed(
                     f"Invalid JSON cookies format. Cookie at index {idx} must be an object."
                 )
-            domain = str(item.get("domain", "")).strip().lstrip(".")
-            if domain.startswith("passport.yandex."):
-                host = domain
-            elif domain.startswith("yandex."):
-                host = f"passport.{domain}"
             if "name" not in item or "value" not in item:
                 raise LoginFailed(
                     f"Invalid JSON cookies format. Cookie at index {idx} must contain "
@@ -133,44 +116,16 @@ async def login_with_cookies(cookies_input: str) -> tuple[str, str]:
     if "=" not in cookies:
         raise LoginFailed("Invalid cookie format. Expected 'key=value; ...' or JSON array.")
 
-    # Cookie → x_token (custom; not in library)
     try:
-        async with (
-            aiohttp.ClientSession() as session,
-            session.post(
-                f"{PASSPORT_API_URL}/1/bundle/oauth/token_by_sessionid",
-                data={
-                    "client_id": _PASSPORT_CLIENT_ID,
-                    "client_secret": _PASSPORT_CLIENT_SECRET,
-                },
-                headers={
-                    "Ya-Client-Host": host,
-                    "Ya-Client-Cookie": cookies,
-                },
-            ) as resp,
-        ):
-            if resp.status != 200:
-                raise LoginFailed(f"Yandex returned HTTP {resp.status} for cookie→token exchange")
-            if resp.content_type != "application/json":
-                raise LoginFailed(
-                    f"Unexpected response content type for cookie auth: {resp.content_type}"
-                )
-            try:
-                data = await resp.json()
-            except (json.JSONDecodeError, ValueError) as err:
-                raise LoginFailed("Invalid JSON in cookie auth response") from err
-    except LoginFailed:
-        raise
-    except aiohttp.ClientError as err:
-        raise LoginFailed(f"Network error during cookie auth: {type(err).__name__}") from err
+        async with PassportClient.create() as client:
+            creds = await client.login_cookies(cookies)
+    except YaPassportError as err:
+        raise LoginFailed(f"Cookie authentication failed: {err}") from err
 
-    if "access_token" not in data:
-        raise LoginFailed("Failed to exchange cookies for x_token. Are the cookies valid?")
-
-    x_token = str(data["access_token"])
-
-    # x_token → music_token (delegated to library)
-    music_token = await refresh_music_token(SecretStr(x_token))
+    x_token = creds.x_token.get_secret()
+    music_token = creds.music_token
+    if music_token is None:
+        raise LoginFailed("Cookie auth succeeded but no music token was returned")
 
     _LOGGER.debug("Cookie auth complete, obtained both tokens")
     return x_token, music_token.get_secret()

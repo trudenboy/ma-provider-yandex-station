@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
@@ -264,36 +265,24 @@ async def test_validate_x_token_error_returns_false() -> None:
 
 async def test_login_with_cookies_raw_string() -> None:
     """Raw cookie string auth returns (x_token, music_token)."""
-    mock_resp = mock.MagicMock()
-    mock_resp.status = 200
-    mock_resp.content_type = "application/json"
-    mock_resp.json = mock.AsyncMock(return_value={"access_token": "cookie_x_token"})
-    mock_resp.__aenter__ = mock.AsyncMock(return_value=mock_resp)
-    mock_resp.__aexit__ = mock.AsyncMock(return_value=False)
+    creds = _make_credentials(x_token="cookie_x_token", music_token="cookie_music_token")
 
-    mock_session = mock.MagicMock()
-    mock_session.post.return_value = mock_resp
-    mock_session.__aenter__ = mock.AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = mock.AsyncMock(return_value=False)
+    mock_client = mock.AsyncMock()
+    mock_client.login_cookies.return_value = creds
 
-    with (
-        mock.patch(f"{_MOD}.aiohttp.ClientSession", return_value=mock_session),
-        mock.patch(
-            f"{_MOD}.refresh_music_token",
-            new_callable=mock.AsyncMock,
-            return_value=SecretStr("cookie_music_token"),
-        ),
-    ):
+    with mock.patch(f"{_MOD}.PassportClient.create") as mock_create:
+        mock_create.return_value.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_create.return_value.__aexit__ = mock.AsyncMock(return_value=False)
+
         x_token, music_token = await login_with_cookies("Session_id=abc123; yandexuid=456")
 
     assert x_token == "cookie_x_token"
     assert music_token == "cookie_music_token"
+    mock_client.login_cookies.assert_awaited_once_with("Session_id=abc123; yandexuid=456")
 
 
 async def test_login_with_cookies_json_format() -> None:
-    """JSON cookie array auth returns (x_token, music_token)."""
-    import json  # noqa: PLC0415
-
+    """JSON cookie array is converted to semicolon string and passed to library."""
     cookies_json = json.dumps(
         [
             {"name": "Session_id", "value": "abc123", "domain": ".yandex.ru"},
@@ -301,30 +290,20 @@ async def test_login_with_cookies_json_format() -> None:
         ]
     )
 
-    mock_resp = mock.MagicMock()
-    mock_resp.status = 200
-    mock_resp.content_type = "application/json"
-    mock_resp.json = mock.AsyncMock(return_value={"access_token": "json_x_token"})
-    mock_resp.__aenter__ = mock.AsyncMock(return_value=mock_resp)
-    mock_resp.__aexit__ = mock.AsyncMock(return_value=False)
+    creds = _make_credentials(x_token="json_x_token", music_token="json_music_token")
 
-    mock_session = mock.MagicMock()
-    mock_session.post.return_value = mock_resp
-    mock_session.__aenter__ = mock.AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = mock.AsyncMock(return_value=False)
+    mock_client = mock.AsyncMock()
+    mock_client.login_cookies.return_value = creds
 
-    with (
-        mock.patch(f"{_MOD}.aiohttp.ClientSession", return_value=mock_session),
-        mock.patch(
-            f"{_MOD}.refresh_music_token",
-            new_callable=mock.AsyncMock,
-            return_value=SecretStr("json_music_token"),
-        ),
-    ):
+    with mock.patch(f"{_MOD}.PassportClient.create") as mock_create:
+        mock_create.return_value.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_create.return_value.__aexit__ = mock.AsyncMock(return_value=False)
+
         x_token, music_token = await login_with_cookies(cookies_json)
 
     assert x_token == "json_x_token"
     assert music_token == "json_music_token"
+    mock_client.login_cookies.assert_awaited_once_with("Session_id=abc123; yandexuid=456")
 
 
 async def test_login_with_cookies_empty_raises() -> None:
@@ -337,3 +316,16 @@ async def test_login_with_cookies_invalid_format_raises() -> None:
     """Cookie string without '=' raises LoginFailed."""
     with pytest.raises(LoginFailed, match="Invalid cookie format"):
         await login_with_cookies("no_equals_sign_here")
+
+
+async def test_login_with_cookies_auth_error_raises_login_failed() -> None:
+    """InvalidCredentialsError from library is mapped to LoginFailed."""
+    mock_client = mock.AsyncMock()
+    mock_client.login_cookies.side_effect = InvalidCredentialsError("bad cookies")
+
+    with mock.patch(f"{_MOD}.PassportClient.create") as mock_create:
+        mock_create.return_value.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_create.return_value.__aexit__ = mock.AsyncMock(return_value=False)
+
+        with pytest.raises(LoginFailed, match="Cookie authentication failed"):
+            await login_with_cookies("Session_id=expired; yandexuid=456")
