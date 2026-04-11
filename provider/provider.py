@@ -6,7 +6,7 @@ import ipaddress
 import logging
 from typing import TYPE_CHECKING, Any
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, CookieJar
 from ya_passport_auth import PassportClient, SecretStr
 
 from music_assistant.models.player_provider import PlayerProvider
@@ -61,7 +61,7 @@ class YandexStationProvider(PlayerProvider):
         x_token = SecretStr(str(x_token_val))
         music_token = SecretStr(str(music_token_val)) if music_token_val else None
 
-        self._http_session = ClientSession()
+        self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
         self._passport_client = PassportClient(session=self._http_session)
         self._session = YandexSession(
             self._http_session,
