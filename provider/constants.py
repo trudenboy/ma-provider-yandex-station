@@ -17,7 +17,6 @@ CONF_ACTION_CLEAR_AUTH = "action_clear_auth"
 CONF_VOICE_CONTROL = "voice_control"
 
 # Yandex API endpoints
-PASSPORT_API_URL = "https://mobileproxy.passport.yandex.net"
 QUASAR_DEVICES_URL = "https://iot.quasar.yandex.ru/m/v3/user/devices"
 QUASAR_IOT_URL = "https://iot.quasar.yandex.ru"
 
