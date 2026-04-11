@@ -265,23 +265,29 @@ class YandexStationPlayer(Player):
             msg = f"radio_play failed: {error_msg}"
             raise PlayerCommandFailed(msg)
 
-        if result.get("status") == "SUCCESS":
-            # Glagol doesn't update playerState for externalCommandBypass playback,
-            # so we set state optimistically.
-            self._external_playing = True
-            self._external_media = media
-            self._attr_playback_state = PlaybackState.PLAYING
-            self._attr_powered = True
-            self._attr_elapsed_time = 0
-            self._attr_elapsed_time_last_updated = time.time()
-            self.set_current_media(
-                uri=media.uri or "",
-                title=media.title or "",
-                artist=media.artist or "",
-                duration=media.duration or None,
-                image_url=media.image_url or None,
-            )
-            self.update_state()
+        if result.get("status") != "SUCCESS":
+            status = result.get("status", "unknown")
+            msg_text = result.get("message", "")
+            detail = f" ({msg_text})" if msg_text else ""
+            msg = f"radio_play returned non-SUCCESS status: {status}{detail}"
+            raise PlayerCommandFailed(msg)
+
+        # Glagol doesn't update playerState for externalCommandBypass playback,
+        # so we set state optimistically.
+        self._external_playing = True
+        self._external_media = media
+        self._attr_playback_state = PlaybackState.PLAYING
+        self._attr_powered = True
+        self._attr_elapsed_time = 0
+        self._attr_elapsed_time_last_updated = time.time()
+        self.set_current_media(
+            uri=media.uri or "",
+            title=media.title or "",
+            artist=media.artist or "",
+            duration=media.duration or None,
+            image_url=media.image_url or None,
+        )
+        self.update_state()
 
     async def play_announcement(
         self, announcement: PlayerMedia, volume_level: int | None = None

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import sys
 from unittest import mock
 
 import pytest
+from music_assistant_models.errors import LoginFailed
 from ya_passport_auth import Credentials, QrSession, SecretStr
 from ya_passport_auth.exceptions import (
     InvalidCredentialsError,
@@ -23,8 +23,6 @@ from music_assistant.providers.yandex_station.yandex_auth import (
     refresh_music_token,
     validate_x_token,
 )
-
-LoginFailed = sys.modules["music_assistant_models.errors"].LoginFailed
 
 # mock target prefix: the module as seen in sys.modules
 _MOD = "music_assistant.providers.yandex_station.yandex_auth"

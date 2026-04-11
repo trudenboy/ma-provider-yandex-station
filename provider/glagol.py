@@ -126,9 +126,12 @@ class YandexGlagol:
         request_id = data.get("requestId")
         if request_id in self._waiters:
             result: dict[str, Any] = {"status": data.get("status", "unknown")}
-            _LOGGER.debug(
-                "[%s] Response for %s: status=%s", self.name, request_id, result["status"]
-            )
+            # Preserve error/message fields for diagnostics
+            if "error" in data:
+                result["error"] = data["error"]
+            if "message" in data:
+                result["message"] = data["message"]
+            _LOGGER.debug("[%s] Response for %s: %s", self.name, request_id, result)
             future = self._waiters[request_id]
             if not future.done():
                 future.set_result(result)

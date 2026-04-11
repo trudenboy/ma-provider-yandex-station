@@ -46,6 +46,7 @@ class YandexStationProvider(PlayerProvider):
         self._http_session: ClientSession | None = None
         self._passport_client: PassportClient | None = None
         self._pending_discoveries: set[str] = set()
+        self._mdns_players: dict[str, str] = {}  # mDNS service name → player_id
         self._discovery_done = False
 
     async def _init_session(self) -> bool:
@@ -154,21 +155,21 @@ class YandexStationProvider(PlayerProvider):
         state_change: ServiceStateChange,
         info: AsyncServiceInfo | None,
     ) -> None:
-        """Handle mDNS discovery callback (called by MA core)."""
-        if state_change.name == "Removed":
-            if info and info.properties:
-                props = info.properties
-                dev_id_raw = props.get(b"deviceId")
-                if dev_id_raw:
-                    dev_id = (
-                        dev_id_raw.decode() if isinstance(dev_id_raw, bytes) else str(dev_id_raw)
-                    )
-                    player_id = f"ys_{dev_id}"
-                    existing = self.mass.players.get_player(player_id)
-                    if existing and isinstance(existing, YandexStationPlayer):
-                        existing._attr_available = False
-                        existing.update_state()
-                        _LOGGER.debug("Marked player %s unavailable (mDNS removed)", player_id)
+        """Handle mDNS discovery callback (called by MA core).
+
+        Note: MA passes info=None for Removed events, so we use a cached
+        name→player_id mapping to mark players unavailable.
+        """
+        from zeroconf import ServiceStateChange  # noqa: PLC0415
+
+        if state_change == ServiceStateChange.Removed:
+            player_id = self._mdns_players.get(name)
+            if player_id:
+                existing = self.mass.players.get_player(player_id)
+                if existing and isinstance(existing, YandexStationPlayer):
+                    existing._attr_available = False
+                    existing.update_state()
+                    _LOGGER.debug("Marked player %s unavailable (mDNS removed)", player_id)
             return
 
         if not info or not info.addresses:
@@ -189,6 +190,9 @@ class YandexStationProvider(PlayerProvider):
                 return
 
             player_id = f"ys_{device_id}"
+
+            # Cache mDNS name → player_id for Removed events (info=None)
+            self._mdns_players[name] = player_id
 
             if player_id in self._pending_discoveries:
                 return
