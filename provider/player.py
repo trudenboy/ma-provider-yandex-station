@@ -329,9 +329,7 @@ class YandexStationPlayer(Player):
             )
 
         try:
-            await asyncio.wait_for(
-                self._announcement_done.wait(), timeout=announcement_timeout
-            )
+            await asyncio.wait_for(self._announcement_done.wait(), timeout=announcement_timeout)
         except TimeoutError:
             _LOGGER.debug("[%s] Announcement wait timed out", self.player_id)
         finally:
@@ -442,9 +440,7 @@ class YandexStationPlayer(Player):
             self._announcement_phase = "tts_speaking"
             return
 
-        done = (
-            self._announcement_phase == "tts_speaking" and alice_state == "IDLE"
-        ) or (
+        done = (self._announcement_phase == "tts_speaking" and alice_state == "IDLE") or (
             self._announcement_phase == "audio" and not playing
         )
         if done:
