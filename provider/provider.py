@@ -8,6 +8,13 @@ from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientSession, CookieJar
 from ya_passport_auth import PassportClient, SecretStr
+from ya_passport_auth.config import ClientConfig, DEFAULT_ALLOWED_HOSTS
+
+# ya.ru is used by Yandex Passport for geo-specific redirects in Russia.
+# ya-passport-auth's default allow-list does not include it.
+_PASSPORT_CONFIG = ClientConfig(
+    allowed_hosts=DEFAULT_ALLOWED_HOSTS | frozenset({"ya.ru"}),
+)
 
 from music_assistant.models.player_provider import PlayerProvider
 
@@ -62,7 +69,7 @@ class YandexStationProvider(PlayerProvider):
         music_token = SecretStr(str(music_token_val)) if music_token_val else None
 
         self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
-        self._passport_client = PassportClient(session=self._http_session)
+        self._passport_client = PassportClient(session=self._http_session, config=_PASSPORT_CONFIG)
         self._session = YandexSession(
             self._http_session,
             self._passport_client,
