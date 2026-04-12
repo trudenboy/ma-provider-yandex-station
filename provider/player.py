@@ -101,6 +101,9 @@ class YandexStationPlayer(Player):
         # Voice command analysis: did Alice speak? Was volume changed?
         self._alice_spoke: bool = False
         self._pre_voice_volume: int = 0
+        # Announcement completion tracking
+        self._announcement_done: asyncio.Event | None = None
+        self._announcement_phase: str = ""  # "tts_waiting" | "tts_speaking" | "audio"
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -294,22 +297,30 @@ class YandexStationPlayer(Player):
     ) -> None:
         """Play announcement using Alice's native TTS.
 
+        Blocks until the announcement finishes so MA core can properly
+        manage ANNOUNCEMENT_IN_PROGRESS state and volume restoration.
+
         Extracts text from announcement title and speaks it via repeat_phrase.
         Falls back to streaming the audio URL if no title is available.
         """
+        announcement_timeout = 30
+
         # Adjust volume before announcement if requested
         saved_volume: int | None = None
         if volume_level is not None and volume_level != self._attr_volume_level:
             saved_volume = self._attr_volume_level
             await self.volume_set(volume_level)
 
+        self._announcement_done = asyncio.Event()
+
         text = announcement.title
         if text:
             _LOGGER.debug("[%s] TTS announcement: %s", self.player_id, text)
+            self._announcement_phase = "tts_waiting"
             await self.glagol.send_tts(text)
         else:
-            # No text available — stream the audio URL directly
             _LOGGER.debug("[%s] Audio announcement: %s", self.player_id, announcement.uri)
+            self._announcement_phase = "audio"
             await self.glagol.send(
                 _external_command(
                     "radio_play",
@@ -317,9 +328,17 @@ class YandexStationPlayer(Player):
                 )
             )
 
-        # Restore volume after a brief delay for TTS to start
+        try:
+            await asyncio.wait_for(
+                self._announcement_done.wait(), timeout=announcement_timeout
+            )
+        except TimeoutError:
+            _LOGGER.debug("[%s] Announcement wait timed out", self.player_id)
+        finally:
+            self._announcement_done = None
+            self._announcement_phase = ""
+
         if saved_volume is not None:
-            await asyncio.sleep(3)
             await self.volume_set(saved_volume)
 
     async def on_unload(self) -> None:
@@ -414,6 +433,23 @@ class YandexStationPlayer(Player):
             if self._attr_playback_state == PlaybackState.PLAYING:
                 self._attr_playback_state = PlaybackState.IDLE
 
+    def _check_announcement_done(self, alice_state: str, playing: bool) -> None:
+        """Signal announcement completion based on Glagol state transitions."""
+        if not self._announcement_done or self._announcement_done.is_set():
+            return
+
+        if self._announcement_phase == "tts_waiting" and alice_state == "SPEAKING":
+            self._announcement_phase = "tts_speaking"
+            return
+
+        done = (
+            self._announcement_phase == "tts_speaking" and alice_state == "IDLE"
+        ) or (
+            self._announcement_phase == "audio" and not playing
+        )
+        if done:
+            self._announcement_done.set()
+
     def _on_glagol_update(self, data: dict[str, Any] | None) -> None:
         """Handle state update from Glagol WebSocket.
 
@@ -454,6 +490,9 @@ class YandexStationPlayer(Player):
             self._attr_volume_level = round(state["volume"] * 100)
 
         alice_state = state.get("aliceState", "")
+
+        # Track announcement completion for blocking play_announcement()
+        self._check_announcement_done(alice_state, playing)
 
         self._update_playback_state(playing, alice_state)
 
