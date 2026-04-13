@@ -205,9 +205,7 @@ class YandexSession:
                     "name": cookie.key,
                     "value": cookie.value,
                     "domain": (
-                        f"https://{cookie['domain'].lstrip('.')}"
-                        if cookie.get("domain")
-                        else ""
+                        f"https://{cookie['domain'].lstrip('.')}" if cookie.get("domain") else ""
                     ),
                 }
             )
