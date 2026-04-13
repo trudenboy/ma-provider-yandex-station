@@ -118,7 +118,7 @@ async def login_with_cookies(cookies_input: str) -> tuple[str, str]:
 
     try:
         async with PassportClient.create() as client:
-            creds = await client.login_cookies(cookies)
+            creds = await client.login_cookies(cookies)  # type: ignore[attr-defined]
     except YaPassportError as err:
         raise LoginFailed(f"Cookie authentication failed: {err}") from err
 
