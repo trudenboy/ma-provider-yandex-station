@@ -204,7 +204,11 @@ class YandexSession:
                 {
                     "name": cookie.key,
                     "value": cookie.value,
-                    "domain": f"https://{cookie['domain']}" if cookie.get("domain") else "",
+                    "domain": (
+                        f"https://{cookie['domain'].lstrip('.')}"
+                        if cookie.get("domain")
+                        else ""
+                    ),
                 }
             )
         raw = json.dumps(cookies).encode()
