@@ -41,12 +41,6 @@ _LOGGER = logging.getLogger(f"{PROV_LOGGER_BASE}.glagol")
 class YandexGlagol:
     """Local WebSocket client for Yandex Station via Glagol protocol."""
 
-    device_token: SecretStr | None = None
-    url: str | None = None
-    ws: ClientWebSocketResponse | None = None
-
-    update_handler: Callable[[dict[str, Any] | None], None] | None = None
-
     def __init__(
         self, session: YandexSession, client: PassportClient, device: dict[str, Any]
     ) -> None:
@@ -56,6 +50,10 @@ class YandexGlagol:
         self.device = device
         self._waiters: dict[str, asyncio.Future[dict[str, Any]]] = {}
         self._connect_task: asyncio.Task[None] | None = None
+        self.device_token: SecretStr | None = None
+        self.url: str | None = None
+        self.ws: ClientWebSocketResponse | None = None
+        self.update_handler: Callable[[dict[str, Any] | None], None] | None = None
 
     @property
     def name(self) -> str:
