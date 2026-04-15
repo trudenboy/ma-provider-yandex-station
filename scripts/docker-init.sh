@@ -5,16 +5,6 @@ set -e
 
 echo "==> Setting up Yandex Station provider..."
 
-# Determine pip installer: prefer uv, fall back to pip
-if [ -x /app/venv/bin/uv ]; then
-    PIP_INSTALL="/app/venv/bin/uv pip install --quiet"
-elif [ -x /app/venv/bin/pip ]; then
-    PIP_INSTALL="/app/venv/bin/pip install --quiet"
-else
-    echo "ERROR: neither uv nor pip found in /app/venv/bin" >&2
-    exit 1
-fi
-
 # Locate MA providers directory inside the container venv
 PROVIDERS_DIR=$(/app/venv/bin/python3 -c \
     "import music_assistant.providers, os; print(os.path.dirname(music_assistant.providers.__file__))")
@@ -45,23 +35,7 @@ PYEOF
 )
 if [ -n "$DEPS" ]; then
     echo "==> Installing provider dependencies: $DEPS"
-    $PIP_INSTALL $DEPS
-fi
-
-# Install manifest.json requirements (e.g. ya-passport-auth)
-MANIFEST_DEPS=$(/app/venv/bin/python3 - <<'PYEOF'
-import json
-try:
-    with open("/tmp/provider/manifest.json") as f:
-        m = json.load(f)
-    print(" ".join(m.get("requirements", [])))
-except Exception:
-    pass
-PYEOF
-)
-if [ -n "$MANIFEST_DEPS" ]; then
-    echo "==> Installing manifest requirements: $MANIFEST_DEPS"
-    $PIP_INSTALL $MANIFEST_DEPS
+    /app/venv/bin/pip install --quiet $DEPS
 fi
 
 echo "==> Starting Music Assistant..."
