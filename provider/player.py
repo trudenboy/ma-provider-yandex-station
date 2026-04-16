@@ -56,6 +56,14 @@ def _external_command(name: str, payload: dict[str, Any] | str | None = None) ->
     }
 
 
+def _raise_if_failed(result: dict[str, Any] | None, command: str) -> None:
+    """Raise PlayerCommandFailed if a Glagol send result indicates failure."""
+    if not result or result.get("error"):
+        err = (result or {}).get("error", "no response")
+        msg = f"{command} failed: {err}"
+        raise PlayerCommandFailed(msg)
+
+
 def _update_form(name: str, **kwargs: str) -> dict[str, Any]:
     """Build a serverAction command to invoke a named form/scenario."""
     return {
@@ -101,9 +109,9 @@ class YandexStationPlayer(Player):
         # Voice command analysis: did Alice speak? Was volume changed?
         self._alice_spoke: bool = False
         self._pre_voice_volume: int = 0
-        # Announcement completion tracking
+        # Announcement completion tracking (TTS only — audio path uses a timed wait)
         self._announcement_done: asyncio.Event | None = None
-        self._announcement_phase: str = ""  # "tts_waiting" | "tts_speaking" | "audio"
+        self._announcement_phase: str = ""  # "tts_waiting" | "tts_speaking"
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -197,13 +205,16 @@ class YandexStationPlayer(Player):
         Send a radio_play with invalid URL to replace current bypass stream —
         the station will fail to fetch it and stop. Fully local, no cloud needed.
         """
-        if self._external_playing:
-            await self.glagol.send(
+        was_external = self._external_playing
+        if was_external:
+            result = await self.glagol.send(
                 _external_command("radio_play", {"streamUrl": "http://0.0.0.0/stop.flac"})
             )
-            self._needs_replay = True
         else:
-            await self.glagol.send({"command": "stop"})
+            result = await self.glagol.send({"command": "stop"})
+        _raise_if_failed(result, "pause")
+        if was_external:
+            self._needs_replay = True
         self._external_playing = False
         self._external_media = None
         self._attr_playback_state = PlaybackState.PAUSED
@@ -212,11 +223,12 @@ class YandexStationPlayer(Player):
     async def stop(self) -> None:
         """Send STOP command."""
         if self._external_playing:
-            await self.glagol.send(
+            result = await self.glagol.send(
                 _external_command("radio_play", {"streamUrl": "http://0.0.0.0/stop.flac"})
             )
         else:
-            await self.glagol.send({"command": "stop"})
+            result = await self.glagol.send({"command": "stop"})
+        _raise_if_failed(result, "stop")
         self._external_playing = False
         self._external_media = None
         self._attr_playback_state = PlaybackState.IDLE
@@ -311,33 +323,43 @@ class YandexStationPlayer(Player):
             saved_volume = self._attr_volume_level
             await self.volume_set(volume_level)
 
-        self._announcement_done = asyncio.Event()
-
-        text = announcement.title
-        if text:
-            _LOGGER.debug("[%s] TTS announcement: %s", self.player_id, text)
-            self._announcement_phase = "tts_waiting"
-            await self.glagol.send_tts(text)
-        else:
-            _LOGGER.debug("[%s] Audio announcement: %s", self.player_id, announcement.uri)
-            self._announcement_phase = "audio"
-            await self.glagol.send(
-                _external_command(
-                    "radio_play",
-                    {"streamUrl": announcement.uri, "force_restart_player": True},
-                )
-            )
-
         try:
-            await asyncio.wait_for(self._announcement_done.wait(), timeout=announcement_timeout)
-        except TimeoutError:
-            _LOGGER.debug("[%s] Announcement wait timed out", self.player_id)
+            text = announcement.title
+            if text:
+                _LOGGER.debug("[%s] TTS announcement: %s", self.player_id, text)
+                self._announcement_phase = "tts_waiting"
+                self._announcement_done = asyncio.Event()
+                result = await self.glagol.send_tts(text)
+                _raise_if_failed(result, "TTS announcement")
+                try:
+                    await asyncio.wait_for(
+                        self._announcement_done.wait(), timeout=announcement_timeout
+                    )
+                except TimeoutError:
+                    _LOGGER.debug("[%s] TTS announcement wait timed out", self.player_id)
+            else:
+                _LOGGER.debug("[%s] Audio announcement: %s", self.player_id, announcement.uri)
+                result = await self.glagol.send(
+                    _external_command(
+                        "radio_play",
+                        {"streamUrl": announcement.uri, "force_restart_player": True},
+                    )
+                )
+                _raise_if_failed(result, "Audio announcement")
+                # externalCommandBypass playback doesn't update state.playing,
+                # so we can't observe completion — wait by known duration instead.
+                duration = announcement.duration
+                wait_time = (
+                    min(duration + 1, announcement_timeout)
+                    if duration and duration > 0
+                    else announcement_timeout
+                )
+                await asyncio.sleep(wait_time)
         finally:
             self._announcement_done = None
             self._announcement_phase = ""
-
-        if saved_volume is not None:
-            await self.volume_set(saved_volume)
+            if saved_volume is not None:
+                await self.volume_set(saved_volume)
 
     async def on_unload(self) -> None:
         """Clean up on player unload."""
@@ -431,8 +453,8 @@ class YandexStationPlayer(Player):
             if self._attr_playback_state == PlaybackState.PLAYING:
                 self._attr_playback_state = PlaybackState.IDLE
 
-    def _check_announcement_done(self, alice_state: str, playing: bool) -> None:
-        """Signal announcement completion based on Glagol state transitions."""
+    def _check_announcement_done(self, alice_state: str) -> None:
+        """Signal TTS announcement completion based on Glagol state transitions."""
         if not self._announcement_done or self._announcement_done.is_set():
             return
 
@@ -440,10 +462,7 @@ class YandexStationPlayer(Player):
             self._announcement_phase = "tts_speaking"
             return
 
-        done = (self._announcement_phase == "tts_speaking" and alice_state == "IDLE") or (
-            self._announcement_phase == "audio" and not playing
-        )
-        if done:
+        if self._announcement_phase == "tts_speaking" and alice_state == "IDLE":
             self._announcement_done.set()
 
     def _on_glagol_update(self, data: dict[str, Any] | None) -> None:
@@ -488,7 +507,7 @@ class YandexStationPlayer(Player):
         alice_state = state.get("aliceState", "")
 
         # Track announcement completion for blocking play_announcement()
-        self._check_announcement_done(alice_state, playing)
+        self._check_announcement_done(alice_state)
 
         self._update_playback_state(playing, alice_state)
 
