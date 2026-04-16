@@ -60,7 +60,7 @@ class YandexSession:
                 for c in cookie_list:
                     self._session.cookie_jar.update_cookies(
                         {c["name"]: c["value"]},
-                        response_url=yarl.URL(c.get("domain", "https://yandex.ru")),
+                        response_url=yarl.URL(c.get("domain") or "https://yandex.ru"),
                     )
             except Exception:
                 _LOGGER.warning("Failed to restore cookies from saved state")

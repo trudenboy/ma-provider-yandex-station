@@ -178,9 +178,14 @@ class YandexStationPlayer(Player):
         Power off: sends station to home screen via go_home scenario.
         """
         if powered:
-            await self.glagol.send(_update_form("personal_assistant.scenarios.player_continue"))
+            result = await self.glagol.send(
+                _update_form("personal_assistant.scenarios.player_continue")
+            )
         else:
-            await self.glagol.send(_update_form("personal_assistant.scenarios.quasar.go_home"))
+            result = await self.glagol.send(
+                _update_form("personal_assistant.scenarios.quasar.go_home")
+            )
+        _raise_if_failed(result, "power")
         self._attr_powered = powered
         self.update_state()
 
