@@ -152,6 +152,33 @@
 
 ---
 
+## [1.2.1] - 2026-04-16
+
+- Bump version from 1.2.0 to 1.2.1 (`b05e71d`)
+- chore: sync workflow wrappers from ma-provider-tools (#32) (`74e649c`)
+- fix: surface errors in power() and handle empty cookie domain on restore (`a4546c7`)
+- style: auto-fix ruff (`949f8d6`)
+- fix(player): raise on failed Glagol sends and fix audio announcement wait (`5b5da85`)
+- chore: sync workflow wrappers from ma-provider-tools (#30) (`c40e82d`)
+- style: auto-fix ruff (`305d35c`)
+- chore: sync workflow wrappers from ma-provider-tools (#27) (`59e8be7`)
+- style: auto-fix ruff (`c8973a6`)
+- fix(glagol): move class attributes to instance attributes (`60d7c56`)
+- style: auto-fix ruff (`b17c946`)
+- fix(session): strip leading dot from cookie domain in serialization (`c0d0492`)
+- fix(auth): remove unnecessary type: ignore comment (`214f8d0`)
+- style: auto-fix ruff (`de305df`)
+- fix(auth): add type: ignore for mypy compat with older ya-passport-auth (`8f41a3a`)
+- style: auto-fix ruff (`88c1dcf`)
+- fix(player): block play_announcement until playback finishes (`94f36f8`)
+- chore(deps): bump ya-passport-auth to 1.2.3 (`543a6df`)
+- fix(provider): disable cookie quoting for Yandex compatibility (`bfc02f6`)
+- fix(session): delegate login_token() back to ya-passport-auth 1.2.2 (`3a05750`)
+- fix(session): pass track_id as query param, not header (`a99f900`)
+- fix(session): use library refresh_passport_cookies (ya-passport-auth 1.2.1) (`f6f2a2a`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
