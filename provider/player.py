@@ -487,6 +487,7 @@ class YandexStationPlayer(Player):
             _LOGGER.debug(
                 "[%s] No 'state' in Glagol data, keys: %s", self.player_id, list(data.keys())
             )
+            self.update_state()
             return
 
         player_state = state.get("playerState", {})
