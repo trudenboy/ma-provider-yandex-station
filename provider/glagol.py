@@ -171,9 +171,7 @@ class YandexGlagol:
                 try:
                     data = json.loads(msg.data)
                 except json.JSONDecodeError:
-                    _LOGGER.warning(
-                        "[%s] Ignoring malformed WS payload: %s", self.name, msg.data
-                    )
+                    _LOGGER.warning("[%s] Ignoring malformed WS payload: %s", self.name, msg.data)
                     continue
                 fails = 0  # Any message = reset fails
                 self._handle_message(data)
