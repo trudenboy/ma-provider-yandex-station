@@ -43,6 +43,8 @@ class _StubConfigValue:
 class _StubConfig:
     """Minimal ProviderConfig stub that supports get_value / .values[key].value=."""
 
+    instance_id = "test_instance"
+
     def __init__(self, values: dict[str, Any]) -> None:
         self.values: dict[str, _StubConfigValue] = {
             k: _StubConfigValue(v) for k, v in values.items()
@@ -77,7 +79,8 @@ def _make_provider(config_values: dict[str, Any]) -> YandexStationProvider:
     provider = YandexStationProvider.__new__(YandexStationProvider)
     provider.mass = _StubMass()  # type: ignore[assignment]
     provider.config = _StubConfig(config_values)  # type: ignore[assignment]
-    provider.instance_id = "test_instance"  # type: ignore[assignment]
+    # NB: ``instance_id`` is a read-only @property on the real Provider that
+    # delegates to ``config.instance_id`` — we set it on the stub config above.
     provider.logger = logging.getLogger("test_provider")  # type: ignore[assignment]
     provider._session = None
     provider._quasar = None
