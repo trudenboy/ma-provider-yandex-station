@@ -49,6 +49,12 @@ except ImportError:
     class _LoginFailed(Exception):
         pass
 
+    class _InvalidDataError(Exception):
+        pass
+
+    class _ProviderUnavailableError(Exception):
+        pass
+
     class _ConfigEntry:
         def __init__(self, **kw: object) -> None:
             self.__dict__.update(kw)
@@ -57,6 +63,9 @@ except ImportError:
         LABEL = "label"
         ACTION = "action"
         SECURE_STRING = "secure_string"
+        BOOLEAN = "boolean"
+        STRING = "string"
+        INTEGER = "integer"
 
     class _ProviderFeature:
         pass
@@ -64,15 +73,50 @@ except ImportError:
     class _ProviderManifest:
         pass
 
+    class _PlaybackState:
+        IDLE = "idle"
+        PLAYING = "playing"
+        PAUSED = "paused"
+
+    class _PlayerFeature:
+        pass
+
+    class _PlayerType:
+        PLAYER = "player"
+
+    class _PlayerCommandFailed(Exception):
+        pass
+
+    class _ConfigValueType:
+        pass
+
     _ensure_stub("music_assistant_models")
-    _ensure_stub("music_assistant_models.errors", {"LoginFailed": _LoginFailed})
+    _ensure_stub(
+        "music_assistant_models.errors",
+        {
+            "LoginFailed": _LoginFailed,
+            "InvalidDataError": _InvalidDataError,
+            "ProviderUnavailableError": _ProviderUnavailableError,
+            "PlayerCommandFailed": _PlayerCommandFailed,
+        },
+    )
     _ensure_stub(
         "music_assistant_models.config_entries",
-        {"ConfigEntry": _ConfigEntry, "ConfigValueType": object, "ProviderConfig": object},
+        {
+            "ConfigEntry": _ConfigEntry,
+            "ConfigValueType": _ConfigValueType,
+            "ProviderConfig": object,
+        },
     )
     _ensure_stub(
         "music_assistant_models.enums",
-        {"ConfigEntryType": _ConfigEntryType, "ProviderFeature": _ProviderFeature},
+        {
+            "ConfigEntryType": _ConfigEntryType,
+            "ProviderFeature": _ProviderFeature,
+            "PlaybackState": _PlaybackState,
+            "PlayerFeature": _PlayerFeature,
+            "PlayerType": _PlayerType,
+        },
     )
     _ensure_stub("music_assistant_models.provider", {"ProviderManifest": _ProviderManifest})
 
@@ -103,15 +147,51 @@ try:
 except (ImportError, AttributeError):
 
     class _PlayerProvider:  # type: ignore[no-redef]
+        instance_id = "stub_instance"
+
         def __init__(self, *a: object, **kw: object) -> None:
             self.logger = __import__("logging").getLogger(__name__)
             self.mass = a[0] if a else None
             self.config = a[2] if len(a) > 2 else None
 
+        def _update_config_value(
+            self, key: str, value: object, encrypted: bool = False
+        ) -> None:
+            """Mirror Provider._update_config_value so tests can assert behaviour."""
+            if self.mass is not None:
+                self.mass.config.set_raw_provider_config_value(
+                    getattr(self, "instance_id", "stub_instance"), key, value, encrypted
+                )
+            cfg = getattr(self, "config", None)
+            values = getattr(cfg, "values", None)
+            if values is not None and key in values:
+                values[key].value = value
+
+    class _Player:  # type: ignore[no-redef]
+        def __init__(self, *a: object, **kw: object) -> None:
+            pass
+
+    class _PlayerMedia:  # type: ignore[no-redef]
+        pass
+
+    class _DeviceInfo:  # type: ignore[no-redef]
+        pass
+
     _models = _ensure_stub("music_assistant.models")
     _models.__path__ = []  # type: ignore[attr-defined]
     _ensure_stub("music_assistant.models.player_provider", {"PlayerProvider": _PlayerProvider})
+    _ensure_stub(
+        "music_assistant.models.player",
+        {"Player": _Player, "PlayerMedia": _PlayerMedia, "DeviceInfo": _DeviceInfo},
+    )
     _ensure_stub("music_assistant.models", {"ProviderInstanceType": object})
+    _ensure_stub(
+        "music_assistant.constants",
+        {
+            "CONF_ENTRY_HTTP_PROFILE_DEFAULT_3": object(),
+            "CONF_ENTRY_OUTPUT_CODEC": object(),
+        },
+    )
 
 try:
     from music_assistant.mass import MusicAssistant  # noqa: F401
