@@ -108,7 +108,6 @@ class YandexStationProvider(PlayerProvider):
         # Load device list from Quasar cloud API
         assert self._session is not None  # guaranteed by _init_session()
         self._quasar = YandexQuasar(self._session)
-        speakers: list[dict[str, Any]] = []
         try:
             speakers = await self._quasar.get_speakers()
             self.logger.info("Found %d speakers via Quasar API", len(speakers))
@@ -117,7 +116,9 @@ class YandexStationProvider(PlayerProvider):
                 if "quasar_info" not in speaker:
                     await self._quasar.load_device_config(speaker)
         except Exception:
-            self.logger.exception("Failed to load speakers from Quasar")
+            # Leave _discovery_done=False so MA can retry on transient API/auth errors
+            self.logger.exception("Failed to load speakers from Quasar — will retry later")
+            return
 
         # Register all cloud-discovered speakers as players
         # Enrich with local connection info from glagol API (mDNS fallback)

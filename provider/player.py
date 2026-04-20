@@ -201,7 +201,8 @@ class YandexStationPlayer(Player):
             if queue:
                 await self.mass.player_queues.resume(queue.queue_id)
                 return
-        await self.glagol.send({"command": "play"})
+        result = await self.glagol.send({"command": "play"})
+        _raise_if_failed(result, "play")
 
     async def pause(self) -> None:
         """Send PAUSE command.
@@ -241,19 +242,25 @@ class YandexStationPlayer(Player):
 
     async def next_track(self) -> None:
         """Send NEXT command."""
-        await self.glagol.send({"command": "next"})
+        result = await self.glagol.send({"command": "next"})
+        _raise_if_failed(result, "next_track")
 
     async def previous_track(self) -> None:
         """Send PREVIOUS command."""
-        await self.glagol.send({"command": "prev"})
+        result = await self.glagol.send({"command": "prev"})
+        _raise_if_failed(result, "previous_track")
 
     async def seek(self, position: int) -> None:
         """Seek to position in seconds."""
-        await self.glagol.send({"command": "rewind", "position": position})
+        result = await self.glagol.send({"command": "rewind", "position": position})
+        _raise_if_failed(result, "seek")
 
     async def volume_set(self, volume_level: int) -> None:
         """Set volume level (0-100)."""
-        await self.glagol.send({"command": "setVolume", "volume": round(volume_level / 100, 2)})
+        result = await self.glagol.send(
+            {"command": "setVolume", "volume": round(volume_level / 100, 2)}
+        )
+        _raise_if_failed(result, "volume_set")
 
     async def volume_mute(self, muted: bool) -> None:
         """Mute/unmute. Yandex Station doesn't have native mute, simulate with volume."""
