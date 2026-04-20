@@ -16,7 +16,7 @@ from music_assistant.providers.yandex_station.player import YandexStationPlayer
 def _make_player() -> YandexStationPlayer:
     """Build a bare player skipping Player.__init__ (avoids MA core deps)."""
     player = YandexStationPlayer.__new__(YandexStationPlayer)
-    player.player_id = "test_player"
+    player._player_id = "test_player"
     player._external_playing = False
     player._external_media = None
     player._external_play_confirmed = False
