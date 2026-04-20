@@ -321,6 +321,34 @@ async def test_network_error_raises_provider_unavailable(
             await provider._init_session()
 
 
+async def test_init_session_reuses_existing_healthy_session(
+    fake_session_cls: Any,  # noqa: ARG001
+) -> None:
+    """If _session + http_session already exist and are open, _init_session is a no-op."""
+    provider = _make_provider(
+        {
+            CONF_MUSIC_TOKEN: "mt",
+            CONF_X_TOKEN: "xt",
+            CONF_REFRESH_TOKEN: None,
+            CONF_REMEMBER_SESSION: True,
+        }
+    )
+    # Simulate a prior init that already produced a live session
+    # (e.g. via an mDNS-triggered _create_player call racing discover_players).
+    existing_http = mock.MagicMock(closed=False, close=mock.AsyncMock())
+    existing_session = mock.MagicMock()
+    provider._http_session = existing_http
+    provider._session = existing_session
+
+    ok = await provider._init_session()
+
+    assert ok is True
+    # Existing session must not be replaced or closed.
+    assert provider._http_session is existing_http
+    assert provider._session is existing_session
+    existing_http.close.assert_not_called()
+
+
 async def test_transient_refresh_failure_does_not_wipe_tokens(fake_session_cls: Any) -> None:
     """ProviderUnavailableError from refresh must propagate without clearing creds."""
     provider = _make_provider(

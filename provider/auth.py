@@ -142,6 +142,7 @@ def _build_device_code_page(
         function selectCodeForManualCopy() {{
             if (!codeElement) return;
             const selection = window.getSelection();
+            if (!selection) return;
             const range = document.createRange();
             range.selectNodeContents(codeElement);
             selection.removeAllRanges();

@@ -98,8 +98,19 @@ class YandexStationProvider(PlayerProvider):
             self.logger.warning("No credentials configured, cannot discover devices")
             return False
 
-        # Close any leftover session from a previous failed init to avoid leaking
-        # aiohttp sockets — callers (discover_players, _create_player) may retry.
+        # Idempotent: if a previous init already produced a healthy session,
+        # reuse it. mDNS-triggered ``_create_player`` may have initialised the
+        # session already and started Glagol on top of it — tearing it down
+        # here would break those connections.
+        if (
+            self._session is not None
+            and self._http_session is not None
+            and not self._http_session.closed
+        ):
+            return True
+
+        # Close any orphaned HTTP session from a failed init to avoid leaking
+        # aiohttp sockets.
         if self._http_session is not None:
             await self._cleanup_session()
 
@@ -276,9 +287,14 @@ class YandexStationProvider(PlayerProvider):
     async def _silent_reauth(self) -> bool:
         """Attempt a silent re-auth after a runtime 401/403 from Quasar.
 
-        Returns True if credentials were rotated and the session was refreshed
-        so the caller can retry its operation; False if silent refresh isn't
-        possible (no x_token/refresh_token) or has been tried already.
+        Returns ``True`` if credentials were rotated and the session was
+        refreshed so the caller can retry its operation; ``False`` if silent
+        refresh isn't possible with the currently available credentials (no
+        x_token, or x_token+refresh_token both rejected).
+
+        One-retry semantics are enforced by the caller (see
+        :meth:`_get_speakers_with_reauth`), not here — this method itself
+        will run the refresh cascade every time it's called.
         """
         # Serialize: multiple concurrent 401s should trigger only one refresh.
         # Read tokens inside the lock so we pick up values rotated by a prior
