@@ -64,13 +64,16 @@ class YandexStationProvider(PlayerProvider):
     async def _init_session(self) -> bool:
         """Initialize Yandex HTTP session with credential cascade.
 
-        Cascade steps (each step updates config on success, clears on terminal failure):
+        Returns ``True`` when a working session is established, ``False`` otherwise.
+
+        Cascade steps (each step updates config on success):
           1. Fast-path: if ``music_token`` is present, try it as-is.
-          2. If no music_token (or step 1 would fail) and ``x_token`` exists → ask
-             Passport for a fresh music_token.
+          2. If step 1 fails and ``x_token`` exists → ask Passport for a fresh
+             music_token.
           3. If step 2 fails and ``refresh_token`` exists (Device Flow only) →
              silently rotate the full credential triple.
-          4. Terminal: clear all three config keys, raise :class:`LoginFailed`.
+          4. Terminal: clear all three config keys and return ``False`` so the
+             caller can surface a re-login prompt.
 
         Respects :const:`CONF_REMEMBER_SESSION`: when False, steps 2-4 are skipped
         because x_token/refresh_token are not stored for throw-away sessions.
@@ -260,13 +263,27 @@ class YandexStationProvider(PlayerProvider):
             self._update_config_value(
                 CONF_MUSIC_TOKEN, new_music_token.get_secret(), encrypted=True
             )
-            if self._session is not None:
-                self._session.music_token = new_music_token
-                # Refresh cookies too so non-Glagol Quasar requests keep working.
-                try:
-                    await self._session.login_token()
-                except Exception:
-                    self.logger.debug("login_token after silent reauth failed", exc_info=True)
+            if self._session is None:
+                return True
+            self._session.music_token = new_music_token
+
+            # Refresh cookies too so non-Glagol Quasar requests keep working.
+            # If cookie refresh fails (expired x_token), fall back to refresh_token
+            # rotation — otherwise the caller would retry against Quasar with
+            # stale cookies and hit 401 again.
+            try:
+                if await self._session.login_token():
+                    return True
+                self.logger.debug("login_token after silent reauth returned False")
+            except Exception:
+                self.logger.debug("login_token after silent reauth failed", exc_info=True)
+
+            if not refresh_token_val:
+                return False
+            try:
+                await self._reauth_via_refresh_token(x_token, SecretStr(str(refresh_token_val)))
+            except LoginFailed:
+                return False
             return True
 
     async def _cleanup_session(self) -> None:
