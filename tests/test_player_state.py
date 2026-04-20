@@ -94,6 +94,32 @@ def test_external_playing_true_sets_confirmed() -> None:
     assert player._attr_powered is True
 
 
+def test_physical_pause_cancels_pending_voice_resume_task() -> None:
+    """A pending auto-resume from a prior voice interaction must be cancelled.
+
+    Without this, the task could wake up after the user physically paused and
+    resume MA queue playback unexpectedly.
+    """
+    cancelled = False
+
+    class _FakeTask:
+        def cancel(self) -> None:
+            nonlocal cancelled
+            cancelled = True
+
+    player = _make_player()
+    _disable_voice_control(player)
+    player._external_playing = True
+    player._external_play_confirmed = True
+    player._voice_resume_task = _FakeTask()  # type: ignore[assignment]
+
+    player._update_playback_state(playing=False, alice_state="IDLE")
+
+    assert cancelled is True
+    assert player._voice_resume_task is None
+    assert player._attr_playback_state == PlaybackState.PAUSED
+
+
 def test_physical_pause_ignored_during_voice_interaction() -> None:
     """Alice speaking/listening must not be treated as a physical pause.
 

@@ -228,6 +228,7 @@ class YandexStationPlayer(Player):
         self._external_playing = False
         self._external_media = None
         self._external_play_confirmed = False
+        self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.PAUSED
         self.update_state()
 
@@ -243,6 +244,8 @@ class YandexStationPlayer(Player):
         self._external_playing = False
         self._external_media = None
         self._external_play_confirmed = False
+        self._needs_replay = False
+        self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.IDLE
         self.update_state()
 
@@ -418,9 +421,7 @@ class YandexStationPlayer(Player):
         self._attr_playback_state = PlaybackState.PAUSED
         self._alice_spoke = False
         self._pre_voice_volume = self._attr_volume_level or 0
-        if self._voice_resume_task:
-            self._voice_resume_task.cancel()
-            self._voice_resume_task = None
+        self._cancel_voice_resume()
 
     def _handle_voice_end(self, alice_state: str) -> None:
         """Handle end of voice interaction — decide whether to auto-resume."""
@@ -447,6 +448,12 @@ class YandexStationPlayer(Player):
                 _LOGGER.info("[%s] Silent voice command — staying paused", self.player_id)
                 self._needs_replay = True
 
+    def _cancel_voice_resume(self) -> None:
+        """Cancel any pending auto-resume task from a prior voice interaction."""
+        if self._voice_resume_task:
+            self._voice_resume_task.cancel()
+            self._voice_resume_task = None
+
     def _handle_physical_pause(self) -> None:
         """Handle physical pause pressed on the speaker during external playback."""
         _LOGGER.info(
@@ -457,6 +464,7 @@ class YandexStationPlayer(Player):
         self._external_media = None
         self._external_play_confirmed = False
         self._needs_replay = True
+        self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.PAUSED
 
     def _update_playback_state(self, playing: bool, alice_state: str) -> None:
