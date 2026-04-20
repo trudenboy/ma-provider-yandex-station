@@ -203,6 +203,19 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.3.0] - 2026-04-20
+
+- style: auto-fix ruff (`f69047d`)
+- feat(auth): Device Flow login + silent credential refresh cascade (#34) (`45ea27c`)
+- style: auto-fix ruff (`276b0b9`)
+- fix: propagate command failures and retry on transient Quasar errors (`e2f19ed`)
+- style: auto-fix ruff (`1c608de`)
+- style: auto-fix ruff (`98287d0`)
+- fix(player): guard JSON decode and propagate availability on no-state messages (`9affc8a`)
+- chore: update changelog for v1.2.1 [skip ci] (`fd579af`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
