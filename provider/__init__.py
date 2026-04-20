@@ -57,12 +57,8 @@ async def get_config_entries(
             raise InvalidDataError("Missing session_id for device authentication")
         x_token, music_token, refresh_token = await perform_device_auth(mass, str(session_id))
         values[CONF_MUSIC_TOKEN] = music_token
-        if values.get(CONF_REMEMBER_SESSION, True):
-            values[CONF_X_TOKEN] = x_token
-            values[CONF_REFRESH_TOKEN] = refresh_token
-        else:
-            values[CONF_X_TOKEN] = None
-            values[CONF_REFRESH_TOKEN] = None
+        values[CONF_X_TOKEN] = x_token
+        values[CONF_REFRESH_TOKEN] = refresh_token
 
     # Handle QR auth action (yields x_token + music_token, no refresh_token)
     if action == CONF_ACTION_AUTH_QR:
@@ -71,11 +67,8 @@ async def get_config_entries(
             raise InvalidDataError("Missing session_id for QR authentication")
         x_token, music_token = await perform_qr_auth(mass, str(session_id))
         values[CONF_MUSIC_TOKEN] = music_token
+        values[CONF_X_TOKEN] = x_token
         values[CONF_REFRESH_TOKEN] = None  # QR flow does not yield a refresh_token
-        if values.get(CONF_REMEMBER_SESSION, True):
-            values[CONF_X_TOKEN] = x_token
-        else:
-            values[CONF_X_TOKEN] = None
 
     # Handle cookies auth action (yields x_token + music_token, no refresh_token)
     if action == CONF_ACTION_AUTH_COOKIES:
@@ -84,17 +77,20 @@ async def get_config_entries(
             raise InvalidDataError("Cookies field is empty")
         x_token, music_token = await login_with_cookies(str(cookies_val))
         values[CONF_MUSIC_TOKEN] = music_token
+        values[CONF_X_TOKEN] = x_token
         values[CONF_REFRESH_TOKEN] = None  # cookies flow does not yield a refresh_token
         values[CONF_COOKIES] = None  # don't persist raw cookies
-        if values.get(CONF_REMEMBER_SESSION, True):
-            values[CONF_X_TOKEN] = x_token
-        else:
-            values[CONF_X_TOKEN] = None
 
     # Handle clear auth action
     if action == CONF_ACTION_CLEAR_AUTH:
         values[CONF_X_TOKEN] = None
         values[CONF_MUSIC_TOKEN] = None
+        values[CONF_REFRESH_TOKEN] = None
+
+    # If the user toggles Remember session off post-auth, drop the long-lived
+    # tokens right away so silent refresh can no longer run.
+    if values.get(CONF_REMEMBER_SESSION) is False:
+        values[CONF_X_TOKEN] = None
         values[CONF_REFRESH_TOKEN] = None
 
     # Authenticated if we have *either* a music token or an x_token
@@ -139,7 +135,8 @@ async def get_config_entries(
             action_label="Login with QR code",
             hidden=is_authenticated,
         ),
-        # Remember session toggle
+        # Remember session toggle — stays visible after login so users can
+        # opt out of long-lived tokens without resetting authentication first.
         ConfigEntry(
             key=CONF_REMEMBER_SESSION,
             type=ConfigEntryType.BOOLEAN,
@@ -147,10 +144,11 @@ async def get_config_entries(
             description=(
                 "When enabled, stores a long-lived session token to automatically "
                 "refresh your music token when it expires. When disabled, you must "
-                "re-authenticate manually when the token expires."
+                "re-authenticate manually when the token expires — toggling this off "
+                "after logging in immediately drops the stored long-lived tokens."
             ),
             default_value=True,
-            hidden=is_authenticated,
+            advanced=True,
         ),
         # Cookies authentication (advanced fallback)
         ConfigEntry(

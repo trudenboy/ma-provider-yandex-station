@@ -264,6 +264,31 @@ async def test_remember_session_disabled_skips_refresh(fake_session_cls: Any) ->
     assert provider.mass.config.updates == []
 
 
+async def test_music_token_only_with_remember_session_default(fake_session_cls: Any) -> None:
+    """music_token without x_token + Remember session on (default) → run as music_token-only."""
+    provider = _make_provider(
+        {
+            CONF_MUSIC_TOKEN: "mt",
+            CONF_X_TOKEN: None,
+            CONF_REFRESH_TOKEN: None,
+            CONF_REMEMBER_SESSION: True,
+        }
+    )
+    session = fake_session_cls.return_value
+    session.login_token.return_value = False  # would fail but must not be reached
+
+    with (
+        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
+        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+    ):
+        ok = await provider._init_session()
+
+    assert ok is True
+    rmt.assert_not_called()
+    rcp.assert_not_called()
+    assert provider.mass.config.updates == []
+
+
 async def test_no_credentials_returns_false(fake_session_cls: Any) -> None:  # noqa: ARG001
     """No music_token and no x_token → cannot discover, return False cleanly."""
     provider = _make_provider(

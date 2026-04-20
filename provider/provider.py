@@ -89,6 +89,11 @@ class YandexStationProvider(PlayerProvider):
             self.logger.warning("No credentials configured, cannot discover devices")
             return False
 
+        # Close any leftover session from a previous failed init to avoid leaking
+        # aiohttp sockets — callers (discover_players, _create_player) may retry.
+        if self._http_session is not None:
+            await self._cleanup_session()
+
         self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
         self._passport_client = PassportClient(session=self._http_session)
 
@@ -108,17 +113,15 @@ class YandexStationProvider(PlayerProvider):
         if music_token and x_token and await self._try_fast_path():
             return True
 
-        # Remember session disabled → no silent refresh path available.
-        if not bool(remember_session):
+        # No silent-refresh path available when either:
+        #   - Remember session is off (x_token/refresh_token weren't persisted), or
+        #   - x_token is missing (e.g. music_token-only config, or already cleared).
+        # In both cases run with the music_token as the only credential.
+        if not bool(remember_session) or not x_token:
             return await self._finish_without_refresh(music_token is not None)
 
         # Steps 2-3: silent refresh via x_token, then refresh_token if present.
-        if x_token:
-            return await self._try_silent_refresh_cascade(x_token, refresh_token)
-
-        # Nothing else to try.
-        await self._cleanup_session()
-        return False
+        return await self._try_silent_refresh_cascade(x_token, refresh_token)
 
     async def _try_fast_path(self) -> bool:
         """Try logging in with the stored music_token + x_token."""
