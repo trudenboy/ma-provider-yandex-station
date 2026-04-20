@@ -42,6 +42,7 @@ class YandexSession:
         client: PassportClient,
         x_token: SecretStr | None = None,
         music_token: SecretStr | None = None,
+        refresh_token: SecretStr | None = None,
         cookie: str | None = None,
     ) -> None:
         """Initialize with aiohttp session, PassportClient, and optional credentials."""
@@ -49,6 +50,7 @@ class YandexSession:
         self._client = client
         self.x_token = x_token
         self.music_token = music_token
+        self.refresh_token = refresh_token
         self.csrf_token: str | None = None
         self.last_ts: float = 0
 

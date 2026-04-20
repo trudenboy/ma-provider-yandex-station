@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased]
+
+### 🔐 Refactored authentication (Device Flow + auto-refresh cascade)
+
+Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the recommended primary login method, credential refresh is silent end-to-end, and a `Remember session` toggle lets users opt out of long-lived tokens.
+
+#### Added
+- **Device Flow login** (recommended): opens a short code + verification URL on an MA-hosted page; yields the full `(x_token, music_token, refresh_token)` triple for silent auto-refresh.
+- **Refresh token storage** (`CONF_REFRESH_TOKEN`) — Device-Flow accounts can silently rotate the full credential triple when `x_token` expires.
+- **Remember session toggle** (`CONF_REMEMBER_SESSION`, default `True`) — when `False`, only `music_token` is persisted; no silent refresh path.
+- **Credential cascade in `_init_session`**: fast path → `x_token → music_token` refresh → `refresh_token → triple` rotation → terminal clear.
+- **Runtime silent re-auth** on Quasar 401/403: `_silent_reauth()` retries the failed call after rotating credentials.
+- `refresh_credentials_via_passport()` helper and `perform_device_auth()` auth flow.
+- New tests: `tests/test_provider_cascade.py` (12 cases) + expanded `tests/test_auth.py` Device Flow + `refresh_credentials_via_passport` scenarios.
+
+#### Changed
+- Renamed `provider/yandex_auth.py` → `provider/auth.py` and `tests/test_yandex_auth.py` → `tests/test_auth.py` for parity with `ma-provider-yandex-music`.
+- Validation errors in `get_config_entries()` (missing `session_id`, empty/invalid cookies) now raise `InvalidDataError` instead of `LoginFailed`; `LoginFailed` is reserved for real Passport failures and `setup()`.
+- `setup()` no longer requires `x_token` — either `music_token` or `x_token` is enough.
+- `YandexSession.__init__` gained an optional `refresh_token` parameter so the cascade can rotate it in place.
+
+#### Dependencies
+- Bumped `ya-passport-auth` from `>=1.2.3` to `~=1.3.0` (Device Flow + `refresh_credentials` API).
+
 ## [1.2.0] - 2026-04-11
 
 ### 🔧 Upgrade ya-passport-auth to 1.2.0
