@@ -403,6 +403,70 @@ async def test_silent_reauth_no_x_token_returns_false(
     assert ok is False
 
 
+async def test_silent_reauth_reads_tokens_inside_lock(
+    fake_session_cls: Any,  # noqa: ARG001
+) -> None:
+    """Tokens are read inside the lock so a waiter picks up freshly rotated values."""
+    provider = _make_provider(
+        {
+            CONF_MUSIC_TOKEN: "mt_stale",
+            CONF_X_TOKEN: "xt_original",
+            CONF_REFRESH_TOKEN: None,
+            CONF_REMEMBER_SESSION: True,
+        }
+    )
+    provider._session = mock.MagicMock()
+    provider._session.login_token = mock.AsyncMock(return_value=True)
+
+    # Acquire the lock first so the reauth coroutine has to wait.
+    await provider._reauth_lock.acquire()
+
+    with mock.patch(f"{_MOD}.refresh_music_token") as rmt:
+        rmt.return_value = SecretStr("mt_new")
+        task = asyncio.create_task(provider._silent_reauth())
+        await asyncio.sleep(0)  # let the task reach the lock
+        # Rotate x_token while the reauth is blocked on the lock.
+        provider.config.values[CONF_X_TOKEN].value = "xt_rotated"
+        provider._reauth_lock.release()
+        ok = await task
+
+    assert ok is True
+    assert rmt.await_args.args[0].get_secret() == "xt_rotated"
+
+
+async def test_reauth_via_refresh_token_raises_when_cookie_refresh_fails(
+    fake_session_cls: Any,  # noqa: ARG001
+) -> None:
+    """New creds are stored but session cookies won't refresh → LoginFailed."""
+    provider = _make_provider(
+        {
+            CONF_MUSIC_TOKEN: "mt_stale",
+            CONF_X_TOKEN: "xt_stale",
+            CONF_REFRESH_TOKEN: "rt_good",
+            CONF_REMEMBER_SESSION: True,
+        }
+    )
+    provider._session = mock.MagicMock()
+    # Cookie refresh fails even with freshly rotated x_token.
+    provider._session.login_token = mock.AsyncMock(return_value=False)
+
+    new_creds = mock.MagicMock()
+    new_creds.x_token = SecretStr("xt_new")
+    new_creds.music_token = SecretStr("mt_new")
+    new_creds.refresh_token = SecretStr("rt_new")
+
+    with (
+        mock.patch(f"{_MOD}.refresh_credentials_via_passport", return_value=new_creds),
+        pytest.raises(LoginFailed),
+    ):
+        await provider._reauth_via_refresh_token(SecretStr("xt_stale"), SecretStr("rt_good"))
+
+    # New creds were persisted before the cookie failure was surfaced.
+    written = {k: v for (_inst, k, v, _enc) in provider.mass.config.updates}
+    assert written[CONF_X_TOKEN] == "xt_new"
+    assert written[CONF_REFRESH_TOKEN] == "rt_new"
+
+
 # ── Quasar 401/403 retry ─────────────────────────────────────────
 
 

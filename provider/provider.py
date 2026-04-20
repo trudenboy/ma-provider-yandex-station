@@ -67,7 +67,11 @@ class YandexStationProvider(PlayerProvider):
         Returns ``True`` when a working session is established, ``False`` otherwise.
 
         Cascade steps (each step updates config on success):
-          1. Fast-path: if ``music_token`` is present, try it as-is.
+          1. Fast-path: if *both* ``music_token`` and ``x_token`` are present,
+             validate the session by logging in with x_token (Quasar-cookie
+             refresh) and confirming a usable music_token. ``music_token``-only
+             configs skip this step and run without validation — Quasar calls
+             will surface errors lazily.
           2. If step 1 fails and ``x_token`` exists → ask Passport for a fresh
              music_token.
           3. If step 2 fails and ``refresh_token`` exists (Device Flow only) →
@@ -117,8 +121,10 @@ class YandexStationProvider(PlayerProvider):
         #   - Remember session is off (x_token/refresh_token weren't persisted), or
         #   - x_token is missing (e.g. music_token-only config, or already cleared).
         # In both cases run with the music_token as the only credential.
-        if not bool(remember_session) or not x_token:
-            return await self._finish_without_refresh(music_token is not None)
+        if not bool(remember_session):
+            return await self._finish_without_refresh(music_token is not None, reason="disabled")
+        if not x_token:
+            return await self._finish_without_refresh(music_token is not None, reason="no_x_token")
 
         # Steps 2-3: silent refresh via x_token, then refresh_token if present.
         return await self._try_silent_refresh_cascade(x_token, refresh_token)
@@ -134,12 +140,22 @@ class YandexStationProvider(PlayerProvider):
             self.logger.exception("Error logging in with stored x_token")
         return False
 
-    async def _finish_without_refresh(self, has_music_token: bool) -> bool:
-        """Finalize init when Remember session is disabled (no silent refresh)."""
+    async def _finish_without_refresh(self, has_music_token: bool, reason: str) -> bool:
+        """Finalize init when no silent-refresh path is available.
+
+        ``reason`` is used only for log clarity: ``"disabled"`` means Remember
+        session is off, ``"no_x_token"`` means x_token isn't stored (e.g. a
+        music_token-only config).
+        """
+        msg_reason = (
+            "Remember session disabled"
+            if reason == "disabled"
+            else "no x_token available for silent refresh"
+        )
         if has_music_token:
-            self.logger.info("Remember session disabled — running with music_token only")
+            self.logger.info("%s — running with music_token only", msg_reason)
             return True
-        self.logger.warning("Remember session disabled and no music_token available — cannot login")
+        self.logger.warning("%s and no music_token available — cannot login", msg_reason)
         await self._cleanup_session()
         return False
 
@@ -233,8 +249,14 @@ class YandexStationProvider(PlayerProvider):
             self._session.x_token = new_creds.x_token
             self._session.music_token = new_music_token
             self._session.refresh_token = new_refresh_token
-            # Grab fresh session cookies with the new x_token.
-            await self._session.login_token()
+            # Grab fresh session cookies with the new x_token. If cookies don't
+            # refresh, the stored creds are still fresh but Quasar will 401 on
+            # the next request — surface that to the caller instead of silently
+            # reporting success.
+            if not await self._session.login_token():
+                raise LoginFailed(
+                    "Credential refresh succeeded but session cookie refresh failed."
+                ) from original_err
 
         self.logger.info("Re-issued credentials silently from refresh token")
 
@@ -245,12 +267,14 @@ class YandexStationProvider(PlayerProvider):
         so the caller can retry its operation; False if silent refresh isn't
         possible (no x_token/refresh_token) or has been tried already.
         """
-        x_token_val = self.config.get_value(CONF_X_TOKEN)
-        refresh_token_val = self.config.get_value(CONF_REFRESH_TOKEN)
-        if not x_token_val:
-            return False
         # Serialize: multiple concurrent 401s should trigger only one refresh.
+        # Read tokens inside the lock so we pick up values rotated by a prior
+        # waiter instead of acting on stale credentials.
         async with self._reauth_lock:
+            x_token_val = self.config.get_value(CONF_X_TOKEN)
+            refresh_token_val = self.config.get_value(CONF_REFRESH_TOKEN)
+            if not x_token_val:
+                return False
             x_token = SecretStr(str(x_token_val))
             # First try x_token → music_token refresh.
             try:

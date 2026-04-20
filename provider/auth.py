@@ -24,6 +24,7 @@ import asyncio
 import html
 import json
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from aiohttp import web
@@ -46,6 +47,9 @@ _DEVICE_CODE_PAGE_PATH = "/yandex_station/device_code"
 # Seconds to keep the status endpoint alive after the flow finishes so the
 # intermediate page has a chance to poll once more and close itself.
 _POST_AUTH_GRACE_SECONDS = 3
+# session_id is embedded in a webserver route path — restrict it to a safe
+# set so a crafted value can't register overlapping or escape-the-scope routes.
+_SAFE_SESSION_ID_RE = re.compile(r"\A[A-Za-z0-9_-]{1,64}\Z")
 
 
 def _build_device_code_page(
@@ -200,6 +204,8 @@ async def perform_device_auth(mass: MusicAssistant, session_id: str) -> tuple[st
     Returns (x_token, music_token, refresh_token) as plain strings for MA
     config storage.
     """
+    if not _SAFE_SESSION_ID_RE.match(session_id):
+        raise InvalidDataError("Invalid session_id for device authentication")
     try:
         async with PassportClient.create() as client:
             session = await client.start_device_login()
