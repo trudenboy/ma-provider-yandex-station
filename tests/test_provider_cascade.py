@@ -321,6 +321,33 @@ async def test_network_error_raises_provider_unavailable(
             await provider._init_session()
 
 
+async def test_transient_refresh_failure_does_not_wipe_tokens(fake_session_cls: Any) -> None:
+    """ProviderUnavailableError from refresh must propagate without clearing creds."""
+    provider = _make_provider(
+        {
+            CONF_MUSIC_TOKEN: "mt",
+            CONF_X_TOKEN: "xt",
+            CONF_REFRESH_TOKEN: "rt",
+            CONF_REMEMBER_SESSION: True,
+        }
+    )
+    # Force fast-path to fail so the cascade calls refresh_music_token.
+    fake_session_cls.return_value.login_token = mock.AsyncMock(return_value=False)
+
+    with (
+        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
+        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+    ):
+        rmt.side_effect = ProviderUnavailableError("network")
+        with pytest.raises(ProviderUnavailableError):
+            await provider._init_session()
+
+    rcp.assert_not_called()
+    # No token-clearing writes happened.
+    cleared = {k for (_inst, k, v, _enc) in provider.mass.config.updates if v is None}
+    assert cleared == set()
+
+
 # ── Silent runtime re-auth ───────────────────────────────────────
 
 

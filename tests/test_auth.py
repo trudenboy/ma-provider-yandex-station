@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from music_assistant_models.errors import InvalidDataError, LoginFailed
+from music_assistant_models.errors import (
+    InvalidDataError,
+    LoginFailed,
+    ProviderUnavailableError,
+)
 from ya_passport_auth import Credentials, DeviceCodeSession, QrSession, SecretStr
 from ya_passport_auth.exceptions import (
     DeviceCodeTimeoutError,
@@ -566,6 +570,24 @@ async def test_refresh_music_token_auth_error_raises_login_failed() -> None:
             await refresh_music_token(SecretStr("bad_x_token"))
 
 
+@pytest.mark.parametrize(
+    "transient_err",
+    [PassportNetworkError("socket reset"), RateLimitedError("429")],
+)
+async def test_refresh_music_token_transient_raises_provider_unavailable(
+    transient_err: Exception,
+) -> None:
+    """Network/rate-limit failures must NOT be mapped to LoginFailed (would wipe creds)."""
+    mock_client = mock.AsyncMock()
+    mock_client.refresh_music_token.side_effect = transient_err
+
+    with mock.patch(f"{_MOD}.PassportClient.create") as mock_create:
+        mock_create.return_value.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_create.return_value.__aexit__ = mock.AsyncMock(return_value=False)
+        with pytest.raises(ProviderUnavailableError):
+            await refresh_music_token(SecretStr("x_token"))
+
+
 # -- validate_x_token ----------------------------------------------------------
 
 
@@ -637,6 +659,24 @@ async def test_refresh_credentials_via_passport_error_raises_login_failed() -> N
 
         with pytest.raises(LoginFailed, match="Failed to refresh credentials"):
             await refresh_credentials_via_passport(SecretStr("bad_x"), SecretStr("bad_refresh"))
+
+
+@pytest.mark.parametrize(
+    "transient_err",
+    [PassportNetworkError("socket reset"), RateLimitedError("429")],
+)
+async def test_refresh_credentials_via_passport_transient_raises_provider_unavailable(
+    transient_err: Exception,
+) -> None:
+    """Network/rate-limit failures must NOT be mapped to LoginFailed (would wipe creds)."""
+    mock_client = mock.AsyncMock()
+    mock_client.refresh_credentials.side_effect = transient_err
+
+    with mock.patch(f"{_MOD}.PassportClient.create") as mock_create:
+        mock_create.return_value.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_create.return_value.__aexit__ = mock.AsyncMock(return_value=False)
+        with pytest.raises(ProviderUnavailableError):
+            await refresh_credentials_via_passport(SecretStr("x"), SecretStr("r"))
 
 
 # -- login_with_cookies --------------------------------------------------------

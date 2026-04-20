@@ -28,11 +28,17 @@ import re
 from typing import TYPE_CHECKING
 
 from aiohttp import web
-from music_assistant_models.errors import InvalidDataError, LoginFailed
+from music_assistant_models.errors import (
+    InvalidDataError,
+    LoginFailed,
+    ProviderUnavailableError,
+)
 from ya_passport_auth import Credentials, PassportClient, SecretStr
 from ya_passport_auth.exceptions import (
     DeviceCodeTimeoutError,
+    NetworkError,
     QRTimeoutError,
+    RateLimitedError,
     YaPassportError,
 )
 
@@ -319,10 +325,20 @@ async def perform_qr_auth(mass: MusicAssistant, session_id: str) -> tuple[str, s
 
 
 async def refresh_music_token(x_token: SecretStr) -> SecretStr:
-    """Exchange an x_token for a fresh music-scoped OAuth token."""
+    """Exchange an x_token for a fresh music-scoped OAuth token.
+
+    Raises:
+        ProviderUnavailableError: On transient failures (network, rate limit)
+            — callers should retry later instead of clearing credentials.
+        LoginFailed: On real credential failures (x_token expired/rejected).
+    """
     try:
         async with PassportClient.create() as client:
             return await client.refresh_music_token(x_token)
+    except (NetworkError, RateLimitedError) as err:
+        raise ProviderUnavailableError(
+            f"Transient failure refreshing music token: {err}"
+        ) from err
     except YaPassportError as err:
         raise LoginFailed(f"Failed to refresh music token: {err}") from err
 
@@ -336,12 +352,21 @@ async def refresh_credentials_via_passport(
     cookies login do not yield a ``refresh_token``). Rotates both ``x_token``
     and ``refresh_token`` server-side, so callers must persist the returned
     Credentials.
+
+    Raises:
+        ProviderUnavailableError: On transient failures (network, rate limit)
+            — callers should retry later instead of clearing credentials.
+        LoginFailed: On real credential failures (refresh_token rejected).
     """
     try:
         async with PassportClient.create() as client:
             return await client.refresh_credentials(
                 Credentials(x_token=x_token, refresh_token=refresh_token)
             )
+    except (NetworkError, RateLimitedError) as err:
+        raise ProviderUnavailableError(
+            f"Transient failure refreshing credentials: {err}"
+        ) from err
     except YaPassportError as err:
         raise LoginFailed(f"Failed to refresh credentials: {err}") from err
 

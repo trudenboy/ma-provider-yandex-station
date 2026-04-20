@@ -81,6 +81,11 @@ class YandexStationProvider(PlayerProvider):
 
         Respects :const:`CONF_REMEMBER_SESSION`: when False, steps 2-4 are skipped
         because x_token/refresh_token are not stored for throw-away sessions.
+
+        Raises:
+            ProviderUnavailableError: Transient failure (network, rate limit)
+                while talking to Yandex Passport during silent refresh.
+                Stored credentials are preserved so retrying later can succeed.
         """
         music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
         x_token_val = self.config.get_value(CONF_X_TOKEN)
@@ -168,6 +173,10 @@ class YandexStationProvider(PlayerProvider):
             new_music_token = await refresh_music_token(x_token)
         except LoginFailed as err:
             return await self._handle_x_token_expired(x_token, refresh_token, err)
+        except ProviderUnavailableError:
+            # Transient failure — let it propagate so creds aren't wiped.
+            await self._cleanup_session()
+            raise
         except asyncio.CancelledError:
             raise
         except Exception as err:
@@ -201,6 +210,10 @@ class YandexStationProvider(PlayerProvider):
             except LoginFailed:
                 await self._cleanup_session()
                 return False
+            except ProviderUnavailableError:
+                # Transient — don't wipe creds, let the caller retry later.
+                await self._cleanup_session()
+                raise
         self.logger.warning("Session token expired, clearing credentials")
         self._update_config_value(CONF_MUSIC_TOKEN, None, encrypted=True)
         self._update_config_value(CONF_X_TOKEN, None, encrypted=True)
