@@ -337,9 +337,7 @@ async def refresh_music_token(x_token: SecretStr) -> SecretStr:
         async with PassportClient.create() as client:
             return await client.refresh_music_token(x_token)
     except (NetworkError, RateLimitedError) as err:
-        raise ProviderUnavailableError(
-            f"Transient failure refreshing music token: {err}"
-        ) from err
+        raise ProviderUnavailableError(f"Transient failure refreshing music token: {err}") from err
     except YaPassportError as err:
         raise LoginFailed(f"Failed to refresh music token: {err}") from err
 
@@ -365,9 +363,7 @@ async def refresh_credentials_via_passport(
                 Credentials(x_token=x_token, refresh_token=refresh_token)
             )
     except (NetworkError, RateLimitedError) as err:
-        raise ProviderUnavailableError(
-            f"Transient failure refreshing credentials: {err}"
-        ) from err
+        raise ProviderUnavailableError(f"Transient failure refreshing credentials: {err}") from err
     except YaPassportError as err:
         raise LoginFailed(f"Failed to refresh credentials: {err}") from err
 

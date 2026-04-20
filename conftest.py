@@ -154,9 +154,7 @@ except (ImportError, AttributeError):
             self.mass = a[0] if a else None
             self.config = a[2] if len(a) > 2 else None
 
-        def _update_config_value(
-            self, key: str, value: object, encrypted: bool = False
-        ) -> None:
+        def _update_config_value(self, key: str, value: object, encrypted: bool = False) -> None:
             """Mirror Provider._update_config_value so tests can assert behaviour."""
             if self.mass is not None:
                 self.mass.config.set_raw_provider_config_value(
