@@ -169,6 +169,10 @@ except (ImportError, AttributeError):
         def __init__(self, *a: object, **kw: object) -> None:
             pass
 
+        @property
+        def player_id(self) -> str:
+            return getattr(self, "_player_id", "")
+
     class _PlayerMedia:  # type: ignore[no-redef]
         pass
 

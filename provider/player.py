@@ -100,6 +100,10 @@ class YandexStationPlayer(Player):
         # Track external (radio_play) playback since Glagol doesn't report it
         self._external_playing = False
         self._external_media: PlayerMedia | None = None
+        # Becomes True once Glagol reports playing=True during external playback.
+        # Used to distinguish the startup window (station fetching stream) from
+        # a user-initiated physical pause on the speaker.
+        self._external_play_confirmed = False
         # Set after pause of external playback — play() must re-trigger queue
         self._needs_replay = False
         # Track previous alice state to detect LISTENING→IDLE transitions
@@ -223,6 +227,8 @@ class YandexStationPlayer(Player):
             self._needs_replay = True
         self._external_playing = False
         self._external_media = None
+        self._external_play_confirmed = False
+        self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.PAUSED
         self.update_state()
 
@@ -237,6 +243,9 @@ class YandexStationPlayer(Player):
         _raise_if_failed(result, "stop")
         self._external_playing = False
         self._external_media = None
+        self._external_play_confirmed = False
+        self._needs_replay = False
+        self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.IDLE
         self.update_state()
 
@@ -302,6 +311,7 @@ class YandexStationPlayer(Player):
         # Glagol doesn't update playerState for externalCommandBypass playback,
         # so we set state optimistically.
         self._external_playing = True
+        self._external_play_confirmed = False
         self._external_media = media
         self._attr_playback_state = PlaybackState.PLAYING
         self._attr_powered = True
@@ -406,13 +416,12 @@ class YandexStationPlayer(Player):
         )
         self._external_playing = False
         self._external_media = None
+        self._external_play_confirmed = False
         self._needs_replay = True
         self._attr_playback_state = PlaybackState.PAUSED
         self._alice_spoke = False
         self._pre_voice_volume = self._attr_volume_level or 0
-        if self._voice_resume_task:
-            self._voice_resume_task.cancel()
-            self._voice_resume_task = None
+        self._cancel_voice_resume()
 
     def _handle_voice_end(self, alice_state: str) -> None:
         """Handle end of voice interaction — decide whether to auto-resume."""
@@ -439,12 +448,42 @@ class YandexStationPlayer(Player):
                 _LOGGER.info("[%s] Silent voice command — staying paused", self.player_id)
                 self._needs_replay = True
 
+    def _cancel_voice_resume(self) -> None:
+        """Cancel any pending auto-resume task from a prior voice interaction."""
+        if self._voice_resume_task:
+            self._voice_resume_task.cancel()
+            self._voice_resume_task = None
+
+    def _handle_physical_pause(self) -> None:
+        """Handle physical pause pressed on the speaker during external playback."""
+        _LOGGER.info(
+            "[%s] Physical pause detected during external playback",
+            self.player_id,
+        )
+        self._external_playing = False
+        self._external_media = None
+        self._external_play_confirmed = False
+        self._needs_replay = True
+        self._cancel_voice_resume()
+        self._attr_playback_state = PlaybackState.PAUSED
+
     def _update_playback_state(self, playing: bool, alice_state: str) -> None:
         """Update playback state from Glagol data."""
         if self._external_playing:
             if self._voice_control_enabled and alice_state not in ("IDLE", ""):
                 self._handle_voice_interrupt(alice_state)
+            elif playing:
+                # Station confirmed external stream is actually playing.
+                self._external_play_confirmed = True
+                self._attr_playback_state = PlaybackState.PLAYING
+                self._attr_powered = True
+            elif self._external_play_confirmed and alice_state in ("IDLE", ""):
+                # Stream was playing, now stopped without voice trigger →
+                # user pressed physical pause/stop on the speaker.
+                self._handle_physical_pause()
             else:
+                # Startup window: radio_play sent but station not yet fetching.
+                # Stay optimistically PLAYING until we observe playing=True.
                 self._attr_playback_state = PlaybackState.PLAYING
                 self._attr_powered = True
         elif playing:

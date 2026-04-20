@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Physical pause sync**: pressing pause on the Yandex Station speaker while MA was streaming via `radio_play` no longer leaves MA stuck in `PLAYING`. The player now distinguishes the startup window from real pause events (Glagol `playing=False` + `aliceState="IDLE"`) and propagates `PAUSED` to MA, arming a re-play for the next `play()`.
+
+## [1.3.0] - 2026-04-20
+
 ### 🔐 Refactored authentication (Device Flow + auto-refresh cascade)
 
 Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the recommended primary login method, credential refresh is silent end-to-end, and a `Remember session` toggle lets users opt out of long-lived tokens.
@@ -200,19 +205,6 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 - fix(session): delegate login_token() back to ya-passport-auth 1.2.2 (`3a05750`)
 - fix(session): pass track_id as query param, not header (`a99f900`)
 - fix(session): use library refresh_passport_cookies (ya-passport-auth 1.2.1) (`f6f2a2a`)
-
----
-
-## [1.3.0] - 2026-04-20
-
-- style: auto-fix ruff (`f69047d`)
-- feat(auth): Device Flow login + silent credential refresh cascade (#34) (`45ea27c`)
-- style: auto-fix ruff (`276b0b9`)
-- fix: propagate command failures and retry on transient Quasar errors (`e2f19ed`)
-- style: auto-fix ruff (`1c608de`)
-- style: auto-fix ruff (`98287d0`)
-- fix(player): guard JSON decode and propagate availability on no-state messages (`9affc8a`)
-- chore: update changelog for v1.2.1 [skip ci] (`fd579af`)
 
 ---
 
