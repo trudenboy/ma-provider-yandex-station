@@ -58,6 +58,7 @@ class YandexStationProvider(PlayerProvider):
         self._mdns_players: dict[str, str] = {}  # mDNS service name → player_id
         self._discovery_done = False
         self._reauth_lock: asyncio.Lock = asyncio.Lock()
+        self._init_lock: asyncio.Lock = asyncio.Lock()
 
     # ── Credential cascade ────────────────────────────────────────────
 
@@ -87,63 +88,71 @@ class YandexStationProvider(PlayerProvider):
                 while talking to Yandex Passport during silent refresh.
                 Stored credentials are preserved so retrying later can succeed.
         """
-        music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
-        x_token_val = self.config.get_value(CONF_X_TOKEN)
-        refresh_token_val = self.config.get_value(CONF_REFRESH_TOKEN)
-        remember_session = self.config.get_value(CONF_REMEMBER_SESSION)
-        if remember_session is None:
-            remember_session = True
+        # Serialize init: concurrent callers (discover_players + mDNS-triggered
+        # _create_player) must not race on self._http_session/self._session. The
+        # first to arrive runs the cascade; others await and reuse the result.
+        async with self._init_lock:
+            music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
+            x_token_val = self.config.get_value(CONF_X_TOKEN)
+            refresh_token_val = self.config.get_value(CONF_REFRESH_TOKEN)
+            remember_session = self.config.get_value(CONF_REMEMBER_SESSION)
+            if remember_session is None:
+                remember_session = True
 
-        if not music_token_val and not x_token_val:
-            self.logger.warning("No credentials configured, cannot discover devices")
-            return False
+            if not music_token_val and not x_token_val:
+                self.logger.warning("No credentials configured, cannot discover devices")
+                return False
 
-        # Idempotent: if a previous init already produced a healthy session,
-        # reuse it. mDNS-triggered ``_create_player`` may have initialised the
-        # session already and started Glagol on top of it — tearing it down
-        # here would break those connections.
-        if (
-            self._session is not None
-            and self._http_session is not None
-            and not self._http_session.closed
-        ):
-            return True
+            # Idempotent: if a previous init already produced a healthy session,
+            # reuse it. mDNS-triggered ``_create_player`` may have initialised the
+            # session already and started Glagol on top of it — tearing it down
+            # here would break those connections.
+            if (
+                self._session is not None
+                and self._http_session is not None
+                and not self._http_session.closed
+            ):
+                return True
 
-        # Close any orphaned HTTP session from a failed init to avoid leaking
-        # aiohttp sockets.
-        if self._http_session is not None:
-            await self._cleanup_session()
+            # Close any orphaned HTTP session from a failed init to avoid leaking
+            # aiohttp sockets.
+            if self._http_session is not None:
+                await self._cleanup_session()
 
-        self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
-        self._passport_client = PassportClient(session=self._http_session)
+            self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
+            self._passport_client = PassportClient(session=self._http_session)
 
-        x_token = SecretStr(str(x_token_val)) if x_token_val else None
-        music_token = SecretStr(str(music_token_val)) if music_token_val else None
-        refresh_token = SecretStr(str(refresh_token_val)) if refresh_token_val else None
+            x_token = SecretStr(str(x_token_val)) if x_token_val else None
+            music_token = SecretStr(str(music_token_val)) if music_token_val else None
+            refresh_token = SecretStr(str(refresh_token_val)) if refresh_token_val else None
 
-        self._session = YandexSession(
-            self._http_session,
-            self._passport_client,
-            x_token=x_token,
-            music_token=music_token,
-            refresh_token=refresh_token,
-        )
+            self._session = YandexSession(
+                self._http_session,
+                self._passport_client,
+                x_token=x_token,
+                music_token=music_token,
+                refresh_token=refresh_token,
+            )
 
-        # Step 1 (fast-path): try the stored music_token as-is.
-        if music_token and x_token and await self._try_fast_path():
-            return True
+            # Step 1 (fast-path): try the stored music_token as-is.
+            if music_token and x_token and await self._try_fast_path():
+                return True
 
-        # No silent-refresh path available when either:
-        #   - Remember session is off (x_token/refresh_token weren't persisted), or
-        #   - x_token is missing (e.g. music_token-only config, or already cleared).
-        # In both cases run with the music_token as the only credential.
-        if not bool(remember_session):
-            return await self._finish_without_refresh(music_token is not None, reason="disabled")
-        if not x_token:
-            return await self._finish_without_refresh(music_token is not None, reason="no_x_token")
+            # No silent-refresh path available when either:
+            #   - Remember session is off (x_token/refresh_token weren't persisted), or
+            #   - x_token is missing (e.g. music_token-only config, or already cleared).
+            # In both cases run with the music_token as the only credential.
+            if not bool(remember_session):
+                return await self._finish_without_refresh(
+                    music_token is not None, reason="disabled"
+                )
+            if not x_token:
+                return await self._finish_without_refresh(
+                    music_token is not None, reason="no_x_token"
+                )
 
-        # Steps 2-3: silent refresh via x_token, then refresh_token if present.
-        return await self._try_silent_refresh_cascade(x_token, refresh_token)
+            # Steps 2-3: silent refresh via x_token, then refresh_token if present.
+            return await self._try_silent_refresh_cascade(x_token, refresh_token)
 
     async def _try_fast_path(self) -> bool:
         """Try logging in with the stored music_token + x_token."""

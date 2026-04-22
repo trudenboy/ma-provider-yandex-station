@@ -90,6 +90,7 @@ def _make_provider(config_values: dict[str, Any]) -> YandexStationProvider:
     provider._mdns_players = {}
     provider._discovery_done = False
     provider._reauth_lock = asyncio.Lock()
+    provider._init_lock = asyncio.Lock()
     return provider
 
 

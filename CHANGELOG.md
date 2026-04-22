@@ -2,8 +2,14 @@
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-04-22
+
 ### Fixed
 - **Physical pause sync**: pressing pause on the Yandex Station speaker while MA was streaming via `radio_play` no longer leaves MA stuck in `PLAYING`. The player now distinguishes the startup window from real pause events (Glagol `playing=False` + `aliceState="IDLE"`) and propagates `PAUSED` to MA, arming a re-play for the next `play()`.
+- **`_init_session()` concurrency race** (upstream PR review): concurrent calls from `discover_players()` and mDNS-triggered `_create_player()` could close another task's freshly created `ClientSession` in the orphan-cleanup branch. Wrapped session init in a dedicated `asyncio.Lock` so only one cascade runs at a time.
+
+### Security
+- **Glagol WS peer restriction** (upstream PR review): the Glagol WebSocket uses a self-signed device cert and therefore runs with `ssl=False`. Combined with untrusted mDNS input this allowed a spoofed record to redirect the `conversationToken` to an arbitrary host. `start()` now rejects any host that isn't in the private/link-local/loopback range.
 
 ## [1.3.0] - 2026-04-20
 

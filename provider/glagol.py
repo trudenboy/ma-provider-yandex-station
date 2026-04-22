@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import ipaddress
 import json
 import logging
 import time
@@ -96,6 +97,25 @@ class YandexGlagol:
             _LOGGER.warning("[%s] No host/port for device, cannot connect", self.name)
             return
 
+        # Yandex Station presents a self-signed device certificate, so TLS cert
+        # verification is disabled on the Glagol WebSocket (``ssl=False`` in
+        # ``_connect``). To limit the trust boundary, refuse to connect to
+        # anything outside the private/link-local/loopback address space — a
+        # spoofed mDNS record pointing at a public IP could otherwise receive
+        # the device ``conversationToken`` with no way to authenticate the peer.
+        try:
+            ip = ipaddress.ip_address(str(host))
+        except ValueError:
+            _LOGGER.warning("[%s] Refusing non-IP Glagol host: %s", self.name, host)
+            return
+        if not (ip.is_private or ip.is_link_local or ip.is_loopback):
+            _LOGGER.warning(
+                "[%s] Refusing Glagol connection to non-local IP %s (TLS unverified)",
+                self.name,
+                host,
+            )
+            return
+
         new_url = f"wss://{host}:{port}"
 
         if not self.url:
@@ -147,6 +167,9 @@ class YandexGlagol:
                 self.device_token = await self.get_device_token()
                 _LOGGER.info("[%s] Got device token", self.name)
 
+            # ssl=False: Yandex Station ships a self-signed device cert so cert
+            # verification cannot be enabled. ``start()`` enforces that ``url``
+            # points at a private/link-local/loopback IP to bound the impact.
             self.ws = await self.session.ws_connect(
                 self.url,  # type: ignore[arg-type]  # url checked in start()
                 heartbeat=WS_HEARTBEAT,
