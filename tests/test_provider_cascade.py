@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 
 import pytest
@@ -74,6 +74,11 @@ class _StubMass:
         self.config = _StubCoreConfig()
 
 
+def _updates(provider: YandexStationProvider) -> list[tuple[str, str, Any, bool]]:
+    """Return the update log recorded by the test's ``_StubCoreConfig``."""
+    return cast("_StubCoreConfig", provider.mass.config).updates
+
+
 def _make_provider(config_values: dict[str, Any]) -> YandexStationProvider:
     """Instantiate a provider with a stub mass and config for cascade tests."""
     provider = YandexStationProvider.__new__(YandexStationProvider)
@@ -81,7 +86,7 @@ def _make_provider(config_values: dict[str, Any]) -> YandexStationProvider:
     provider.config = _StubConfig(config_values)  # type: ignore[assignment]
     # NB: ``instance_id`` is a read-only @property on the real Provider that
     # delegates to ``config.instance_id`` — we set it on the stub config above.
-    provider.logger = logging.getLogger("test_provider")  # type: ignore[assignment]
+    provider.logger = logging.getLogger("test_provider")
     provider._session = None
     provider._quasar = None
     provider._http_session = None
@@ -147,7 +152,7 @@ async def test_fast_path_with_music_and_x_token(fake_session_cls: Any) -> None:
     session.ensure_music_token.assert_awaited()
     rmt.assert_not_called()
     rcp.assert_not_called()
-    assert provider.mass.config.updates == []
+    assert _updates(provider) == []
 
 
 async def test_refresh_via_x_token(fake_session_cls: Any) -> None:
@@ -174,7 +179,7 @@ async def test_refresh_via_x_token(fake_session_cls: Any) -> None:
     rmt.assert_awaited_once()
     rcp.assert_not_called()
     # Config updated with new music_token
-    keys_written = [(k, v) for (_inst, k, v, _enc) in provider.mass.config.updates]
+    keys_written = [(k, v) for (_inst, k, v, _enc) in _updates(provider)]
     assert (CONF_MUSIC_TOKEN, "mt_fresh") in keys_written
 
 
@@ -207,7 +212,7 @@ async def test_refresh_via_refresh_token(fake_session_cls: Any) -> None:
     assert ok is True
     rmt.assert_awaited_once()
     rcp.assert_awaited_once()
-    keys_written = {k: v for (_inst, k, v, _enc) in provider.mass.config.updates}
+    keys_written = {k: v for (_inst, k, v, _enc) in _updates(provider)}
     assert keys_written[CONF_X_TOKEN] == "xt_new"
     assert keys_written[CONF_MUSIC_TOKEN] == "mt_new"
     assert keys_written[CONF_REFRESH_TOKEN] == "rt_new"
@@ -235,7 +240,7 @@ async def test_terminal_failure_clears_creds(fake_session_cls: Any) -> None:
 
     assert ok is False
     rcp.assert_not_called()
-    cleared = {k for (_inst, k, v, _enc) in provider.mass.config.updates if v is None}
+    cleared = {k for (_inst, k, v, _enc) in _updates(provider) if v is None}
     assert cleared == {CONF_MUSIC_TOKEN, CONF_X_TOKEN, CONF_REFRESH_TOKEN}
 
 
@@ -262,7 +267,7 @@ async def test_remember_session_disabled_skips_refresh(fake_session_cls: Any) ->
     rmt.assert_not_called()
     rcp.assert_not_called()
     # Nothing written — music_token alone is the entire state
-    assert provider.mass.config.updates == []
+    assert _updates(provider) == []
 
 
 async def test_music_token_only_with_remember_session_default(fake_session_cls: Any) -> None:
@@ -287,7 +292,7 @@ async def test_music_token_only_with_remember_session_default(fake_session_cls: 
     assert ok is True
     rmt.assert_not_called()
     rcp.assert_not_called()
-    assert provider.mass.config.updates == []
+    assert _updates(provider) == []
 
 
 async def test_no_credentials_returns_false(fake_session_cls: Any) -> None:  # noqa: ARG001
@@ -373,7 +378,7 @@ async def test_transient_refresh_failure_does_not_wipe_tokens(fake_session_cls: 
 
     rcp.assert_not_called()
     # No token-clearing writes happened.
-    cleared = {k for (_inst, k, v, _enc) in provider.mass.config.updates if v is None}
+    cleared = {k for (_inst, k, v, _enc) in _updates(provider) if v is None}
     assert cleared == set()
 
 
@@ -404,7 +409,7 @@ async def test_silent_reauth_via_x_token(fake_session_cls: Any) -> None:  # noqa
     assert ok is True
     rmt.assert_awaited_once()
     rcp.assert_not_called()
-    written = {k: v for (_inst, k, v, _enc) in provider.mass.config.updates}
+    written = {k: v for (_inst, k, v, _enc) in _updates(provider)}
     assert written[CONF_MUSIC_TOKEN] == "mt_new"
 
 
@@ -438,7 +443,7 @@ async def test_silent_reauth_falls_back_to_refresh_token(
 
     assert ok is True
     rcp.assert_awaited_once()
-    written = {k: v for (_inst, k, v, _enc) in provider.mass.config.updates}
+    written = {k: v for (_inst, k, v, _enc) in _updates(provider)}
     assert written[CONF_X_TOKEN] == "xt_new"
     assert written[CONF_REFRESH_TOKEN] == "rt_new"
 
@@ -487,6 +492,7 @@ async def test_silent_reauth_reads_tokens_inside_lock(
         ok = await task
 
     assert ok is True
+    assert rmt.await_args is not None
     assert rmt.await_args.args[0].get_secret() == "xt_rotated"
 
 
@@ -518,7 +524,7 @@ async def test_reauth_via_refresh_token_raises_when_cookie_refresh_fails(
         await provider._reauth_via_refresh_token(SecretStr("xt_stale"), SecretStr("rt_good"))
 
     # New creds were persisted before the cookie failure was surfaced.
-    written = {k: v for (_inst, k, v, _enc) in provider.mass.config.updates}
+    written = {k: v for (_inst, k, v, _enc) in _updates(provider)}
     assert written[CONF_X_TOKEN] == "xt_new"
     assert written[CONF_REFRESH_TOKEN] == "rt_new"
 
