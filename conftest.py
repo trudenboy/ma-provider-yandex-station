@@ -8,6 +8,8 @@ import sys
 import types
 from pathlib import Path
 
+import aiohttp
+
 # Make the provider/ directory importable as music_assistant.providers.yandex_station
 _provider_path = Path(__file__).parent / "provider"
 
@@ -84,6 +86,15 @@ except ImportError:
     class _PlayerType:
         PLAYER = "player"
 
+    class _IdentifierType:
+        MAC_ADDRESS = "mac_address"
+        SERIAL_NUMBER = "serial_number"
+        UUID = "uuid"
+        CAST_UUID = "cast_uuid"
+        AIRPLAY_ID = "airplay_id"
+        IP_ADDRESS = "ip_address"
+        UNKNOWN = "unknown"
+
     class _PlayerCommandFailed(Exception):
         pass
 
@@ -116,6 +127,7 @@ except ImportError:
             "PlaybackState": _PlaybackState,
             "PlayerFeature": _PlayerFeature,
             "PlayerType": _PlayerType,
+            "IdentifierType": _IdentifierType,
         },
     )
     _ensure_stub("music_assistant_models.provider", {"ProviderManifest": _ProviderManifest})
@@ -141,6 +153,14 @@ except (ImportError, AttributeError):
     _helpers = _ensure_stub("music_assistant.helpers")
     _helpers.__path__ = []  # type: ignore[attr-defined]
     _ensure_stub("music_assistant.helpers.auth", {"AuthenticationHelper": _AuthenticationHelper})
+
+    def _create_clientsession(_mass: object, **kwargs: object) -> object:
+        return aiohttp.ClientSession(**kwargs)  # type: ignore[arg-type]
+
+    _ensure_stub(
+        "music_assistant.helpers.aiohttp_client",
+        {"create_clientsession": _create_clientsession},
+    )
 
 try:
     from music_assistant.models.player_provider import PlayerProvider  # noqa: F401
@@ -177,7 +197,15 @@ except (ImportError, AttributeError):
         pass
 
     class _DeviceInfo:  # type: ignore[no-redef]
-        pass
+        def __init__(self, **kw: object) -> None:
+            self.__dict__.update(kw)
+            self.identifiers: dict[str, str] = {}
+
+        def add_identifier(self, identifier_type: str, value: str | None) -> None:
+            if not value:
+                self.identifiers.pop(identifier_type, None)
+                return
+            self.identifiers[identifier_type] = value
 
     _models = _ensure_stub("music_assistant.models")
     _models.__path__ = []  # type: ignore[attr-defined]

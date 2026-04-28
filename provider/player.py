@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from music_assistant_models.config_entries import ConfigEntry, ConfigValueType
 from music_assistant_models.enums import (
     ConfigEntryType,
+    IdentifierType,
     PlaybackState,
     PlayerFeature,
     PlayerType,
@@ -137,6 +138,14 @@ class YandexStationPlayer(Player):
             model=device_info.get("quasar_info", {}).get("platform", "unknown"),
             manufacturer="Yandex",
         )
+        # Identifiers help MA auto-link this player with other protocols on the
+        # same device (e.g. AirPlay/DLNA receivers exposed by the same speaker).
+        # MAC isn't published by mDNS or the Quasar cloud API, so we surface
+        # what's available: deviceId (stable per speaker) and current IP.
+        if host := device_info.get("host"):
+            self._attr_device_info.add_identifier(IdentifierType.IP_ADDRESS, host)
+        if device_id := device_info.get("quasar_info", {}).get("device_id"):
+            self._attr_device_info.add_identifier(IdentifierType.UUID, device_id)
 
     async def async_setup(self) -> None:
         """Set up the Glagol WebSocket connection."""
@@ -170,6 +179,7 @@ class YandexStationPlayer(Player):
         self._device_info["port"] = port
         self.glagol.device["host"] = host
         self.glagol.device["port"] = port
+        self._attr_device_info.add_identifier(IdentifierType.IP_ADDRESS, host)
         # Trigger reconnect if needed
         self.mass.create_task(self.glagol.start())
 
@@ -284,7 +294,7 @@ class YandexStationPlayer(Player):
     async def play_media(self, media: PlayerMedia) -> None:
         """Play media on the Yandex Station via radio_play command."""
         self._needs_replay = False
-        _LOGGER.info("[%s] play_media called: %s", self.player_id, media.title or media.uri)
+        _LOGGER.debug("[%s] play_media called: %s", self.player_id, media.title or media.uri)
         stream_url = await self.provider.mass.streams.resolve_stream_url(self.player_id, media)
         _LOGGER.debug("[%s] Stream URL resolved (length=%d)", self.player_id, len(stream_url))
 
@@ -395,7 +405,7 @@ class YandexStationPlayer(Player):
         try:
             await asyncio.sleep(3)
             if self._needs_replay:
-                _LOGGER.info("[%s] Auto-resuming MA queue after voice command", self.player_id)
+                _LOGGER.debug("[%s] Auto-resuming MA queue after voice command", self.player_id)
                 self._needs_replay = False
                 queue = self.mass.player_queues.get_active_queue(self.player_id)
                 if queue:
@@ -409,7 +419,7 @@ class YandexStationPlayer(Player):
 
     def _handle_voice_interrupt(self, alice_state: str) -> None:
         """Handle Alice activation during bypass playback."""
-        _LOGGER.info(
+        _LOGGER.debug(
             "[%s] Alice active (%s) during bypass — pausing MA queue",
             self.player_id,
             alice_state,
@@ -438,14 +448,14 @@ class YandexStationPlayer(Player):
 
             if self._alice_spoke or volume_changed:
                 reason = "speech" if self._alice_spoke else "volume change"
-                _LOGGER.info(
+                _LOGGER.debug(
                     "[%s] Voice command ended (%s) — scheduling auto-resume",
                     self.player_id,
                     reason,
                 )
                 self._voice_resume_task = asyncio.create_task(self._delayed_resume())
             else:
-                _LOGGER.info("[%s] Silent voice command — staying paused", self.player_id)
+                _LOGGER.debug("[%s] Silent voice command — staying paused", self.player_id)
                 self._needs_replay = True
 
     def _cancel_voice_resume(self) -> None:
@@ -456,7 +466,7 @@ class YandexStationPlayer(Player):
 
     def _handle_physical_pause(self) -> None:
         """Handle physical pause pressed on the speaker during external playback."""
-        _LOGGER.info(
+        _LOGGER.debug(
             "[%s] Physical pause detected during external playback",
             self.player_id,
         )
@@ -488,7 +498,7 @@ class YandexStationPlayer(Player):
                 self._attr_powered = True
         elif playing:
             if self._needs_replay:
-                _LOGGER.info(
+                _LOGGER.debug(
                     "[%s] Native player active after voice cmd — accepting",
                     self.player_id,
                 )

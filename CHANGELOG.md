@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-04-28
+
+### Changed
+- **Player identifiers** (upstream PR review): `DeviceInfo.identifiers` now carries `IP_ADDRESS` and `UUID` (Yandex `device_id`) so MA can auto-link the player with other protocols on the same speaker. The IP identifier is refreshed in `update_connection()` when mDNS reports a new address. MAC isn't published by mDNS or Quasar, so it isn't surfaced.
+- **Log levels** (upstream PR review): demoted high-frequency per-event logs to `DEBUG` — `play_media`, voice-interrupt / voice-end / physical-pause / native-player-after-voice transitions, and post-voice queue auto-resume. `INFO` is now reserved for provider-level milestones.
+- **HTTP session via MA helper** (upstream PR review): the dedicated Yandex `ClientSession` is now built through `music_assistant.helpers.aiohttp_client.create_clientsession()` instead of a bare `aiohttp.ClientSession(...)`, so it picks up MA's connector pool, `MusicAssistant/<ver>` User-Agent, and `MassClientResponse`. Kept a private `CookieJar(quote_cookie=False)` because Yandex Passport rejects percent-encoded cookies (a `CookieJar` constructor-only kwarg, can't be applied to `mass.http_session`).
+
 ## [1.3.1] - 2026-04-22
 
 ### Fixed

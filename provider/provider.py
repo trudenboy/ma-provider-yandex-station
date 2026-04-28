@@ -11,6 +11,7 @@ from aiohttp import ClientSession, CookieJar
 from music_assistant_models.errors import LoginFailed, ProviderUnavailableError
 from ya_passport_auth import PassportClient, SecretStr
 
+from music_assistant.helpers.aiohttp_client import create_clientsession
 from music_assistant.models.player_provider import PlayerProvider
 
 from .auth import refresh_credentials_via_passport, refresh_music_token
@@ -119,7 +120,14 @@ class YandexStationProvider(PlayerProvider):
             if self._http_session is not None:
                 await self._cleanup_session()
 
-            self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
+            # Dedicated session: Yandex Passport rejects percent-encoded cookies,
+            # so we need ``CookieJar(quote_cookie=False)`` (a constructor-only
+            # kwarg). Built via MA's helper so we still get the shared connector
+            # pool, MA User-Agent, and ``MassClientResponse``.
+            self._http_session = create_clientsession(
+                self.mass,
+                cookie_jar=CookieJar(quote_cookie=False),
+            )
             self._passport_client = PassportClient(session=self._http_session)
 
             x_token = SecretStr(str(x_token_val)) if x_token_val else None
