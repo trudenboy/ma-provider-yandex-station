@@ -25,8 +25,6 @@ def _make_player() -> YandexStationPlayer:
     player._voice_resume_task = None
     player._alice_spoke = False
     player._pre_voice_volume = 0
-    player._announcement_done = None
-    player._announcement_phase = ""
     player._attr_playback_state = PlaybackState.IDLE
     player._attr_powered = False
     player._attr_volume_level = 0

@@ -303,6 +303,8 @@ async def perform_qr_auth(mass: MusicAssistant, session_id: str) -> tuple[str, s
 
     Returns (x_token, music_token).
     """
+    if not _SAFE_SESSION_ID_RE.match(session_id):
+        raise InvalidDataError("Invalid session_id for QR authentication")
     try:
         async with PassportClient.create() as client:
             qr = await client.start_qr_login()

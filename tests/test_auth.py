@@ -132,6 +132,17 @@ async def test_perform_device_auth_rejects_unsafe_session_id(bad_session_id: str
         await perform_device_auth(mock_mass, bad_session_id)
 
 
+@pytest.mark.parametrize(
+    "bad_session_id",
+    ["", "../escape", "foo/bar", "a" * 65, "name with space"],
+)
+async def test_perform_qr_auth_rejects_unsafe_session_id(bad_session_id: str) -> None:
+    """session_id reaches AuthenticationHelper's callback route — unsafe values must be rejected."""
+    mock_mass = mock.MagicMock()
+    with pytest.raises(InvalidDataError):
+        await perform_qr_auth(mock_mass, bad_session_id)
+
+
 async def test_perform_device_auth_serves_intermediate_page_and_cleans_up() -> None:
     """A temporary HTML page + status endpoint are registered and unregistered after."""
     session = _make_device_session(

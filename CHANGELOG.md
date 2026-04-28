@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-04-28
+
+### Fixed
+- **Announcements spoke the literal word "Announcement"** (upstream PR review, Copilot): `play_announcement` was reading `announcement.title` and synthesising it via Alice TTS, but MA core hard-codes that title to `"Announcement"` regardless of the original audio source — so every announcement on this provider TTS'd that one word instead of playing the requested clip. Removed the TTS branch entirely; announcements now stream the MA-hosted `announcement.uri` (which already includes the optional pre-announce chime). The dependent `_announcement_done` / `_announcement_phase` / `_check_announcement_done` machinery was dropped along with it.
+
+### Security
+- **`perform_qr_auth` session_id validation** (upstream PR review, Copilot): `session_id` was forwarded to `AuthenticationHelper`, which registers a callback route containing that value, without sanitisation. An attacker-controlled value with slashes / traversal sequences could have created an unintended route path. Now validated against the same `_SAFE_SESSION_ID_RE = ^[A-Za-z0-9_-]{1,64}$` pattern that already guarded `perform_device_auth`. Mirrored test added in `tests/test_auth.py`.
+
 ## [1.3.3] - 2026-04-28
 
 ### Fixed
