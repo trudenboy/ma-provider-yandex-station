@@ -139,9 +139,9 @@ class YandexStationPlayer(Player):
             manufacturer="Yandex",
         )
         # Identifiers help MA auto-link this player with other protocols on the
-        # same device (e.g. AirPlay/DLNA receivers exposed by the same speaker).
-        # MAC isn't published by mDNS or the Quasar cloud API, so we surface
-        # what's available: deviceId (stable per speaker) and current IP.
+        # same device (e.g. AirPlay/DLNA receivers exposed by the same speaker):
+        # deviceId (stable per speaker) and current IP. MAC, if needed, is
+        # resolved by MA core from the IP_ADDRESS identifier.
         if host := device_info.get("host"):
             self._attr_device_info.add_identifier(IdentifierType.IP_ADDRESS, host)
         if device_id := device_info.get("quasar_info", {}).get("device_id"):
