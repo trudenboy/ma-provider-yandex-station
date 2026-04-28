@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-04-28
+
+### Fixed
+- **Auth regression introduced in 1.3.2**: switching the dedicated `ClientSession` to MA's `create_clientsession()` helper broke Yandex Passport's session refresh — every `refresh_passport_cookies()` call now hit `HTTP 400 from redirect chain`, flooding logs and preventing player creation. Reverted to a bare `aiohttp.ClientSession(cookie_jar=CookieJar(quote_cookie=False))`. The exact incompatibility (custom connector / SSL context / `_default_headers` override) wasn't isolated, but the symptom was reproducible on every station and disappeared on rollback.
+
 ## [1.3.2] - 2026-04-28
 
 ### Changed
