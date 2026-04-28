@@ -221,6 +221,20 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.3.2] - 2026-04-28
+
+- test: patch create_clientsession in cascade tests (`b13f12e`)
+- style: auto-fix ruff (`c46a231`)
+- fix: address upstream PR #3605 review (Marvin) (`e869697`)
+- style: auto-fix ruff (`621112e`)
+- style: auto-fix ruff (`c13bfd2`)
+- test: appease upstream mypy on test_provider_cascade.py (`d14e5e0`)
+- style: auto-fix ruff (`a4febf3`)
+- fix: address upstream PR #3605 Copilot review (`454f215`)
+- style: auto-fix ruff (`2456b83`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
