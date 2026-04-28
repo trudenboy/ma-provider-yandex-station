@@ -240,6 +240,14 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.3.3] - 2026-04-28
+
+- fix: revert create_clientsession switch — Passport refresh 400s (`3ed2795`)
+- Update ya-passport-auth requirement version (`858ce0d`)
+- chore: update changelog for v1.3.2 [skip ci] (`e74d309`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
