@@ -256,6 +256,14 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.3.4] - 2026-04-28
+
+- fix: address upstream PR #3605 review (Copilot) (`dfd3282`)
+- docs: drop the "MAC not surfaced" caveat (`bf7f786`)
+- chore: update changelog for v1.3.3 [skip ci] (`a0e5bd1`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
