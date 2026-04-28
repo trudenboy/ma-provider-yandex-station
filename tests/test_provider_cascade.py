@@ -115,14 +115,14 @@ def fake_session_cls() -> Any:
 
 @pytest.fixture(autouse=True)
 def fake_http_plumbing() -> Any:
-    """Patch ClientSession + PassportClient so _init_session doesn't open real sockets."""
+    """Patch create_clientsession + PassportClient so _init_session doesn't open real sockets."""
     with (
-        mock.patch(f"{_MOD}.ClientSession") as http_cls,
+        mock.patch(f"{_MOD}.create_clientsession") as ccs,
         mock.patch(f"{_MOD}.PassportClient") as pc_cls,
     ):
-        http_cls.return_value = mock.MagicMock(closed=False, close=mock.AsyncMock())
+        ccs.return_value = mock.MagicMock(closed=False, close=mock.AsyncMock())
         pc_cls.return_value = mock.MagicMock()
-        yield http_cls, pc_cls
+        yield ccs, pc_cls
 
 
 # ── _init_session cascade ─────────────────────────────────────────
