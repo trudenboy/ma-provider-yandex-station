@@ -537,9 +537,7 @@ async def test_on_glagol_update_dispatches_intercept_tick_via_create_task() -> N
     # At least one create_task call must be the intercept tick coroutine.
     # Coroutine objects expose `__name__` only on Py3.8+; `cr_code.co_name` is
     # the portable introspection point for any coroutine across Python versions.
-    coro_names = [
-        getattr(getattr(c, "cr_code", None), "co_name", "") for c in captured
-    ]
+    coro_names = [getattr(getattr(c, "cr_code", None), "co_name", "") for c in captured]
     assert "_handle_intercept_tick" in coro_names, coro_names
     # Cleanup never-awaited coroutines so pytest doesn't warn.
     for coro in captured:
