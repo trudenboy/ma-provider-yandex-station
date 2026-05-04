@@ -9,6 +9,12 @@ The feature is gated by two switches: a provider-level master toggle
 (``intercept_feature_enabled``, default OFF) and a per-player toggle
 (``intercept_enabled``).  Both must be ON for any intercept action to happen.
 """
+# Tests use MagicMock to stand in for MA core objects whose real types are
+# Callable / Player / etc.  Mypy strict-mode flags every ``assert_awaited_*`` as
+# attr-defined, every mock reassignment as method-assign, and the master-switch
+# branch in ``test_intercept_master_switch_off`` as unreachable (because
+# ``_intercept_enabled`` returns False there).  All three are expected here.
+# mypy: disable-error-code="attr-defined,method-assign,unreachable"
 
 from __future__ import annotations
 
