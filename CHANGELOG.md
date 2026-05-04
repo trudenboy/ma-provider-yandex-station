@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+- **Experimental: intercept Alice playback to a target MA player.** When Alice starts music on a Yandex Station, the provider can stop the Station's native player, resolve the track via the `yandex_music` MA music provider, and start playback on a chosen target player. Volume / seek / pause / Alice-speech mirror from the Station to the target while intercept is active. Gated by two switches, both default OFF: a provider-level master toggle (`intercept_feature_enabled`) and a per-player toggle + target dropdown.
+
+### Fixed
+- **Intercept resolves before silencing the Station** (PR #45 review, Copilot): if the track lookup or queue handoff failed, the previous order silenced the Station first and left the user with no audio at all. The Station is now muted only after a working track URI is in hand.
+- **Intercept self-stop no longer pauses the target** (PR #45 review, Copilot): the `playing=False` produced by our own stop command was bouncing back through the pause-mirror path and immediately pausing the target we just started. A short self-stop window now suppresses the next playing=False after we trigger intercept.
+- **Alice voice activity during intercept actually pauses the target** (PR #45 review, Copilot): the original branch lived in `_handle_voice_interrupt`, which is only reachable while our `radio_play` bypass is active — meaning intercept-mode voice handling never fired. Detection moved into `_handle_intercept_tick` (the real dispatch path); the intercept session stays open so a follow-up Alice track resumes it.
+- **Intercept track_id log demoted to DEBUG** (PR #45 review, Copilot): used to be INFO on every intercepted track, which would dominate the log once the format had been verified.
+
 ## [1.3.4] - 2026-04-28
 
 ### Fixed

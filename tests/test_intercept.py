@@ -12,6 +12,7 @@ The feature is gated by two switches: a provider-level master toggle
 
 from __future__ import annotations
 
+import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -46,6 +47,7 @@ def _make_intercept_player(
     player._last_mirrored_volume = None
     player._last_progress = 0
     player._last_progress_wall = 0.0
+    player._intercept_self_stop_until = 0.0
 
     # Mock provider config (master switch) and player config (per-player toggle)
     provider_config = MagicMock()
@@ -94,10 +96,15 @@ def _state(
     playing: bool = True,
     volume: float | None = 0.5,
     progress: int = 0,
+    alice_state: str = "IDLE",
 ) -> tuple[dict[str, Any], dict[str, Any], bool]:
     """Build a (state, player_state, playing) tuple for _handle_intercept_tick."""
     player_state = {"id": track_id, "progress": progress, "title": "Some Track"}
-    state: dict[str, Any] = {"playerState": player_state, "playing": playing}
+    state: dict[str, Any] = {
+        "playerState": player_state,
+        "playing": playing,
+        "aliceState": alice_state,
+    }
     if volume is not None:
         state["volume"] = volume
     return state, player_state, playing
@@ -222,16 +229,31 @@ async def test_intercept_dedup_same_track_within_window() -> None:
     assert player.glagol.send.await_count == 1
 
 
-async def test_intercept_resolve_failure_keeps_inactive() -> None:
-    """If get_item raises, intercept_active stays False so we can retry later."""
+async def test_intercept_resolve_failure_does_not_silence_station() -> None:
+    """If get_item raises, the Station is left playing — never silenced."""
     player = _make_intercept_player()
     player.mass.music.get_item = AsyncMock(side_effect=RuntimeError("not found"))
     state, player_state, playing = _state()
 
     await player._handle_intercept_tick(state, player_state, playing)
 
-    # Stop was sent before the resolve attempt; that's OK
-    player.glagol.send.assert_awaited_once()
+    # Resolve happens FIRST — failure means the Station stays playing.
+    player.glagol.send.assert_not_awaited()
+    player.mass.player_queues.play_media.assert_not_awaited()
+    assert player._intercept_active is False
+
+
+async def test_intercept_resolved_track_without_uri_skips_handoff() -> None:
+    """Resolved track with no uri → log warning, leave Station playing."""
+    player = _make_intercept_player()
+    bad_track = MagicMock(name="track_no_uri")
+    bad_track.uri = None
+    player.mass.music.get_item = AsyncMock(return_value=bad_track)
+    state, player_state, playing = _state()
+
+    await player._handle_intercept_tick(state, player_state, playing)
+
+    player.glagol.send.assert_not_awaited()
     player.mass.player_queues.play_media.assert_not_awaited()
     assert player._intercept_active is False
 
@@ -273,12 +295,28 @@ async def test_pause_mirror_on_native_stop() -> None:
     """Native player stops (playing=False) while intercept_active → pause target."""
     player = _make_intercept_player()
     player._intercept_active = True
+    # No self-stop window active → playing=False is interpreted as a real pause.
+    player._intercept_self_stop_until = 0.0
 
     state, player_state, _ = _state(track_id="1", playing=False)
     await player._handle_intercept_tick(state, player_state, False)
 
     player.mass.players.cmd_pause.assert_awaited_once_with("target_player")
     assert player._intercept_active is False
+
+
+async def test_self_stop_window_suppresses_pause_mirror() -> None:
+    """The playing=False from our own stop must NOT propagate to the target."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    # Our own stop just fired — self-stop window is open.
+    player._intercept_self_stop_until = time.time() + 3
+
+    state, player_state, _ = _state(track_id="1", playing=False)
+    await player._handle_intercept_tick(state, player_state, False)
+
+    player.mass.players.cmd_pause.assert_not_awaited()
+    assert player._intercept_active is True
 
 
 async def test_seek_mirror_on_progress_jump() -> None:
@@ -299,20 +337,37 @@ async def test_seek_mirror_on_progress_jump() -> None:
 # ── Voice interrupt + intercept ───────────────────────────────────────
 
 
-def test_voice_interrupt_during_intercept_pauses_target() -> None:
-    """Alice activates while intercept is active → pause target via cmd_pause."""
+async def test_alice_speaks_during_intercept_pauses_target_via_dispatcher() -> None:
+    """Alice activity arrives via Glagol state — dispatcher pauses target.
+
+    This drives ``_handle_intercept_tick`` (the actual entry point), not the
+    bypass-only ``_handle_voice_interrupt`` helper.  The intercept session
+    must remain active so a follow-up Alice-initiated track resumes it.
+    """
     player = _make_intercept_player()
     player._intercept_active = True
-    player._attr_volume_level = 30
-    captured: list[Any] = []
-    player.mass.create_task = MagicMock(side_effect=captured.append)
 
-    player._handle_voice_interrupt("LISTENING")
+    # Same track_id as last_intercepted → debounce skips re-intercept;
+    # Alice activity must still pause the target.
+    player._last_intercepted_track_id = "12345"
+    player._last_intercept_time = time.time()
+    state, player_state, _ = _state(track_id="12345", alice_state="LISTENING")
 
-    # cmd_pause(target) was scheduled via mass.create_task
-    player.mass.create_task.assert_called_once()
-    # Did NOT touch bypass-related state (since we returned early)
-    assert player._external_playing is False
-    # Cleanup the never-awaited coroutine to silence warnings
-    for coro in captured:
-        coro.close()
+    await player._handle_intercept_tick(state, player_state, True)
+
+    player.mass.players.cmd_pause.assert_awaited_with("target_player")
+    # Session stays open so the next Alice track can resume it
+    assert player._intercept_active is True
+
+
+async def test_alice_idle_during_intercept_does_not_pause_target() -> None:
+    """No Alice activity → no spurious pause on the target."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "12345"
+    player._last_intercept_time = time.time()
+    state, player_state, _ = _state(track_id="12345", alice_state="IDLE")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    player.mass.players.cmd_pause.assert_not_awaited()

@@ -139,6 +139,10 @@ class YandexStationPlayer(Player):
         self._last_mirrored_volume: int | None = None
         self._last_progress: int = 0
         self._last_progress_wall: float = 0.0
+        # Wall-clock cutoff after which playing=False from the Station is
+        # treated as a real pause and mirrored to the target.  Set when we
+        # send our own stop command so the resulting playing=False is ignored.
+        self._intercept_self_stop_until: float = 0.0
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -475,17 +479,12 @@ class YandexStationPlayer(Player):
     # ── State updates from Glagol WebSocket ──────────────────────
 
     def _handle_voice_interrupt(self, alice_state: str) -> None:
-        """Handle Alice activation during bypass playback."""
-        if self._intercept_active and self._intercept_target_player_id:
-            _LOGGER.debug(
-                "[%s] Alice active (%s) during intercept — pausing target",
-                self.player_id,
-                alice_state,
-            )
-            self.mass.create_task(
-                self.mass.players.cmd_pause(self._intercept_target_player_id)
-            )
-            return
+        """Handle Alice activation during bypass playback.
+
+        Intercept-mode voice handling lives in ``_handle_intercept_tick`` —
+        this branch is reached only via ``_update_playback_state`` while
+        ``_external_playing`` is True (our own ``radio_play`` stream).
+        """
         _LOGGER.debug(
             "[%s] Alice active (%s) during bypass — pausing MA queue",
             self.player_id,
@@ -545,7 +544,14 @@ class YandexStationPlayer(Player):
 
         track_id = (player_state.get("id") or "").strip()
         progress = int(player_state.get("progress") or 0)
+        alice_state = state.get("aliceState", "")
         now = time.time()
+
+        # Alice activates while target is playing → pause target so she's heard.
+        # Done before intercept-trigger logic because the same tick can carry
+        # both alice activity and a fresh playerState.id from the next track.
+        if self._intercept_active and alice_state in ("LISTENING", "SPEAKING"):
+            await self._mirror_pause_to_target(end_session=False)
 
         if playing and track_id:
             await self._maybe_intercept(track_id, now)
@@ -553,10 +559,13 @@ class YandexStationPlayer(Player):
                 await self._maybe_mirror_seek(progress, now)
                 await self._maybe_mirror_volume(state.get("volume"))
         elif not playing and self._intercept_active:
+            # Skip the playing=False that our own stop command produces.
+            if now < self._intercept_self_stop_until:
+                return
             await self._mirror_pause_to_target()
 
     async def _maybe_intercept(self, track_id: str, now: float) -> None:
-        """Stop the Station, resolve the track, and play it on the target."""
+        """Resolve the track, stop the Station, then play on the target."""
         # Debounce: don't re-intercept the same track within 5 seconds
         if (
             track_id == self._last_intercepted_track_id
@@ -574,25 +583,44 @@ class YandexStationPlayer(Player):
             )
             return
 
-        # Capture raw track_id format for empirical verification on real Stations
-        _LOGGER.info("[%s] intercept: raw playerState.id=%r", self.player_id, track_id)
+        _LOGGER.debug("[%s] intercept: raw playerState.id=%r", self.player_id, track_id)
         parsed_id = _parse_yandex_track_id(track_id)
 
+        # Resolve first — if the track can't be found or the URI is missing we
+        # leave the Station playing rather than silencing it for nothing.
         try:
-            stop_result = await self.glagol.send({"command": "stop"})
-            _raise_if_failed(stop_result, "intercept-stop")
             track = await self.mass.music.get_item(
                 media_type=MediaType.TRACK,
                 item_id=parsed_id,
                 provider_instance_id_or_domain="yandex_music",
             )
-            # We requested MediaType.TRACK; passing the URI sidesteps the
-            # MediaItemType vs. play_media union mismatch (BrowseFolder/Genre
-            # are theoretically returnable from get_item).
-            track_uri = track.uri
-            if not track_uri:
-                msg = f"resolved track has no uri: {track!r}"
-                raise PlayerCommandFailed(msg)
+        except Exception as exc:
+            _LOGGER.warning(
+                "[%s] intercept resolve failed for %r: %s",
+                self.player_id,
+                track_id,
+                exc,
+            )
+            return
+        # We requested MediaType.TRACK; passing the URI sidesteps the
+        # MediaItemType vs. play_media union mismatch (BrowseFolder/Genre
+        # are theoretically returnable from get_item).
+        track_uri = track.uri
+        if not track_uri:
+            _LOGGER.warning(
+                "[%s] intercept: resolved track has no uri: %r",
+                self.player_id,
+                track,
+            )
+            return
+
+        # Now silence the Station and start the target.  Mark a self-stop
+        # window so the playing=False that follows our own stop doesn't get
+        # mirrored to the target as a pause.
+        try:
+            self._intercept_self_stop_until = now + 3
+            stop_result = await self.glagol.send({"command": "stop"})
+            _raise_if_failed(stop_result, "intercept-stop")
             await self.mass.player_queues.play_media(
                 queue_id=target_id,
                 media=track_uri,
@@ -600,7 +628,10 @@ class YandexStationPlayer(Player):
             )
         except Exception as exc:
             _LOGGER.warning(
-                "[%s] intercept failed for %r: %s", self.player_id, track_id, exc
+                "[%s] intercept handoff failed for %r: %s",
+                self.player_id,
+                track_id,
+                exc,
             )
             return
 
@@ -634,13 +665,23 @@ class YandexStationPlayer(Player):
         self._last_progress = progress
         self._last_progress_wall = now
 
-    async def _mirror_pause_to_target(self) -> None:
-        """Pause the target when the Station's native player stops."""
+    async def _mirror_pause_to_target(self, *, end_session: bool = True) -> None:
+        """Pause the target player.
+
+        ``end_session=True`` (default) clears ``_intercept_active``: the pause
+        came from the Station's native player going idle (physical pause or
+        end-of-queue), so the user is no longer listening through this Station.
+
+        ``end_session=False`` keeps ``_intercept_active`` set — used when *we*
+        pause the target temporarily (e.g. while Alice speaks) so the next
+        Alice-initiated track can re-resume the same session.
+        """
         target_id = self._intercept_target_player_id
         if not target_id:
             return
         await self.mass.players.cmd_pause(target_id)
-        self._intercept_active = False
+        if end_session:
+            self._intercept_active = False
 
     def _handle_physical_pause(self) -> None:
         """Handle physical pause pressed on the speaker during external playback."""
