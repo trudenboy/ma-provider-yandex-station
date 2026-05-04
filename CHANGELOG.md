@@ -392,6 +392,13 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.10] - 2026-05-04
+
+- fix(security): redact Glagol send() debug log (`3c531df`)
+- style: auto-fix ruff (`7b29f6d`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
