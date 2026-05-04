@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-05-04
+
 ### Added
 - **Experimental: intercept Alice playback to a target MA player.** When Alice starts music on a Yandex Station, the provider can stop the Station's native player, resolve the track via the `yandex_music` MA music provider, and start playback on a chosen target player. Volume / seek / pause / Alice-speech mirror from the Station to the target while intercept is active. Gated by two switches, both default OFF: a provider-level master toggle (`intercept_feature_enabled`) and a per-player toggle + target dropdown.
 
