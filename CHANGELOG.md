@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Intercept: serialise concurrent handoffs** (PR #45 review, Copilot): `_on_glagol_update` schedules `_handle_intercept_tick` as a background task on every WS message; two near-simultaneous `playing=True` updates could race and issue duplicate `stop`/`play_media` for the same track. `_maybe_intercept` is now wrapped in an `asyncio.Lock` and stamps the debounce state up-front so the second task short-circuits.
+- **Intercept: debounce failed attempts** (PR #45 review, Copilot): the 5-second debounce was only stamped after a successful handoff, so missing `yandex_music` / lookup failures / no-URI tracks re-ran the lookup on every WS tick and spammed `WARNING` logs. The debounce timestamp is now updated on every attempt regardless of outcome.
+- **Intercept: pre-validate target player before silencing the Station** (PR #45 review, Copilot): if the configured target had disappeared or rejected playback, we'd already have silenced the Station before discovering it. `_maybe_intercept` now checks `mass.players.get_player(target_id)` first and returns early if the target is gone.
+- **Intercept: end stale session on failed re-intercept** (PR #45 review, Copilot): when a new track failed to resolve mid-session, `_intercept_active` stayed True and seek/volume from the Station's native fallback playback were forwarded to the previous-track target. Failure paths on a *new* `track_id` now pause the target and clear the session.
+- **Intercept: clear debounce on session end** (PR #45 review, Copilot): `_mirror_pause_to_target(end_session=True)` (physical pause, end-of-queue) only cleared `_intercept_active`; the same-track 5-second debounce survived, so a quick replay of the same track on the Station was left playing natively. The end-session path now resets `_last_intercepted_track_id` and `_last_intercept_time` too.
+- **Intercept: clear `_intercept_active` on handoff failure** (PR #45 review, Copilot): when `play_media` raised after the Station was silenced, we returned without clearing the active flag, leaving mirror code forwarding state to a target that wasn't playing.
+
 ## [1.4.0] - 2026-05-04
 
 ### Added

@@ -12,6 +12,7 @@ The feature is gated by two switches: a provider-level master toggle
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -48,6 +49,7 @@ def _make_intercept_player(
     player._last_progress = 0
     player._last_progress_wall = 0.0
     player._intercept_self_stop_until = 0.0
+    player._intercept_lock = asyncio.Lock()
 
     # Mock provider config (master switch) and player config (per-player toggle)
     provider_config = MagicMock()
@@ -81,6 +83,8 @@ def _make_intercept_player(
     mass.players.cmd_pause = AsyncMock()
     mass.players.cmd_volume_set = AsyncMock()
     mass.players.cmd_seek = AsyncMock()
+    # Default: target player exists (intercept pre-validation passes).
+    mass.players.get_player = MagicMock(return_value=MagicMock(name="target_player_obj"))
     player.mass = mass
 
     # Mock glagol with successful stop
@@ -371,3 +375,172 @@ async def test_alice_idle_during_intercept_does_not_pause_target() -> None:
     await player._handle_intercept_tick(state, player_state, True)
 
     player.mass.players.cmd_pause.assert_not_awaited()
+
+
+# ── Stale session / debounce on failure / serialisation ──────────────
+
+
+async def test_failed_intercept_debounces_to_avoid_log_spam() -> None:
+    """Repeated WS ticks for the same failing track → only one resolve attempt.
+
+    Failed lookups must update the debounce timestamp; otherwise every Glagol
+    tick (~1Hz) would re-run get_item and emit a fresh warning.
+    """
+    player = _make_intercept_player()
+    player.mass.music.get_item = AsyncMock(side_effect=RuntimeError("not found"))
+    state, player_state, _ = _state(track_id="bad")
+
+    await player._handle_intercept_tick(state, player_state, True)
+    await player._handle_intercept_tick(state, player_state, True)
+    await player._handle_intercept_tick(state, player_state, True)
+
+    assert player.mass.music.get_item.await_count == 1
+
+
+async def test_target_player_unavailable_does_not_silence_station() -> None:
+    """Pre-validation: if get_player(target) returns None, no Glagol stop."""
+    player = _make_intercept_player()
+    player.mass.players.get_player = MagicMock(return_value=None)
+    state, player_state, _ = _state()
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    player.glagol.send.assert_not_awaited()
+    player.mass.player_queues.play_media.assert_not_awaited()
+
+
+async def test_failed_intercept_on_new_track_ends_stale_session() -> None:
+    """A new track that fails to resolve must pause the target from the prior session.
+
+    Otherwise mirror updates from the Station's native fallback playback would
+    keep being forwarded to the target that's still on the previous track.
+    """
+    player = _make_intercept_player()
+    # Simulate a prior successful intercept on track A.
+    player._intercept_active = True
+    player._last_intercepted_track_id = "A"
+    player._last_intercept_time = 0.0  # well outside debounce
+    # New track B fails to resolve.
+    player.mass.music.get_item = AsyncMock(side_effect=RuntimeError("nope"))
+    state, player_state, _ = _state(track_id="B")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    player.mass.players.cmd_pause.assert_awaited_with("target_player")
+    assert player._intercept_active is False
+
+
+async def test_handoff_failure_clears_intercept_active() -> None:
+    """Failed handoff after stop must clear intercept_active.
+
+    Otherwise mirror code would forward state to a target that isn't playing.
+    """
+    player = _make_intercept_player()
+    player.mass.player_queues.play_media = AsyncMock(side_effect=RuntimeError("boom"))
+    state, player_state, _ = _state()
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    # Stop did fire (resolve succeeded), but handoff failed.
+    player.glagol.send.assert_awaited_once()
+    assert player._intercept_active is False
+
+
+async def test_session_end_clears_debounce_for_quick_resume() -> None:
+    """End of session must clear the debounce for quick same-track resumes.
+
+    Otherwise a follow-up of the same track within 5s would be debounced and
+    left playing on the Station instead of being handed back to the target.
+    """
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "X"
+    player._last_intercept_time = time.time()
+
+    await player._mirror_pause_to_target()  # end_session=True (default)
+
+    assert player._intercept_active is False
+    assert player._last_intercepted_track_id is None
+    assert player._last_intercept_time == 0.0
+
+
+async def test_concurrent_ticks_do_not_double_handoff() -> None:
+    """Two near-simultaneous WS ticks for the same track must only stop+play once.
+
+    Without the lock both tasks would pass the dedup check, both would call
+    glagol.send(stop) and play_media.  The lock + early debounce-mark serialise
+    them so the second one short-circuits.
+    """
+    player = _make_intercept_player()
+    state, player_state, _ = _state(track_id="X")
+
+    # Make get_item slow so the second tick definitely arrives mid-handoff.
+    resolve_started = asyncio.Event()
+    resolve_release = asyncio.Event()
+
+    async def slow_get_item(**_kwargs: Any) -> Any:
+        resolve_started.set()
+        await resolve_release.wait()
+        return MagicMock(uri="yandex_music://track/X")
+
+    player.mass.music.get_item = AsyncMock(side_effect=slow_get_item)
+
+    t1 = asyncio.create_task(player._handle_intercept_tick(state, player_state, True))
+    await resolve_started.wait()
+    # Second tick fires while first is still inside _maybe_intercept's lock.
+    t2 = asyncio.create_task(player._handle_intercept_tick(state, player_state, True))
+    # Give t2 a chance to acquire the lock and hit the dedup check.
+    await asyncio.sleep(0)
+    resolve_release.set()
+    await asyncio.gather(t1, t2)
+
+    assert player.glagol.send.await_count == 1
+    assert player.mass.player_queues.play_media.await_count == 1
+
+
+# ── Real entrypoint ──────────────────────────────────────────────────
+
+
+async def test_on_glagol_update_dispatches_intercept_tick_via_create_task() -> None:
+    """_on_glagol_update must hand intercept work off through mass.create_task.
+
+    This covers the integration boundary the other tests bypass by calling
+    _handle_intercept_tick directly.
+    """
+    player = _make_intercept_player()
+    # Stub out _update_playback_state and friends so we only observe the
+    # intercept dispatch.
+    player._update_playback_state = MagicMock()
+    player.update_state = MagicMock()
+    player.set_current_media = MagicMock()
+    player._attr_available = False
+    player._attr_powered = True
+    player._attr_volume_level = 0
+    player._attr_playback_state = None
+    player._attr_elapsed_time = 0
+    player._attr_elapsed_time_last_updated = 0.0
+    player._attr_current_media = None
+    player._prev_alice_state = ""
+    player._voice_resume_task = None
+    player._voice_control_enabled_cache = False  # not the real attr but harmless
+
+    captured: list[Any] = []
+    player.mass.create_task = MagicMock(side_effect=captured.append)
+
+    raw_state = {
+        "state": {
+            "playerState": {"id": "12345", "title": "X", "progress": 0, "duration": 60},
+            "playing": True,
+            "volume": 0.5,
+            "aliceState": "IDLE",
+        }
+    }
+    player._on_glagol_update(raw_state)
+
+    # At least one create_task call must be the intercept tick coroutine.
+    coro_names = [getattr(c, "__name__", "") for c in captured]
+    assert "_handle_intercept_tick" in coro_names, coro_names
+    # Cleanup never-awaited coroutines so pytest doesn't warn.
+    for coro in captured:
+        if hasattr(coro, "close"):
+            coro.close()
