@@ -146,6 +146,10 @@ class YandexStationPlayer(Player):
         # Serialises _maybe_intercept so two near-simultaneous WS updates
         # can't issue duplicate stop/play commands for the same track.
         self._intercept_lock: asyncio.Lock = asyncio.Lock()
+        # True after we've issued cmd_pause(target) for the current Alice
+        # interaction.  Prevents repeating the pause on every WS tick while
+        # Alice is still LISTENING/SPEAKING.  Cleared when alice goes IDLE.
+        self._alice_active_pause_sent: bool = False
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -548,38 +552,53 @@ class YandexStationPlayer(Player):
         track_id = (player_state.get("id") or "").strip()
         progress = int(player_state.get("progress") or 0)
         alice_state = state.get("aliceState", "")
-        now = time.time()
+        alice_active = alice_state in ("LISTENING", "SPEAKING")
 
-        # Alice activates while target is playing → pause target so she's heard.
-        # Done before intercept-trigger logic because the same tick can carry
-        # both alice activity and a fresh playerState.id from the next track.
-        if self._intercept_active and alice_state in ("LISTENING", "SPEAKING"):
-            await self._mirror_pause_to_target(end_session=False)
+        # Alice activates while target is playing → pause target once so she's
+        # heard.  We also clear the same-track debounce so a quick resume of
+        # the same song after the question triggers a fresh intercept.  Done
+        # before any other dispatch because the same tick can carry alice
+        # activity together with a fresh playerState.id.
+        if self._intercept_active and alice_active:
+            if not self._alice_active_pause_sent:
+                await self._pause_target(clear_session=False, clear_debounce=True)
+                self._alice_active_pause_sent = True
+            # Don't start a new handoff while Alice is talking — the next
+            # track starts only after she goes IDLE.
+            return
+
+        if not alice_active:
+            self._alice_active_pause_sent = False
 
         if playing and track_id:
-            await self._maybe_intercept(track_id, now)
+            await self._maybe_intercept(track_id)
             if self._intercept_active:
-                await self._maybe_mirror_seek(progress, now)
+                await self._maybe_mirror_seek(progress)
                 await self._maybe_mirror_volume(state.get("volume"))
-        elif not playing and self._intercept_active:
+            return
+
+        if not playing and self._intercept_active:
+            now = time.time()
             # Skip the playing=False that our own stop command produces.
             if now < self._intercept_self_stop_until:
                 return
-            await self._mirror_pause_to_target()
+            await self._pause_target(clear_session=True, clear_debounce=True)
 
-    async def _maybe_intercept(self, track_id: str, now: float) -> None:
+    async def _maybe_intercept(self, track_id: str) -> None:
         """Resolve the track, stop the Station, then play on the target.
 
         Serialised by ``_intercept_lock`` so two concurrent Glagol updates
-        can't issue duplicate stop/play commands for the same track.
+        can't issue duplicate stop/play commands for the same track. ``now``
+        is read *inside* the lock so a long handoff doesn't leave the next
+        task with a stale timestamp that bypasses debounce.
 
         The debounce timestamp is updated on every attempt — successful or
         not — so failed lookups don't re-run on every WS tick (~1Hz) and
-        spam logs.  A successful intercept cleans up any stale prior session
-        first; a failed intercept on a *new* track also ends the prior
-        session so mirror updates don't leak to a stale target.
+        spam logs.  Failure-path cleanup of a stale prior session keeps the
+        new track's debounce intact via ``_pause_target(clear_debounce=False)``.
         """
         async with self._intercept_lock:
+            now = time.time()
             # Debounce: skip if we already attempted this track recently.
             # Covers both successful and failed prior attempts.
             if (
@@ -602,18 +621,24 @@ class YandexStationPlayer(Player):
                     self.player_id,
                 )
                 if new_track and self._intercept_active:
-                    await self._mirror_pause_to_target()
+                    await self._pause_target(
+                        clear_session=True, clear_debounce=False
+                    )
                 return
 
             target_player = self.mass.players.get_player(target_id)
-            if target_player is None:
+            if target_player is None or not getattr(
+                target_player, "available", True
+            ):
                 _LOGGER.warning(
                     "[%s] intercept: target player %s not available",
                     self.player_id,
                     target_id,
                 )
                 if new_track and self._intercept_active:
-                    await self._mirror_pause_to_target()
+                    await self._pause_target(
+                        clear_session=True, clear_debounce=False
+                    )
                 return
 
             _LOGGER.debug(
@@ -638,7 +663,9 @@ class YandexStationPlayer(Player):
                     exc,
                 )
                 if new_track and self._intercept_active:
-                    await self._mirror_pause_to_target()
+                    await self._pause_target(
+                        clear_session=True, clear_debounce=False
+                    )
                 return
             # We requested MediaType.TRACK; passing the URI sidesteps the
             # MediaItemType vs. play_media union mismatch (BrowseFolder /
@@ -651,13 +678,16 @@ class YandexStationPlayer(Player):
                     track,
                 )
                 if new_track and self._intercept_active:
-                    await self._mirror_pause_to_target()
+                    await self._pause_target(
+                        clear_session=True, clear_debounce=False
+                    )
                 return
 
             # Silence the Station and start the target.  Self-stop window
-            # suppresses the playing=False that follows our stop command.
+            # is timed from the *actual* stop send, not from the start of
+            # this tick — a slow get_item could otherwise burn most of it.
             try:
-                self._intercept_self_stop_until = now + 3
+                self._intercept_self_stop_until = time.time() + 3
                 stop_result = await self.glagol.send({"command": "stop"})
                 _raise_if_failed(stop_result, "intercept-stop")
                 await self.mass.player_queues.play_media(
@@ -681,7 +711,10 @@ class YandexStationPlayer(Player):
             self._intercept_active = True
             self._last_mirrored_volume = None
             self._last_progress = 0
-            self._last_progress_wall = now
+            # Anchor seek baseline at *play start*, not at tick start —
+            # otherwise a slow handoff makes the target appear to lag and
+            # every subsequent progress update looks like a backwards seek.
+            self._last_progress_wall = time.time()
 
     async def _maybe_mirror_volume(self, vol: float | None) -> None:
         """Mirror Station volume changes to the intercept target player."""
@@ -693,9 +726,10 @@ class YandexStationPlayer(Player):
             await self.mass.players.cmd_volume_set(target_id, target_vol)
             self._last_mirrored_volume = target_vol
 
-    async def _maybe_mirror_seek(self, progress: int, now: float) -> None:
+    async def _maybe_mirror_seek(self, progress: int) -> None:
         """Detect Alice-initiated seek by comparing reported progress to wall clock."""
         target_id = self._intercept_target_player_id
+        now = time.time()
         if self._last_progress_wall == 0 or not target_id:
             self._last_progress = progress
             self._last_progress_wall = now
@@ -706,25 +740,31 @@ class YandexStationPlayer(Player):
         self._last_progress = progress
         self._last_progress_wall = now
 
-    async def _mirror_pause_to_target(self, *, end_session: bool = True) -> None:
-        """Pause the target player.
+    async def _pause_target(
+        self, *, clear_session: bool, clear_debounce: bool
+    ) -> None:
+        """Pause the target player; optionally clear session / debounce state.
 
-        ``end_session=True`` (default) clears ``_intercept_active`` AND the
-        debounce state: the pause came from the Station's native player going
-        idle (physical pause or end-of-queue), so the user is no longer
-        listening through this Station — and a fresh start of the same track
-        within the 5s debounce window must trigger a new intercept.
+        The two flags are independent because callers want different combos:
 
-        ``end_session=False`` keeps ``_intercept_active`` set — used when *we*
-        pause the target temporarily (e.g. while Alice speaks) so the next
-        Alice-initiated track can re-resume the same session.
+        - End of native playback (physical pause / end-of-queue):
+          ``clear_session=True, clear_debounce=True`` — user is done.
+        - Alice speaks during intercept:
+          ``clear_session=False, clear_debounce=True`` — keep session so the
+          next Alice track resumes it, but allow a same-track resume to
+          trigger a fresh intercept after she's done.
+        - Failed re-intercept of a NEW track during an active session:
+          ``clear_session=True, clear_debounce=False`` — drop the stale
+          session but keep the new track's debounce so failure isn't retried
+          on every WS tick.
         """
         target_id = self._intercept_target_player_id
         if not target_id:
             return
         await self.mass.players.cmd_pause(target_id)
-        if end_session:
+        if clear_session:
             self._intercept_active = False
+        if clear_debounce:
             self._last_intercepted_track_id = None
             self._last_intercept_time = 0.0
 

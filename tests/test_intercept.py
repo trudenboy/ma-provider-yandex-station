@@ -50,6 +50,7 @@ def _make_intercept_player(
     player._last_progress_wall = 0.0
     player._intercept_self_stop_until = 0.0
     player._intercept_lock = asyncio.Lock()
+    player._alice_active_pause_sent = False
 
     # Mock provider config (master switch) and player config (per-player toggle)
     provider_config = MagicMock()
@@ -457,7 +458,7 @@ async def test_session_end_clears_debounce_for_quick_resume() -> None:
     player._last_intercepted_track_id = "X"
     player._last_intercept_time = time.time()
 
-    await player._mirror_pause_to_target()  # end_session=True (default)
+    await player._pause_target(clear_session=True, clear_debounce=True)
 
     assert player._intercept_active is False
     assert player._last_intercepted_track_id is None
@@ -544,3 +545,120 @@ async def test_on_glagol_update_dispatches_intercept_tick_via_create_task() -> N
     for coro in captured:
         if hasattr(coro, "close"):
             coro.close()
+
+
+# ── Round 3: alice handling, target.available, debounce preservation ─
+
+
+async def test_alice_pause_is_idempotent_across_ticks() -> None:
+    """Alice talks for several WS ticks → only one cmd_pause to the target."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    state, player_state, _ = _state(track_id="X", alice_state="LISTENING")
+
+    await player._handle_intercept_tick(state, player_state, True)
+    await player._handle_intercept_tick(state, player_state, True)
+    await player._handle_intercept_tick(state, player_state, True)
+
+    assert player.mass.players.cmd_pause.await_count == 1
+    # Session stays open so the next Alice track resumes it
+    assert player._intercept_active is True
+    assert player._alice_active_pause_sent is True
+
+
+async def test_alice_pause_flag_clears_on_idle() -> None:
+    """After alice goes IDLE, the pause-flag resets so the next interaction repauses."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._alice_active_pause_sent = True
+
+    state_idle, ps_idle, _ = _state(track_id="X", alice_state="IDLE")
+    await player._handle_intercept_tick(state_idle, ps_idle, True)
+    assert player._alice_active_pause_sent is False
+
+
+async def test_alice_voice_clears_debounce() -> None:
+    """After voice-pause, a same-track resume must not be blocked by debounce."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "Y"
+    player._last_intercept_time = time.time()
+    state, player_state, _ = _state(track_id="Y", alice_state="LISTENING")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    assert player._last_intercepted_track_id is None
+    assert player._last_intercept_time == 0.0
+
+
+async def test_alice_active_blocks_new_handoff_in_same_tick() -> None:
+    """A fresh playerState.id arriving alongside alice activity must not start a handoff."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    # Same tick: alice listening AND a new track id appeared.
+    state, player_state, _ = _state(track_id="NEW", alice_state="LISTENING")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    # Target paused for alice, but no handoff started for the new track.
+    player.mass.players.cmd_pause.assert_awaited()
+    player.glagol.send.assert_not_awaited()
+    player.mass.music.get_item.assert_not_awaited()
+    player.mass.player_queues.play_media.assert_not_awaited()
+
+
+async def test_target_with_available_false_is_rejected() -> None:
+    """get_player can return an object with available=False — must not silence Station."""
+    player = _make_intercept_player()
+    unavailable = MagicMock()
+    unavailable.available = False
+    player.mass.players.get_player = MagicMock(return_value=unavailable)
+    state, player_state, _ = _state()
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    player.glagol.send.assert_not_awaited()
+    player.mass.player_queues.play_media.assert_not_awaited()
+
+
+async def test_failed_intercept_on_new_track_preserves_debounce() -> None:
+    """New-track failure pauses old session but keeps the new track's debounce."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "OLD"
+    player._last_intercept_time = 0.0  # well outside the 5s window
+    player.mass.music.get_item = AsyncMock(side_effect=RuntimeError("nope"))
+    state, player_state, _ = _state(track_id="NEW")
+
+    await player._handle_intercept_tick(state, player_state, True)
+    # Old session ended
+    player.mass.players.cmd_pause.assert_awaited()
+    assert player._intercept_active is False
+    # NEW track's debounce stamp survives so the next tick is a no-op
+    assert player._last_intercepted_track_id == "NEW"
+
+    await player._handle_intercept_tick(state, player_state, True)
+    # Still only one resolve attempt — second tick was debounced
+    assert player.mass.music.get_item.await_count == 1
+
+
+async def test_pause_target_helper_flag_combinations() -> None:
+    """The two flags on _pause_target are independent."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "X"
+    player._last_intercept_time = time.time()
+
+    # clear_session=False, clear_debounce=True → keeps active, clears debounce
+    await player._pause_target(clear_session=False, clear_debounce=True)
+    assert player._intercept_active is True
+    assert player._last_intercepted_track_id is None
+
+    # Re-establish state
+    player._last_intercepted_track_id = "Y"
+    player._last_intercept_time = time.time()
+
+    # clear_session=True, clear_debounce=False → clears active, keeps debounce
+    await player._pause_target(clear_session=True, clear_debounce=False)
+    assert player._intercept_active is False
+    assert player._last_intercepted_track_id == "Y"
