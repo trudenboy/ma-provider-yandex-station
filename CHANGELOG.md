@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-05-04
+
+### Fixed
+- **Player registration race in `_create_player`** (upstream MA PR #3605, Copilot): the Glagol WS connect callback can fire `update_handler` very quickly, and the resulting `player.update_state()` would otherwise run before `mass.players.register_or_update(player)` had completed — triggering queue/state side-effects on a player the controller doesn't know about yet. Now register the player first, then start Glagol.
+- **`refresh_cookies()` no longer raises on non-JSON responses** (upstream MA PR #3605, Copilot): when Yandex answered with an HTML error/redirect page (typical for stale cookies), the unconditional `await r.json()` raised `aiohttp.ContentTypeError` and broke the `_request()` 401 retry/reauth flow. Now treat any non-200 response or non-JSON body as "cookies invalid" and fall back to `login_token()`.
+
 ## [1.4.3] - 2026-05-04
 
 ### Fixed

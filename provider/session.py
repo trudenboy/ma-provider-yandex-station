@@ -15,6 +15,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
 import yarl
 from ya_passport_auth.exceptions import YaPassportError
 
@@ -90,9 +91,20 @@ class YandexSession:
             return False
 
     async def refresh_cookies(self) -> bool:
-        """Check cookies and refresh if needed."""
+        """Check cookies and refresh if needed.
+
+        Yandex may answer with an HTML error/redirect page when cookies are
+        stale; awaiting ``r.json()`` on that would raise and break the
+        ``_request()`` 401 retry/reauth flow.  Treat any non-200 response or
+        non-JSON body as "cookies invalid" and fall back to ``login_token()``.
+        """
         async with self._session.get("https://yandex.ru/quasar?storage=1") as r:
-            resp = await r.json()
+            if r.status != 200:
+                return await self.login_token()
+            try:
+                resp = await r.json(content_type=None)
+            except (aiohttp.ContentTypeError, ValueError):
+                return await self.login_token()
             if resp.get("storage", {}).get("user", {}).get("uid"):
                 return True
 
