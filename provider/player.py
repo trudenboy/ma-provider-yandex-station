@@ -241,7 +241,8 @@ class YandexStationPlayer(Player):
     @property
     def _intercept_target_player_id(self) -> str | None:
         """Configured target player_id for intercept playback (None when unset)."""
-        return self._config.get_value(CONF_INTERCEPT_TARGET) or None
+        value = self._config.get_value(CONF_INTERCEPT_TARGET)
+        return str(value) if value else None
 
     def update_connection(self, host: str, port: int) -> None:
         """Update connection info when mDNS reports new IP."""
@@ -585,9 +586,16 @@ class YandexStationPlayer(Player):
                 item_id=parsed_id,
                 provider_instance_id_or_domain="yandex_music",
             )
+            # We requested MediaType.TRACK; passing the URI sidesteps the
+            # MediaItemType vs. play_media union mismatch (BrowseFolder/Genre
+            # are theoretically returnable from get_item).
+            track_uri = track.uri
+            if not track_uri:
+                msg = f"resolved track has no uri: {track!r}"
+                raise PlayerCommandFailed(msg)
             await self.mass.player_queues.play_media(
                 queue_id=target_id,
-                media=track,
+                media=track_uri,
                 option=QueueOption.REPLACE,
             )
         except Exception as exc:
