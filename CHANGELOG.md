@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-05-04
+
+### Fixed
+- **Remove dead `_intercept_self_stop_until` field** (upstream MA PR #3605, Copilot): the field was set right before `glagol.send({"command": "stop"})` to suppress mirror-pause on the resulting `playing=False`, but its only reader (the auto-end-session branch in `_handle_intercept_tick`) was removed in v1.4.0 (round 4 of the source-PR review) when the auto-end behaviour was found to break the contract that intercept survives Alice queries. With no reader, the field was just noise that made the state machine harder to reason about. Removed from `__init__`, from the lone write site, and from both test fixtures.
+
 ## [1.4.4] - 2026-05-04
 
 ### Fixed

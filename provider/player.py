@@ -154,10 +154,6 @@ class YandexStationPlayer(Player):
         self._last_mirrored_volume: int | None = None
         self._last_progress: int = 0
         self._last_progress_wall: float = 0.0
-        # Wall-clock cutoff after which playing=False from the Station is
-        # treated as a real pause and mirrored to the target.  Set when we
-        # send our own stop command so the resulting playing=False is ignored.
-        self._intercept_self_stop_until: float = 0.0
         # Serialises _maybe_intercept so two near-simultaneous WS updates
         # can't issue duplicate stop/play commands for the same track.
         self._intercept_lock: asyncio.Lock = asyncio.Lock()
@@ -693,11 +689,8 @@ class YandexStationPlayer(Player):
                 await self._pause_target(clear_session=True, clear_debounce=False)
             return
 
-        # Silence the Station and start the target.  Self-stop window is
-        # timed from the *actual* stop send, not from the start of this
-        # tick — a slow get_item could otherwise burn most of it.
+        # Silence the Station and start the target.
         try:
-            self._intercept_self_stop_until = time.time() + 3
             stop_result = await self.glagol.send({"command": "stop"})
             _raise_if_failed(stop_result, "intercept-stop")
             await self.mass.player_queues.play_media(

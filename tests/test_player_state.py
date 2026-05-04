@@ -31,7 +31,6 @@ def _make_player() -> YandexStationPlayer:
     player._last_mirrored_volume = None
     player._last_progress = 0
     player._last_progress_wall = 0.0
-    player._intercept_self_stop_until = 0.0
     player._alice_active_pause_sent = False
     player._attr_playback_state = PlaybackState.IDLE
     player._attr_powered = False

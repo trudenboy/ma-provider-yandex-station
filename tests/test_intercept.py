@@ -56,7 +56,6 @@ def _make_intercept_player(
     player._last_mirrored_volume = None
     player._last_progress = 0
     player._last_progress_wall = 0.0
-    player._intercept_self_stop_until = 0.0
     player._intercept_lock = asyncio.Lock()
     player._alice_active_pause_sent = False
 
