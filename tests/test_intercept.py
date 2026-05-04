@@ -23,7 +23,7 @@ import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from music_assistant_models.enums import PlayerFeature
+from music_assistant_models.enums import PlaybackState, PlayerFeature
 
 from music_assistant.providers.yandex_station.constants import (
     CONF_INTERCEPT_ENABLED,
@@ -506,14 +506,16 @@ async def test_on_glagol_update_dispatches_intercept_tick_via_create_task() -> N
     """
     player = _make_intercept_player()
     # Stub out _update_playback_state and friends so we only observe the
-    # intercept dispatch.
+    # intercept dispatch.  ``update_state`` / ``set_current_media`` are
+    # declared @final on Player, so use setattr() to dodge mypy's [misc]
+    # error in upstream's strict-mode CI.
     player._update_playback_state = MagicMock()
-    player.update_state = MagicMock()
-    player.set_current_media = MagicMock()
+    setattr(player, "update_state", MagicMock())  # noqa: B010
+    setattr(player, "set_current_media", MagicMock())  # noqa: B010
     player._attr_available = False
     player._attr_powered = True
     player._attr_volume_level = 0
-    player._attr_playback_state = None
+    player._attr_playback_state = PlaybackState.IDLE
     player._attr_elapsed_time = 0
     player._attr_elapsed_time_last_updated = 0.0
     player._attr_current_media = None
@@ -772,12 +774,12 @@ async def test_concurrent_mirror_volume_serialised() -> None:
     first_release = asyncio.Event()
 
     async def slow_first(*_args: Any, **kwargs: Any) -> None:  # noqa: ARG001
-        applied.append(_args[1])  # type: ignore[index]
+        applied.append(_args[1])
         first_started.set()
         await first_release.wait()
 
     async def fast(*_args: Any, **kwargs: Any) -> None:  # noqa: ARG001
-        applied.append(_args[1])  # type: ignore[index]
+        applied.append(_args[1])
 
     cmds = AsyncMock(side_effect=slow_first)
     player.mass.players.cmd_volume_set = cmds

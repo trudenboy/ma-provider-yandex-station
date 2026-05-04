@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-05-04
+
+### Fixed
+- **Remaining mypy strict-mode errors in `test_on_glagol_update_dispatches_intercept_tick_via_create_task`** (upstream MA PR #3605 CI):
+  - Use `setattr(player, "update_state", ...)` / `setattr(player, "set_current_media", ...)` to dodge `[misc] Cannot assign to final attribute`.
+  - Initialise `_attr_playback_state` to `PlaybackState.IDLE` instead of `None` (matches the declared type).
+  - Drop `# type: ignore[index]` from the `slow_first` / `fast` helpers in `test_concurrent_mirror_volume_serialised` — the strict-mode mypy doesn't need them and flagged them as `unused-ignore`.
+
 ## [1.4.2] - 2026-05-04
 
 ### Fixed
