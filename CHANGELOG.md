@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.9] - 2026-05-04
+
+### Fixed
+- **Mirror functions actually no-op on unsupported targets** (upstream MA PR #3605, Copilot): the v1.4.7 dropdown change documented that `pause / volume / seek` "gracefully no-op" when the target lacks support, but `_maybe_mirror_volume` and `_maybe_mirror_seek` called `mass.players.cmd_volume_set` / `cmd_seek` unguarded — and MA raises `UnsupportedFeaturedException` for those, which would crash the background intercept task on every WS tick. Both helpers now catch `UnsupportedFeaturedException` and log at DEBUG. (`_pause_target` was already wrapped in `try/except` so it was unaffected.)
+
 ## [1.4.8] - 2026-05-04
 
 ### Changed

@@ -19,7 +19,7 @@ from music_assistant_models.enums import (
     PlayerType,
     QueueOption,
 )
-from music_assistant_models.errors import PlayerCommandFailed
+from music_assistant_models.errors import PlayerCommandFailed, UnsupportedFeaturedException
 
 from music_assistant.constants import CONF_ENTRY_HTTP_PROFILE_DEFAULT_3, CONF_ENTRY_OUTPUT_CODEC
 from music_assistant.models.player import DeviceInfo, Player, PlayerMedia
@@ -746,17 +746,34 @@ class YandexStationPlayer(Player):
             _LOGGER.debug("[%s] failed to restore Station volume: %s", self.player_id, exc)
 
     async def _maybe_mirror_volume(self, vol: float | None) -> None:
-        """Mirror Station volume changes to the intercept target player."""
+        """Mirror Station volume changes to the intercept target player.
+
+        Targets without VOLUME_SET raise ``UnsupportedFeaturedException`` —
+        we treat that as a no-op (matches the dropdown's documented
+        relaxed-feature contract: only PLAY_MEDIA is required, the rest
+        gracefully degrade).
+        """
         target_id = self._intercept_target_player_id
         if vol is None or not target_id:
             return
         target_vol = round(vol * 100)
         if target_vol != self._last_mirrored_volume:
-            await self.mass.players.cmd_volume_set(target_id, target_vol)
+            try:
+                await self.mass.players.cmd_volume_set(target_id, target_vol)
+            except UnsupportedFeaturedException:
+                _LOGGER.debug(
+                    "[%s] target %s does not support volume_set — skipping mirror",
+                    self.player_id,
+                    target_id,
+                )
             self._last_mirrored_volume = target_vol
 
     async def _maybe_mirror_seek(self, progress: int) -> None:
-        """Detect Alice-initiated seek by comparing reported progress to wall clock."""
+        """Detect Alice-initiated seek by comparing reported progress to wall clock.
+
+        Targets without SEEK raise ``UnsupportedFeaturedException`` — treated
+        as a no-op (see ``_maybe_mirror_volume`` docstring).
+        """
         target_id = self._intercept_target_player_id
         now = time.time()
         if self._last_progress_wall == 0 or not target_id:
@@ -765,7 +782,14 @@ class YandexStationPlayer(Player):
             return
         expected = self._last_progress + (now - self._last_progress_wall)
         if abs(progress - expected) > 2:
-            await self.mass.players.cmd_seek(target_id, progress)
+            try:
+                await self.mass.players.cmd_seek(target_id, progress)
+            except UnsupportedFeaturedException:
+                _LOGGER.debug(
+                    "[%s] target %s does not support seek — skipping mirror",
+                    self.player_id,
+                    target_id,
+                )
         self._last_progress = progress
         self._last_progress_wall = now
 
