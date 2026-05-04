@@ -17,6 +17,8 @@ import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+from music_assistant_models.enums import PlayerFeature
+
 from music_assistant.providers.yandex_station.constants import (
     CONF_INTERCEPT_ENABLED,
     CONF_INTERCEPT_TARGET,
@@ -710,8 +712,6 @@ async def test_pause_target_cleanup_runs_when_cmd_pause_raises() -> None:
 
 async def test_target_dropdown_filters_by_required_features() -> None:
     """Players missing PAUSE / VOLUME_SET / SEEK / PLAY_MEDIA must not appear."""
-    from music_assistant_models.enums import PlayerFeature
-
     player = _make_intercept_player()
 
     full = MagicMock()
