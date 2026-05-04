@@ -81,7 +81,14 @@ except ImportError:
         PAUSED = "paused"
 
     class _PlayerFeature:
-        pass
+        POWER = "power"
+        PLAY_MEDIA = "play_media"
+        PLAY_ANNOUNCEMENT = "play_announcement"
+        VOLUME_SET = "volume_set"
+        VOLUME_MUTE = "volume_mute"
+        PAUSE = "pause"
+        NEXT_PREVIOUS = "next_previous"
+        SEEK = "seek"
 
     class _PlayerType:
         PLAYER = "player"
@@ -101,6 +108,24 @@ except ImportError:
     class _ConfigValueType:
         pass
 
+    class _ConfigValueOption:
+        def __init__(self, title: str, value: object) -> None:
+            self.title = title
+            self.value = value
+
+    class _MediaType:
+        TRACK = "track"
+        ALBUM = "album"
+        ARTIST = "artist"
+        PLAYLIST = "playlist"
+        RADIO = "radio"
+
+    class _QueueOption:
+        REPLACE = "replace"
+        PLAY = "play"
+        ADD = "add"
+        NEXT = "next"
+
     _ensure_stub("music_assistant_models")
     _ensure_stub(
         "music_assistant_models.errors",
@@ -116,6 +141,7 @@ except ImportError:
         {
             "ConfigEntry": _ConfigEntry,
             "ConfigValueType": _ConfigValueType,
+            "ConfigValueOption": _ConfigValueOption,
             "ProviderConfig": object,
         },
     )
@@ -128,6 +154,8 @@ except ImportError:
             "PlayerFeature": _PlayerFeature,
             "PlayerType": _PlayerType,
             "IdentifierType": _IdentifierType,
+            "MediaType": _MediaType,
+            "QueueOption": _QueueOption,
         },
     )
     _ensure_stub("music_assistant_models.provider", {"ProviderManifest": _ProviderManifest})

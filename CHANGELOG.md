@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-05-04
+
+### Added
+- **Experimental: intercept Alice playback to a target MA player.** When Alice starts music on a Yandex Station, the provider can stop the Station's native player, resolve the track via the `yandex_music` MA music provider, and start playback on a chosen target player. Volume / seek / pause / Alice-speech mirror from the Station to the target while intercept is active. Gated by two switches, both default OFF: a provider-level master toggle (`intercept_feature_enabled`) and a per-player toggle + target dropdown.
+
+### Fixed
+PR #45 review (Copilot) hardening before the feature ships:
+- **Resolve before silencing the Station**: previously the stop command was sent first, so any failed lookup left the user with no audio. The Station is now muted only after a working track URI is in hand.
+- **Self-stop window**: the `playing=False` produced by our own stop command no longer bounces back through pause-mirror and pauses the target we just started. The window timer is set right before `glagol.send({"command": "stop"})` rather than at tick-start, so a slow `get_item` doesn't burn most of it.
+- **Alice voice activity actually pauses the target**: the original branch lived in `_handle_voice_interrupt` which is only reachable while `_external_playing=True` — meaning intercept-mode voice handling never fired. Moved into `_handle_intercept_tick`. The intercept session stays open so a follow-up Alice track resumes it; the same-track debounce is cleared so a quick same-song resume after a question triggers a fresh intercept; cmd_pause is issued once per Alice interaction rather than every WS tick; and a fresh `playerState.id` arriving in the same tick as alice activity does NOT start a new handoff over Alice's speech.
+- **Serialise concurrent handoffs**: `_on_glagol_update` schedules `_handle_intercept_tick` as a background task on every WS message; two near-simultaneous `playing=True` updates could race and issue duplicate `stop`/`play_media` for the same track. `_maybe_intercept` is wrapped in an `asyncio.Lock`, stamps the debounce state up-front, and re-reads `time.time()` inside the lock so a slow handoff doesn't leave the next task with a stale timestamp that bypasses debounce.
+- **Debounce failed attempts**: the 5-second debounce was only stamped after a successful handoff; missing `yandex_music` / lookup failures / no-URI tracks re-ran on every WS tick and spammed `WARNING` logs. The debounce timestamp is now updated on every attempt regardless of outcome.
+- **Pre-validate target player before silencing the Station**: `_maybe_intercept` now checks `mass.players.get_player(target_id)` AND that the returned player has `available=True`, so a vanished or unavailable target doesn't trigger the stop.
+- **End stale session on failed re-intercept**: when a new track fails mid-session, the previous target is paused and `_intercept_active` is cleared so seek/volume from the Station's native fallback playback don't leak to the stale target. The new track's debounce stamp is preserved so the failure isn't retried on every WS tick.
+- **Clear `_intercept_active` on handoff failure**: when `play_media` raises after the Station was silenced, the active flag is cleared so mirror code stops forwarding to a target that isn't playing.
+- **Clear debounce on session end**: physical-pause / end-of-queue now resets `_last_intercepted_track_id` and `_last_intercept_time` too, so a quick same-track resume isn't blocked.
+- **Seek baseline anchored at play start**, not tick start — a slow handoff used to make every progress update look like a backwards seek.
+- **Decoupled session vs debounce flags** in the pause helper (`_pause_target(clear_session=..., clear_debounce=...)`): callers can independently end the session or clear the debounce instead of always doing both.
+- **Intercept track_id log demoted to DEBUG** — used to be INFO on every intercepted track, which would dominate the log once the format had been verified.
+- **Serialise the whole intercept tick, not just `_maybe_intercept`**: the dispatcher schedules every WS message as a background task, so back-to-back updates could apply mirror operations out of order — an older `cmd_volume_set` finishing after a newer one would leave the target stale, and two near-simultaneous `LISTENING` ticks could race past `_alice_active_pause_sent` and send duplicate pauses. `_handle_intercept_tick` now holds `_intercept_lock` for the whole tick; `_maybe_intercept` is no longer self-locking (caller holds it).
+- **Don't tear down the session on lingering `playing=False`**: after intercept the Station stays stopped, so every later state update arrives with `playing=False`. The previous design treated those (after the 3-second self-stop window) as user-initiated pauses, ending the session and breaking the contract that intercept survives Alice queries until the next track. The auto-end-session branch was removed; the session ends instead via the next intercepted track (success or clean failure) or provider unload.
+- **`_pause_target` cleanup runs even if `cmd_pause` raises**: the state-cleanup (`_intercept_active`, debounce reset) is now in a `finally` block, so a target that went unavailable after the handoff doesn't leave the stale flags that would cause every later WS update to retry the failing path.
+- **Filter intercept target dropdown by required PlayerFeatures** (PLAY_MEDIA, PAUSE, VOLUME_SET, SEEK): players that can't service the mirror commands no longer appear in the picker, so the incompatibility surfaces at config time rather than silently at runtime.
+- **Honest copy in intercept config entries**: the labels now say "native Station playback" instead of "Alice playback" — the trigger is any native Yandex Music playback with a `playerState.id`, which is *typically* Alice but also fires for touch-UI starts.
+
 ## [1.3.4] - 2026-04-28
 
 ### Fixed

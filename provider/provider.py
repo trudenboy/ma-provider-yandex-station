@@ -449,7 +449,7 @@ class YandexStationProvider(PlayerProvider):
         Note: MA passes info=None for Removed events, so we use a cached
         name→player_id mapping to mark players unavailable.
         """
-        from zeroconf import ServiceStateChange  # noqa: PLC0415
+        from zeroconf import ServiceStateChange  # noqa: PLC0415, RUF100
 
         if state_change == ServiceStateChange.Removed:
             player_id = self._mdns_players.get(name)

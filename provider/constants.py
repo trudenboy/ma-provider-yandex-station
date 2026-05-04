@@ -19,6 +19,13 @@ CONF_ACTION_AUTH_COOKIES = "action_auth_cookies"
 CONF_ACTION_CLEAR_AUTH = "action_clear_auth"
 CONF_VOICE_CONTROL = "voice_control"
 
+# Intercept feature: provider-level kill switch (off by default)
+CONF_INTERCEPT_FEATURE_ENABLED = "intercept_feature_enabled"
+
+# Intercept feature: per-player toggles
+CONF_INTERCEPT_ENABLED = "intercept_enabled"
+CONF_INTERCEPT_TARGET = "intercept_target_player_id"
+
 # Yandex API endpoints
 QUASAR_DEVICES_URL = "https://iot.quasar.yandex.ru/m/v3/user/devices"
 QUASAR_IOT_URL = "https://iot.quasar.yandex.ru"

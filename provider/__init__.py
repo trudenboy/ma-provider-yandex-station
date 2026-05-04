@@ -20,6 +20,7 @@ from .constants import (
     CONF_ACTION_AUTH_QR,
     CONF_ACTION_CLEAR_AUTH,
     CONF_COOKIES,
+    CONF_INTERCEPT_FEATURE_ENABLED,
     CONF_MUSIC_TOKEN,
     CONF_REFRESH_TOKEN,
     CONF_REMEMBER_SESSION,
@@ -148,6 +149,24 @@ async def get_config_entries(
                 "after logging in immediately drops the stored long-lived tokens."
             ),
             default_value=True,
+            advanced=True,
+        ),
+        # Experimental intercept feature — provider-level master switch.
+        # When OFF, no per-player intercept setting takes effect.
+        ConfigEntry(
+            key=CONF_INTERCEPT_FEATURE_ENABLED,
+            type=ConfigEntryType.BOOLEAN,
+            label="Experimental: Enable intercept feature",
+            description=(
+                "Master switch for the intercept feature. When ON, individual "
+                "stations can be configured (in their player settings) to "
+                "redirect Alice-initiated playback to another Music Assistant "
+                "player. When OFF, intercept is fully disabled regardless of "
+                "per-player settings. Requires the 'yandex_music' music "
+                "provider to be configured to actually resolve tracks."
+            ),
+            default_value=False,
+            required=False,
             advanced=True,
         ),
         # Cookies authentication (advanced fallback)
