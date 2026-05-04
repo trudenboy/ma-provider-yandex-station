@@ -741,13 +741,9 @@ class YandexStationPlayer(Player):
     async def _restore_station_volume(self, vol_pct: int) -> None:
         """Restore Station volume after we muted it for intercept handoff."""
         try:
-            await self.glagol.send(
-                {"command": "setVolume", "volume": vol_pct / 100}
-            )
+            await self.glagol.send({"command": "setVolume", "volume": vol_pct / 100})
         except Exception as exc:
-            _LOGGER.debug(
-                "[%s] failed to restore Station volume: %s", self.player_id, exc
-            )
+            _LOGGER.debug("[%s] failed to restore Station volume: %s", self.player_id, exc)
 
     async def _maybe_mirror_volume(self, vol: float | None) -> None:
         """Mirror Station volume changes to the intercept target player."""
