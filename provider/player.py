@@ -74,10 +74,25 @@ def _parse_yandex_track_id(raw: str) -> str:
 
 
 def _raise_if_failed(result: dict[str, Any] | None, command: str) -> None:
-    """Raise PlayerCommandFailed if a Glagol send result indicates failure."""
+    """Raise PlayerCommandFailed if a Glagol send result indicates failure.
+
+    Two distinct failure shapes:
+    - Transport error (no response, or ``error`` key set).
+    - Device returned a status other than ``"SUCCESS"`` (the device accepted
+      the command but rejected its execution — e.g. ``"ERROR"`` with a
+      ``message``).  Without this check, transport commands like
+      play/pause/stop/seek/volume_set would silently succeed in MA even when
+      the device rejected them.
+    """
     if not result or result.get("error"):
         err = (result or {}).get("error", "no response")
         msg = f"{command} failed: {err}"
+        raise PlayerCommandFailed(msg)
+    status = result.get("status")
+    if status is not None and status != "SUCCESS":
+        message = result.get("message", "")
+        detail = f" ({message})" if message else ""
+        msg = f"{command} returned non-SUCCESS status: {status}{detail}"
         raise PlayerCommandFailed(msg)
 
 
@@ -401,18 +416,7 @@ class YandexStationPlayer(Player):
 
         result = await self.glagol.send(_external_command("radio_play", payload))
         _LOGGER.debug("[%s] radio_play result: %s", self.player_id, result)
-
-        if not result or result.get("error"):
-            error_msg = (result or {}).get("error", "unknown error")
-            msg = f"radio_play failed: {error_msg}"
-            raise PlayerCommandFailed(msg)
-
-        if result.get("status") != "SUCCESS":
-            status = result.get("status", "unknown")
-            msg_text = result.get("message", "")
-            detail = f" ({msg_text})" if msg_text else ""
-            msg = f"radio_play returned non-SUCCESS status: {status}{detail}"
-            raise PlayerCommandFailed(msg)
+        _raise_if_failed(result, "radio_play")
 
         # Glagol doesn't update playerState for externalCommandBypass playback,
         # so we set state optimistically.

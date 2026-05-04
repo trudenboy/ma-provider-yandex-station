@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-05-04
+
+### Fixed
+- **`_raise_if_failed` now also raises on non-`SUCCESS` status** (upstream MA PR #3605, Copilot): Glagol responses can carry `status: "ERROR"` (with an optional `message`) without populating an `error` key. The transport helpers (`play`, `pause`, `stop`, `next/prev_track`, `seek`, `volume_set`, `power`) all rely on `_raise_if_failed`, so a device-side rejection used to silently succeed in MA. The check now mirrors the previously inline logic in `play_media`. Bonus: `play_media` was deduplicated to call `_raise_if_failed` instead of repeating the same checks.
+- **Portable coroutine introspection in `test_on_glagol_update_dispatches_intercept_tick_via_create_task`** (upstream MA PR #3605, Copilot): the test used `getattr(c, "__name__", "")` which is brittle across Python versions. Switched to `getattr(c.cr_code, "co_name", "")` which works for any coroutine object regardless of Python version.
+
 ## [1.4.1] - 2026-05-04
 
 ### Fixed
