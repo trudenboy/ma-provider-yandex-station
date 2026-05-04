@@ -253,9 +253,9 @@ class YandexStationPlayer(Player):
                 label="Intercept target player",
                 description=(
                     "Music Assistant player that receives intercepted "
-                    "playback. Lists every player that supports "
-                    "play_media; pause / volume_set / seek mirrors "
-                    "gracefully no-op on players that don't support them."
+                    "playback. Lists every registered player except this "
+                    "Station; pause / volume_set / seek mirrors gracefully "
+                    "no-op on players that don't support them."
                 ),
                 options=target_options,
                 required=False,
