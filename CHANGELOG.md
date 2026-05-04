@@ -409,6 +409,14 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.12] - 2026-05-04
+
+- chore: bump VERSION to 1.4.12 to sync description fix to upstream (`f6efc93`)
+- fix: align CONF_INTERCEPT_TARGET description with actual filter (`19e75bb`)
+- style: auto-fix ruff (`633401b`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
