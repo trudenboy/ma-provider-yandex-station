@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.10] - 2026-05-04
+
+### Security
+- **Glagol `send()` no longer logs full outbound payloads at DEBUG** (upstream MA PR #3605, Copilot): the previous `=> local | %s` line dumped the whole `payload` dict, which for `externalCommandBypass` includes the base64-encoded JSON containing `streamUrl`. MA stream URLs embed session IDs / tokens; logging them at DEBUG would leak credentials into log files. The line now logs only the command name and the names (not values) of accompanying keys: `=> local | radio_play (extras: ['data'])`.
+
 ## [1.4.9] - 2026-05-04
 
 ### Fixed

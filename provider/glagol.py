@@ -280,7 +280,13 @@ class YandexGlagol:
             _LOGGER.warning("[%s] Cannot send: not connected", self.name)
             return {"error": "not_connected"}
 
-        _LOGGER.debug("[%s] => local | %s", self.name, payload)
+        # Log only the command name and the names of accompanying keys —
+        # never their values.  `externalCommandBypass.data` carries
+        # base64-encoded JSON with `streamUrl`, and MA stream URLs embed
+        # session IDs / tokens that should not end up in logs.
+        cmd = payload.get("command", "<unknown>")
+        extras = sorted(k for k in payload if k != "command")
+        _LOGGER.debug("[%s] => local | %s (extras: %s)", self.name, cmd, extras)
 
         if not self.device_token:
             _LOGGER.warning("[%s] Cannot send: not connected (missing device token)", self.name)
