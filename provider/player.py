@@ -206,19 +206,27 @@ class YandexStationPlayer(Player):
         Yandex Station requires Content-Length in HTTP responses (no chunked encoding),
         so we default to forced_content_length HTTP profile.
         """
-        # List players that can receive a redirected track.  Filter on the
-        # one truly essential feature — PLAY_MEDIA — and let the user pick
-        # any of them.  PAUSE / VOLUME_SET / SEEK are nice-to-have mirrors
-        # that gracefully no-op when missing, and a stricter filter ended
-        # up showing an empty dropdown for many setups.  We also include
+        # List players that can receive a redirected track.  We dispatch
+        # the handoff via ``mass.player_queues.play_media(queue_id=...)``
+        # which routes through the per-player queue and works on any
+        # registered player regardless of which playback features it
+        # advertises — so a feature filter here only ends up hiding
+        # legitimate targets (e.g. AirPlay / DLNA / BT bridges that
+        # don't advertise ``PLAY_MEDIA`` directly but accept queued
+        # media just fine).  Mirror helpers (volume / pause / seek)
+        # already gracefully no-op via ``UnsupportedFeaturedException``
+        # when the chosen target lacks them.  We also include
         # currently-unavailable players so the user can preselect a
-        # target that's offline at setup time.
-        target_options = [
-            ConfigValueOption(p.display_name, p.player_id)
-            for p in self.mass.players.all_players(return_unavailable=True)
-            if p.player_id != self.player_id
-            and PlayerFeature.PLAY_MEDIA in (p.supported_features or set())
-        ]
+        # target that's offline at setup time, and sort by display name
+        # so the dropdown is easy to scan.
+        target_options = sorted(
+            (
+                ConfigValueOption(p.display_name, p.player_id)
+                for p in self.mass.players.all_players(return_unavailable=True)
+                if p.player_id != self.player_id
+            ),
+            key=lambda o: o.title.lower(),
+        )
         return [
             CONF_ENTRY_OUTPUT_CODEC,
             CONF_ENTRY_HTTP_PROFILE_DEFAULT_3,

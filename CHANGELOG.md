@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.11] - 2026-05-04
+
+### Fixed
+- **Intercept target dropdown was still hiding many legitimate players.** v1.4.7 relaxed the filter from "PLAY_MEDIA + PAUSE + VOLUME_SET + SEEK" to just `PLAY_MEDIA`, but in practice that still hid AirPlay / DLNA / BT-bridge players that don't advertise `PLAY_MEDIA` even though queue-routed playback works for them. Intercept dispatches via `mass.player_queues.play_media(queue_id=...)` which routes through the per-player queue, so any registered player is a valid target — feature filtering at the picker only ends up hiding usable targets. The dropdown now lists every registered player except the Station itself, sorted alphabetically by display name. Mirror helpers (volume / pause / seek) already catch `UnsupportedFeaturedException` and gracefully no-op when the target lacks them.
+
 ## [1.4.10] - 2026-05-04
 
 ### Security

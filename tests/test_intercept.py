@@ -754,13 +754,17 @@ async def test_pause_target_cleanup_runs_when_cmd_pause_raises() -> None:
     assert player._last_intercepted_track_id is None
 
 
-async def test_target_dropdown_lists_play_media_capable_players() -> None:
-    """Players that support PLAY_MEDIA appear regardless of pause/seek/volume.
+async def test_target_dropdown_lists_all_players_except_self() -> None:
+    """Every registered player except the Station itself shows in the dropdown.
 
-    The mirror commands gracefully no-op when missing — dropping them from
-    the picker just to enforce a perfect feature match would have left the
-    list empty for many real-world setups.  Only the Station itself and
-    players that can't accept media at all are excluded.
+    Intercept dispatches via ``mass.player_queues.play_media(queue_id=...)``
+    which routes through the per-player queue, so any registered player is
+    a valid target regardless of which playback features it advertises.
+    A feature filter here only ends up hiding legitimate targets (AirPlay /
+    DLNA / BT bridges that don't expose ``PLAY_MEDIA`` directly).  Mirror
+    helpers (volume / pause / seek) gracefully no-op via
+    ``UnsupportedFeaturedException`` when the chosen target lacks them.
+    The list is sorted by display name for predictable UX.
     """
     player = _make_intercept_player()
 
@@ -793,8 +797,9 @@ async def test_target_dropdown_lists_play_media_capable_players() -> None:
     target_entry = next(e for e in entries if getattr(e, "key", None) == CONF_INTERCEPT_TARGET)
     listed_ids = [opt.value for opt in target_entry.options]
 
-    # PLAY_MEDIA-capable, not self → in the list.  No-PLAY_MEDIA → out.
-    assert listed_ids == ["full", "minimal"]
+    # Every non-self player appears, regardless of supported_features,
+    # sorted alphabetically by display name (Full, Minimal, No Play Media).
+    assert listed_ids == ["full", "minimal", "no_play_media"]
 
 
 async def test_concurrent_mirror_volume_serialised() -> None:
