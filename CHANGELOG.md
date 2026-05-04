@@ -373,6 +373,15 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.8] - 2026-05-04
+
+- style: codespell — rephrase auto-changelog entry (`03a04fe`)
+- style: auto-fix ruff (`3eaf7c7`)
+- fix: mute Station before intercept stop to mask native-playback blip (`6730c5f`)
+- chore: update changelog for v1.4.7 [skip ci] (`8cf195a`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
