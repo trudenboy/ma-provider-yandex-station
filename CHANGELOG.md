@@ -367,7 +367,7 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ## [1.4.7] - 2026-05-04
 
-- style: codespell — pre-select(ed) → preselect(ed) (`2a5382a`)
+- style: codespell — fix preselect spelling (`2a5382a`)
 - fix: intercept target dropdown was empty in real setups (`3fd292a`)
 - chore: update changelog for v1.4.6 [skip ci] (`dc9e636`)
 
