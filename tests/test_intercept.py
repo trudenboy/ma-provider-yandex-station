@@ -24,6 +24,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from music_assistant_models.enums import PlaybackState, PlayerFeature
+from music_assistant_models.errors import UnsupportedFeaturedException
 
 from music_assistant.providers.yandex_station.constants import (
     CONF_INTERCEPT_ENABLED,
@@ -279,8 +280,6 @@ async def test_intercept_resolved_track_without_uri_skips_handoff() -> None:
 
 async def test_volume_mirror_swallows_unsupported_feature() -> None:
     """Targets without VOLUME_SET raise UnsupportedFeaturedException → log + no-op."""
-    from music_assistant_models.errors import UnsupportedFeaturedException
-
     player = _make_intercept_player()
     player._intercept_active = True
     player.mass.players.cmd_volume_set = AsyncMock(
@@ -297,8 +296,6 @@ async def test_volume_mirror_swallows_unsupported_feature() -> None:
 
 async def test_seek_mirror_swallows_unsupported_feature() -> None:
     """Targets without SEEK raise UnsupportedFeaturedException → log + no-op."""
-    from music_assistant_models.errors import UnsupportedFeaturedException
-
     player = _make_intercept_player()
     player._intercept_active = True
     player._last_progress = 10
