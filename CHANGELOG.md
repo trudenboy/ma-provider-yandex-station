@@ -329,6 +329,13 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.4] - 2026-05-04
+
+- fix: address upstream PR #3605 review (Copilot) (`e36c6d6`)
+- chore: update changelog for v1.4.3 [skip ci] (`89cfc52`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
