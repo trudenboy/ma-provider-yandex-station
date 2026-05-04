@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.13] - 2026-05-04
+
+### Changed
+- **Surface intercept settings out of "advanced"**: dropped `advanced=True` from `CONF_INTERCEPT_FEATURE_ENABLED` (provider-level master switch) and from the per-player `CONF_INTERCEPT_ENABLED` / `CONF_INTERCEPT_TARGET`. Hiding them in the advanced section made the feature hard to discover for users who explicitly want to configure it. They remain `default_value=False` and labeled "Experimental:" so the opt-in nature is clear at the top level too.
+
 ## [1.4.12] - 2026-05-04
 
 ### Fixed

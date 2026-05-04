@@ -167,7 +167,6 @@ async def get_config_entries(
             ),
             default_value=False,
             required=False,
-            advanced=True,
         ),
         # Cookies authentication (advanced fallback)
         ConfigEntry(

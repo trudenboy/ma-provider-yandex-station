@@ -245,7 +245,6 @@ class YandexStationPlayer(Player):
                 ),
                 default_value=False,
                 required=False,
-                advanced=True,
             ),
             ConfigEntry(
                 key=CONF_INTERCEPT_TARGET,
@@ -259,7 +258,6 @@ class YandexStationPlayer(Player):
                 ),
                 options=target_options,
                 required=False,
-                advanced=True,
             ),
         ]
 
