@@ -74,9 +74,7 @@ def _make_intercept_player(
 
     # Mock mass with the four touchpoints intercept uses
     mass = MagicMock()
-    mass.get_provider = MagicMock(
-        return_value=MagicMock() if yandex_music_present else None
-    )
+    mass.get_provider = MagicMock(return_value=MagicMock() if yandex_music_present else None)
     fake_track = MagicMock(name="resolved_track")
     mass.music = MagicMock()
     mass.music.get_item = AsyncMock(return_value=fake_track)
@@ -740,14 +738,10 @@ async def test_target_dropdown_filters_by_required_features() -> None:
         PlayerFeature.VOLUME_SET,
         PlayerFeature.SEEK,
     }
-    player.mass.players.all_players = MagicMock(
-        return_value=[full, no_seek, self_player]
-    )
+    player.mass.players.all_players = MagicMock(return_value=[full, no_seek, self_player])
 
     entries = await YandexStationPlayer.get_config_entries(player)
-    target_entry = next(
-        e for e in entries if getattr(e, "key", None) == CONF_INTERCEPT_TARGET
-    )
+    target_entry = next(e for e in entries if getattr(e, "key", None) == CONF_INTERCEPT_TARGET)
     listed_ids = [opt.value for opt in target_entry.options]
 
     assert listed_ids == ["full"]

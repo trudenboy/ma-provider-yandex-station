@@ -591,9 +591,7 @@ class YandexStationPlayer(Player):
             if self._intercept_active and alice_active:
                 if not self._alice_active_pause_sent:
                     self._alice_active_pause_sent = True
-                    await self._pause_target(
-                        clear_session=False, clear_debounce=True
-                    )
+                    await self._pause_target(clear_session=False, clear_debounce=True)
                 # Don't start a new handoff while Alice is talking — the
                 # next track starts only after she goes IDLE.
                 return
@@ -624,10 +622,7 @@ class YandexStationPlayer(Player):
         now = time.time()
         # Debounce: skip if we already attempted this track recently.
         # Covers both successful and failed prior attempts.
-        if (
-            track_id == self._last_intercepted_track_id
-            and (now - self._last_intercept_time) < 5
-        ):
+        if track_id == self._last_intercepted_track_id and (now - self._last_intercept_time) < 5:
             return
         new_track = track_id != self._last_intercepted_track_id
         # Mark the attempt up-front so failure paths debounce too.
@@ -658,9 +653,7 @@ class YandexStationPlayer(Player):
                 await self._pause_target(clear_session=True, clear_debounce=False)
             return
 
-        _LOGGER.debug(
-            "[%s] intercept: raw playerState.id=%r", self.player_id, track_id
-        )
+        _LOGGER.debug("[%s] intercept: raw playerState.id=%r", self.player_id, track_id)
         parsed_id = _parse_yandex_track_id(track_id)
 
         # Resolve first — if the track can't be found or the URI is
@@ -753,9 +746,7 @@ class YandexStationPlayer(Player):
         self._last_progress = progress
         self._last_progress_wall = now
 
-    async def _pause_target(
-        self, *, clear_session: bool, clear_debounce: bool
-    ) -> None:
+    async def _pause_target(self, *, clear_session: bool, clear_debounce: bool) -> None:
         """Pause the target player; optionally clear session / debounce state.
 
         The two flags are independent because callers want different combos:
