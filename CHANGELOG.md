@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.12] - 2026-05-04
+
+### Fixed
+- **`CONF_INTERCEPT_TARGET` description matches the actual filter** (upstream MA PR #3605, Copilot): the dropdown's description still read "Lists every player that supports play_media" from before the v1.4.11 filter relaxation. Updated to "Lists every registered player except this Station" so users aren't misled when picking a target. The mirror-helpers caveat ("pause / volume_set / seek mirrors gracefully no-op on players that don't support them") is preserved.
+
 ## [1.4.11] - 2026-05-04
 
 ### Fixed
