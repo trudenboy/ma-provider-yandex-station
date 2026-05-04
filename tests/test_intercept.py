@@ -296,28 +296,18 @@ async def test_volume_mirror_skipped_when_unchanged() -> None:
     assert calls == [("target_player", 50)]
 
 
-async def test_pause_mirror_on_native_stop() -> None:
-    """Native player stops (playing=False) while intercept_active → pause target."""
+async def test_session_survives_lingering_playing_false() -> None:
+    """playing=False after intercept must not end the session.
+
+    The Station stays stopped after our intercept; subsequent state updates
+    arrive with ``playing=False`` indefinitely.  Treating those as
+    "user paused" would kill the session and break the contract that intercept
+    survives Alice queries / quiet periods until the next track arrives.
+    """
     player = _make_intercept_player()
     player._intercept_active = True
-    # No self-stop window active → playing=False is interpreted as a real pause.
-    player._intercept_self_stop_until = 0.0
+    state, player_state, _ = _state(track_id="X", playing=False)
 
-    state, player_state, _ = _state(track_id="1", playing=False)
-    await player._handle_intercept_tick(state, player_state, False)
-
-    player.mass.players.cmd_pause.assert_awaited_once_with("target_player")
-    assert player._intercept_active is False
-
-
-async def test_self_stop_window_suppresses_pause_mirror() -> None:
-    """The playing=False from our own stop must NOT propagate to the target."""
-    player = _make_intercept_player()
-    player._intercept_active = True
-    # Our own stop just fired — self-stop window is open.
-    player._intercept_self_stop_until = time.time() + 3
-
-    state, player_state, _ = _state(track_id="1", playing=False)
     await player._handle_intercept_tick(state, player_state, False)
 
     player.mass.players.cmd_pause.assert_not_awaited()
@@ -662,3 +652,143 @@ async def test_pause_target_helper_flag_combinations() -> None:
     await player._pause_target(clear_session=True, clear_debounce=False)
     assert player._intercept_active is False
     assert player._last_intercepted_track_id == "Y"
+
+
+# ── Round 4: serialisation, fault tolerance, dropdown filter ──────────
+
+
+async def test_concurrent_alice_ticks_send_one_pause() -> None:
+    """Two parallel LISTENING ticks → only one cmd_pause to the target.
+
+    Without the tick-level lock, both tasks would see
+    `_alice_active_pause_sent=False` before either await completes and both
+    would issue cmd_pause.  With the lock + flag-set-before-await, the second
+    task sees the flag set and short-circuits.
+    """
+    player = _make_intercept_player()
+    player._intercept_active = True
+    state, player_state, _ = _state(track_id="X", alice_state="LISTENING")
+
+    pause_started = asyncio.Event()
+    pause_release = asyncio.Event()
+
+    async def slow_pause(*_args: Any, **_kwargs: Any) -> None:
+        pause_started.set()
+        await pause_release.wait()
+
+    player.mass.players.cmd_pause = AsyncMock(side_effect=slow_pause)
+
+    t1 = asyncio.create_task(player._handle_intercept_tick(state, player_state, True))
+    await pause_started.wait()
+    # T2 fires while T1 is still inside cmd_pause holding the lock.
+    t2 = asyncio.create_task(player._handle_intercept_tick(state, player_state, True))
+    await asyncio.sleep(0)  # let t2 try to acquire the lock
+    pause_release.set()
+    await asyncio.gather(t1, t2)
+
+    assert player.mass.players.cmd_pause.await_count == 1
+
+
+async def test_pause_target_cleanup_runs_when_cmd_pause_raises() -> None:
+    """If cmd_pause raises, the state-cleanup must still happen.
+
+    Otherwise _intercept_active stays stale and every later WS update retries
+    the failing path forever.
+    """
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "X"
+    player._last_intercept_time = time.time()
+    player.mass.players.cmd_pause = AsyncMock(side_effect=RuntimeError("gone"))
+
+    await player._pause_target(clear_session=True, clear_debounce=True)
+
+    # Despite the raise, both flags were cleared in `finally`.
+    assert player._intercept_active is False
+    assert player._last_intercepted_track_id is None
+
+
+async def test_target_dropdown_filters_by_required_features() -> None:
+    """Players missing PAUSE / VOLUME_SET / SEEK / PLAY_MEDIA must not appear."""
+    from music_assistant_models.enums import PlayerFeature
+
+    player = _make_intercept_player()
+
+    full = MagicMock()
+    full.player_id = "full"
+    full.display_name = "Full"
+    full.supported_features = {
+        PlayerFeature.PLAY_MEDIA,
+        PlayerFeature.PAUSE,
+        PlayerFeature.VOLUME_SET,
+        PlayerFeature.SEEK,
+    }
+    no_seek = MagicMock()
+    no_seek.player_id = "no_seek"
+    no_seek.display_name = "No Seek"
+    no_seek.supported_features = {
+        PlayerFeature.PLAY_MEDIA,
+        PlayerFeature.PAUSE,
+        PlayerFeature.VOLUME_SET,
+    }
+    self_player = MagicMock()
+    self_player.player_id = player.player_id
+    self_player.display_name = "Self"
+    self_player.supported_features = {
+        PlayerFeature.PLAY_MEDIA,
+        PlayerFeature.PAUSE,
+        PlayerFeature.VOLUME_SET,
+        PlayerFeature.SEEK,
+    }
+    player.mass.players.all_players = MagicMock(
+        return_value=[full, no_seek, self_player]
+    )
+
+    entries = await YandexStationPlayer.get_config_entries(player)
+    target_entry = next(
+        e for e in entries if getattr(e, "key", None) == CONF_INTERCEPT_TARGET
+    )
+    listed_ids = [opt.value for opt in target_entry.options]
+
+    assert listed_ids == ["full"]
+
+
+async def test_concurrent_mirror_volume_serialised() -> None:
+    """Back-to-back volume updates must be applied in order.
+
+    Without the tick-level lock, an older volume task could finish after a
+    newer one and leave the target stale.  With the lock, the second tick
+    blocks until the first finishes — guaranteeing in-order application.
+    """
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "X"
+    player._last_intercept_time = time.time()
+
+    applied: list[int] = []
+    first_started = asyncio.Event()
+    first_release = asyncio.Event()
+
+    async def slow_first(*_args: Any, **kwargs: Any) -> None:  # noqa: ARG001
+        applied.append(_args[1])  # type: ignore[index]
+        first_started.set()
+        await first_release.wait()
+
+    async def fast(*_args: Any, **kwargs: Any) -> None:  # noqa: ARG001
+        applied.append(_args[1])  # type: ignore[index]
+
+    cmds = AsyncMock(side_effect=slow_first)
+    player.mass.players.cmd_volume_set = cmds
+
+    state1, ps1, _ = _state(track_id="X", volume=0.3)
+    t1 = asyncio.create_task(player._handle_intercept_tick(state1, ps1, True))
+    await first_started.wait()
+    cmds.side_effect = fast  # next call uses the fast handler
+    state2, ps2, _ = _state(track_id="X", volume=0.6)
+    t2 = asyncio.create_task(player._handle_intercept_tick(state2, ps2, True))
+    await asyncio.sleep(0)
+    first_release.set()
+    await asyncio.gather(t1, t2)
+
+    # In-order application: 30 then 60 (not the reverse).
+    assert applied == [30, 60]

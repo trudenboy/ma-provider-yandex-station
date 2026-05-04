@@ -81,7 +81,14 @@ except ImportError:
         PAUSED = "paused"
 
     class _PlayerFeature:
-        pass
+        POWER = "power"
+        PLAY_MEDIA = "play_media"
+        PLAY_ANNOUNCEMENT = "play_announcement"
+        VOLUME_SET = "volume_set"
+        VOLUME_MUTE = "volume_mute"
+        PAUSE = "pause"
+        NEXT_PREVIOUS = "next_previous"
+        SEEK = "seek"
 
     class _PlayerType:
         PLAYER = "player"
