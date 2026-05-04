@@ -294,6 +294,14 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.1] - 2026-05-04
+
+- chore: bump version to 1.4.1 — mypy pragma for upstream CI (`36b981f`)
+- test: silence mypy strict-mode noise in test_intercept (`a34183c`)
+- style: auto-fix ruff (`52716fd`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
