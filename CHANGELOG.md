@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-05-04
+
+### Fixed
+- **`tests/test_intercept.py`: silence mypy strict-mode noise from MagicMock-based tests** (upstream MA PR #3605 CI): added `# mypy: disable-error-code="attr-defined,method-assign,unreachable"` at the top of the file. The errors are intrinsic to using `MagicMock` / `AsyncMock` (assert-awaited helpers, mock reassignment) plus the `_intercept_enabled is False` branch in `test_intercept_master_switch_off` which mypy correctly proves unreachable. None affect runtime behaviour or actual type safety of the code under test.
+
 ## [1.4.0] - 2026-05-04
 
 ### Added
