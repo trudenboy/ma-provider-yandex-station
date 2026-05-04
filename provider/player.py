@@ -281,14 +281,23 @@ class YandexStationPlayer(Player):
         return str(value) if value else None
 
     def update_connection(self, host: str, port: int) -> None:
-        """Update connection info when mDNS reports new IP."""
+        """Update connection info when mDNS reports new IP.
+
+        Pure mutation — no side effects.  Callers decide whether to (re)connect
+        via ``async_setup()`` so a single mDNS update can't trigger
+        concurrent/duplicate ``glagol.start()`` calls (the previous version
+        scheduled a background reconnect here, while the provider's mDNS
+        handler also called ``async_setup()`` for the not-connected branch).
+
+        For an already-connected player, the underlying socket targets the
+        old IP and will reconnect via Glagol's auto-reconnect loop if the
+        old endpoint is no longer reachable.
+        """
         self._device_info["host"] = host
         self._device_info["port"] = port
         self.glagol.device["host"] = host
         self.glagol.device["port"] = port
         self._attr_device_info.add_identifier(IdentifierType.IP_ADDRESS, host)
-        # Trigger reconnect if needed
-        self.mass.create_task(self.glagol.start())
 
     # ── Transport controls ───────────────────────────────────────
 

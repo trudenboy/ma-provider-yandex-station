@@ -16,15 +16,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-# Mapping from Russian UID chars to English hex for scenario triggers
-MASK_EN = "0123456789abcdef-"
-MASK_RU = "оеаинтсрвлкмдпуяы"
-
-
-def _encode_uid(uid: str) -> str:
-    """Encode device UID to Russian chars (Yandex scenario trigger format)."""
-    return "".join(MASK_RU[MASK_EN.index(s)] for s in uid)
-
 
 class YandexQuasar:
     """Yandex Quasar cloud API client for device discovery."""

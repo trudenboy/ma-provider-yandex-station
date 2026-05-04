@@ -204,7 +204,7 @@ class YandexSession:
             _LOGGER.debug("Retry Glagol request %s", url)
             return await self._request_glagol(url, retry - 1, **kwargs)
 
-        msg = f"{url} returned error"
+        msg = f"{url} returned HTTP {r.status} ({r.reason or 'no reason'})"
         raise RuntimeError(msg)
 
     # ── Serialization ────────────────────────────────────────────

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.4.6] - 2026-05-04
+
+### Fixed
+- **`update_connection()` no longer triggers a duplicate `glagol.start()`** (upstream MA PR #3605, Copilot): the helper used to schedule a background reconnect, but the mDNS handler in `provider.py` also called `await async_setup()` (which itself awaits `glagol.start()`) for the not-connected branch — so a single mDNS update could trigger concurrent/duplicate reconnect attempts and potentially drop early WS updates before `update_handler` was set. The helper is now pure mutation (host/port + identifier); callers decide whether to (re)connect via `async_setup()`. For an already-connected player, Glagol's auto-reconnect loop handles a stale endpoint when it fails.
+- **Removed dead `_encode_uid` / `MASK_EN` / `MASK_RU`** from `quasar.py` (upstream MA PR #3605, Copilot): unused helpers (originally for Yandex scenario-trigger UID encoding) — dropped to keep the module focused on what's actually called.
+- **`_request_glagol()` error includes HTTP status** (upstream MA PR #3605, Copilot): the terminal-failure `RuntimeError` previously read just `"<url> returned error"`. Now `"<url> returned HTTP <status> (<reason>)"` so auth vs. network vs. server failures are distinguishable in logs.
+
 ## [1.4.5] - 2026-05-04
 
 ### Fixed
