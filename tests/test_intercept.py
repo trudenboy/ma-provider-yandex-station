@@ -15,6 +15,10 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+from music_assistant.providers.yandex_station.constants import (
+    CONF_INTERCEPT_ENABLED,
+    CONF_INTERCEPT_TARGET,
+)
 from music_assistant.providers.yandex_station.player import (
     YandexStationPlayer,
     _parse_yandex_track_id,
@@ -51,10 +55,6 @@ def _make_intercept_player(
     player._provider = provider
 
     def _player_cfg_get(key: str, default: object = None) -> object:
-        from music_assistant.providers.yandex_station.constants import (
-            CONF_INTERCEPT_ENABLED,
-            CONF_INTERCEPT_TARGET,
-        )
         if key == CONF_INTERCEPT_ENABLED:
             return per_player_enabled
         if key == CONF_INTERCEPT_TARGET:
@@ -305,7 +305,7 @@ def test_voice_interrupt_during_intercept_pauses_target() -> None:
     player._intercept_active = True
     player._attr_volume_level = 30
     captured: list[Any] = []
-    player.mass.create_task = MagicMock(side_effect=lambda coro: captured.append(coro))
+    player.mass.create_task = MagicMock(side_effect=captured.append)
 
     player._handle_voice_interrupt("LISTENING")
 
