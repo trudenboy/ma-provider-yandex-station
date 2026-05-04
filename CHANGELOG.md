@@ -422,6 +422,13 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.13] - 2026-05-04
+
+- feat: surface intercept settings out of "advanced" section (`b787972`)
+- chore: update changelog for v1.4.12 [skip ci] (`e61b20b`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
