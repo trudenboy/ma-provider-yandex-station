@@ -282,9 +282,7 @@ async def test_volume_mirror_swallows_unsupported_feature() -> None:
     """Targets without VOLUME_SET raise UnsupportedFeaturedException → log + no-op."""
     player = _make_intercept_player()
     player._intercept_active = True
-    player.mass.players.cmd_volume_set = AsyncMock(
-        side_effect=UnsupportedFeaturedException("nope")
-    )
+    player.mass.players.cmd_volume_set = AsyncMock(side_effect=UnsupportedFeaturedException("nope"))
 
     # Should not raise
     await player._maybe_mirror_volume(0.5)
@@ -300,9 +298,7 @@ async def test_seek_mirror_swallows_unsupported_feature() -> None:
     player._intercept_active = True
     player._last_progress = 10
     player._last_progress_wall = time.time() - 1  # 1s ago
-    player.mass.players.cmd_seek = AsyncMock(
-        side_effect=UnsupportedFeaturedException("nope")
-    )
+    player.mass.players.cmd_seek = AsyncMock(side_effect=UnsupportedFeaturedException("nope"))
 
     # progress jump ~50s in 1s → would normally trigger cmd_seek
     await player._maybe_mirror_seek(60)
