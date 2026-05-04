@@ -206,21 +206,18 @@ class YandexStationPlayer(Player):
         Yandex Station requires Content-Length in HTTP responses (no chunked encoding),
         so we default to forced_content_length HTTP profile.
         """
-        # Only list players that can actually receive a redirected track and
-        # accept the mirror commands (pause, volume, seek).  Filtering at
-        # config time stops users from picking something that would silently
-        # no-op at runtime.
-        required_features = {
-            PlayerFeature.PLAY_MEDIA,
-            PlayerFeature.PAUSE,
-            PlayerFeature.VOLUME_SET,
-            PlayerFeature.SEEK,
-        }
+        # List players that can receive a redirected track.  Filter on the
+        # one truly essential feature — PLAY_MEDIA — and let the user pick
+        # any of them.  PAUSE / VOLUME_SET / SEEK are nice-to-have mirrors
+        # that gracefully no-op when missing, and a stricter filter ended
+        # up showing an empty dropdown for many setups.  We also include
+        # currently-unavailable players so the user can pre-select a
+        # target that's offline at setup time.
         target_options = [
             ConfigValueOption(p.display_name, p.player_id)
-            for p in self.mass.players.all_players(return_unavailable=False)
+            for p in self.mass.players.all_players(return_unavailable=True)
             if p.player_id != self.player_id
-            and required_features.issubset(p.supported_features or set())
+            and PlayerFeature.PLAY_MEDIA in (p.supported_features or set())
         ]
         return [
             CONF_ENTRY_OUTPUT_CODEC,
@@ -248,8 +245,9 @@ class YandexStationPlayer(Player):
                 label="Intercept target player",
                 description=(
                     "Music Assistant player that receives intercepted "
-                    "playback. Only players that support play_media, "
-                    "pause, volume_set and seek are listed."
+                    "playback. Lists every player that supports "
+                    "play_media; pause / volume_set / seek mirrors "
+                    "gracefully no-op on players that don't support them."
                 ),
                 options=target_options,
                 required=False,

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.7] - 2026-05-04
+
+### Fixed
+- **Intercept target dropdown was empty in many real-world setups**: the previous filter required `PLAY_MEDIA + PAUSE + VOLUME_SET + SEEK` simultaneously, which excluded common players (some Chromecasts and DLNA receivers don't expose `SEEK`; some media renderers don't expose `VOLUME_SET`). The dropdown now lists every player that supports `PLAY_MEDIA` (the only essential capability) and includes currently-unavailable players so a target can be pre-selected before it comes online. The mirror commands (pause / volume / seek) gracefully no-op when the target doesn't support them.
+
 ## [1.4.6] - 2026-05-04
 
 ### Fixed

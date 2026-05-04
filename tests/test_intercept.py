@@ -717,8 +717,14 @@ async def test_pause_target_cleanup_runs_when_cmd_pause_raises() -> None:
     assert player._last_intercepted_track_id is None
 
 
-async def test_target_dropdown_filters_by_required_features() -> None:
-    """Players missing PAUSE / VOLUME_SET / SEEK / PLAY_MEDIA must not appear."""
+async def test_target_dropdown_lists_play_media_capable_players() -> None:
+    """Players that support PLAY_MEDIA appear regardless of pause/seek/volume.
+
+    The mirror commands gracefully no-op when missing — dropping them from
+    the picker just to enforce a perfect feature match would have left the
+    list empty for many real-world setups.  Only the Station itself and
+    players that can't accept media at all are excluded.
+    """
     player = _make_intercept_player()
 
     full = MagicMock()
@@ -730,30 +736,28 @@ async def test_target_dropdown_filters_by_required_features() -> None:
         PlayerFeature.VOLUME_SET,
         PlayerFeature.SEEK,
     }
-    no_seek = MagicMock()
-    no_seek.player_id = "no_seek"
-    no_seek.display_name = "No Seek"
-    no_seek.supported_features = {
-        PlayerFeature.PLAY_MEDIA,
-        PlayerFeature.PAUSE,
-        PlayerFeature.VOLUME_SET,
-    }
+    play_media_only = MagicMock()
+    play_media_only.player_id = "minimal"
+    play_media_only.display_name = "Minimal"
+    play_media_only.supported_features = {PlayerFeature.PLAY_MEDIA}
+    no_play_media = MagicMock()
+    no_play_media.player_id = "no_play_media"
+    no_play_media.display_name = "No Play Media"
+    no_play_media.supported_features = {PlayerFeature.PAUSE, PlayerFeature.VOLUME_SET}
     self_player = MagicMock()
     self_player.player_id = player.player_id
     self_player.display_name = "Self"
-    self_player.supported_features = {
-        PlayerFeature.PLAY_MEDIA,
-        PlayerFeature.PAUSE,
-        PlayerFeature.VOLUME_SET,
-        PlayerFeature.SEEK,
-    }
-    player.mass.players.all_players = MagicMock(return_value=[full, no_seek, self_player])
+    self_player.supported_features = {PlayerFeature.PLAY_MEDIA}
+    player.mass.players.all_players = MagicMock(
+        return_value=[full, play_media_only, no_play_media, self_player]
+    )
 
     entries = await YandexStationPlayer.get_config_entries(player)
     target_entry = next(e for e in entries if getattr(e, "key", None) == CONF_INTERCEPT_TARGET)
     listed_ids = [opt.value for opt in target_entry.options]
 
-    assert listed_ids == ["full"]
+    # PLAY_MEDIA-capable, not self → in the list.  No-PLAY_MEDIA → out.
+    assert listed_ids == ["full", "minimal"]
 
 
 async def test_concurrent_mirror_volume_serialised() -> None:
