@@ -153,7 +153,12 @@ async def test_intercept_triggers_on_alice_play() -> None:
 
     await player._handle_intercept_tick(state, player_state, playing)
 
-    player.glagol.send.assert_awaited_once_with({"command": "stop"})
+    # mute(0) + stop are sent in that order to mask the brief native blip
+    sent_payloads = [c.args[0] for c in player.glagol.send.await_args_list]
+    assert sent_payloads == [
+        {"command": "setVolume", "volume": 0.0},
+        {"command": "stop"},
+    ]
     player.mass.music.get_item.assert_awaited_once()
     kwargs = player.mass.music.get_item.await_args.kwargs
     assert kwargs["item_id"] == "12345"
@@ -236,7 +241,8 @@ async def test_intercept_dedup_same_track_within_window() -> None:
     await player._handle_intercept_tick(state, player_state, playing)
 
     assert player.mass.player_queues.play_media.await_count == 1
-    assert player.glagol.send.await_count == 1
+    # 2 sends (mute + stop) on the first tick; second tick debounced.
+    assert player.glagol.send.await_count == 2
 
 
 async def test_intercept_resolve_failure_does_not_silence_station() -> None:
@@ -437,8 +443,8 @@ async def test_handoff_failure_clears_intercept_active() -> None:
 
     await player._handle_intercept_tick(state, player_state, True)
 
-    # Stop did fire (resolve succeeded), but handoff failed.
-    player.glagol.send.assert_awaited_once()
+    # mute(0) + stop fired (resolve succeeded), but handoff failed.
+    assert player.glagol.send.await_count == 2
     assert player._intercept_active is False
 
 
@@ -490,7 +496,9 @@ async def test_concurrent_ticks_do_not_double_handoff() -> None:
     resolve_release.set()
     await asyncio.gather(t1, t2)
 
-    assert player.glagol.send.await_count == 1
+    # First tick: mute(0) + stop = 2 sends.  Second tick: short-circuits
+    # before sending anything → still 2 total.
+    assert player.glagol.send.await_count == 2
     assert player.mass.player_queues.play_media.await_count == 1
 
 

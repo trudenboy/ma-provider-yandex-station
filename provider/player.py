@@ -663,9 +663,8 @@ class YandexStationPlayer(Player):
         _LOGGER.debug("[%s] intercept: raw playerState.id=%r", self.player_id, track_id)
         parsed_id = _parse_yandex_track_id(track_id)
 
-        # Resolve first — if the track can't be found or the URI is
-        # missing we leave the Station playing rather than silencing it
-        # for nothing.
+        # Resolve first — if the track can't be found or the URI is missing
+        # we leave the Station playing rather than silencing it for nothing.
         try:
             track = await self.mass.music.get_item(
                 media_type=MediaType.TRACK,
@@ -682,9 +681,6 @@ class YandexStationPlayer(Player):
             if new_track and self._intercept_active:
                 await self._pause_target(clear_session=True, clear_debounce=False)
             return
-        # We requested MediaType.TRACK; passing the URI sidesteps the
-        # MediaItemType vs. play_media union mismatch (BrowseFolder /
-        # Genre are theoretically returnable from get_item).
         track_uri = track.uri
         if not track_uri:
             _LOGGER.warning(
@@ -696,8 +692,16 @@ class YandexStationPlayer(Player):
                 await self._pause_target(clear_session=True, clear_debounce=False)
             return
 
-        # Silence the Station and start the target.
+        # Silence the Station as fast as possible.  setVolume(0) reaches the
+        # Station before the audio buffer fully flushes, masking the brief
+        # native-playback blip the user would otherwise hear between Alice's
+        # command and our stop arriving over the WebSocket.  The follow-up
+        # stop fully tears down the native player.  Volume is restored in
+        # the background after the handoff so the next non-intercepted
+        # native playback isn't silent.
+        saved_station_vol = getattr(self, "_attr_volume_level", None)
         try:
+            await self.glagol.send({"command": "setVolume", "volume": 0.0})
             stop_result = await self.glagol.send({"command": "stop"})
             _raise_if_failed(stop_result, "intercept-stop")
             await self.mass.player_queues.play_media(
@@ -714,9 +718,17 @@ class YandexStationPlayer(Player):
             )
             # Station is already silenced; clear active so mirror code
             # doesn't keep forwarding to a target that may not be playing.
-            # User has to reissue the command.
+            # Restore volume so the Station isn't stuck muted for the user.
+            if saved_station_vol is not None:
+                self.mass.create_task(self._restore_station_volume(saved_station_vol))
             self._intercept_active = False
             return
+
+        # Restore Station volume in the background — Station is stopped so
+        # this is silent, but it leaves the volume level sensible for the
+        # next native playback (or for the user opening the Yandex app).
+        if saved_station_vol is not None:
+            self.mass.create_task(self._restore_station_volume(saved_station_vol))
 
         self._intercept_active = True
         self._last_mirrored_volume = None
@@ -725,6 +737,17 @@ class YandexStationPlayer(Player):
         # otherwise a slow handoff makes the target appear to lag and every
         # subsequent progress update looks like a backwards seek.
         self._last_progress_wall = time.time()
+
+    async def _restore_station_volume(self, vol_pct: int) -> None:
+        """Restore Station volume after we muted it for intercept handoff."""
+        try:
+            await self.glagol.send(
+                {"command": "setVolume", "volume": vol_pct / 100}
+            )
+        except Exception as exc:
+            _LOGGER.debug(
+                "[%s] failed to restore Station volume: %s", self.player_id, exc
+            )
 
     async def _maybe_mirror_volume(self, vol: float | None) -> None:
         """Mirror Station volume changes to the intercept target player."""

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.8] - 2026-05-04
+
+### Changed
+- **Mute the Station before the intercept stop to mask the brief native-playback blip.** When intercept handoff fires, the Station has already started playing the track Alice asked for (we react to the Glagol `playing=True` notification, which arrives after audio output begins). The user previously heard a short burst of native audio between Alice's command and our `stop` command arriving over the WebSocket. We now send `setVolume(0)` immediately before the `stop` so the Station goes silent as fast as the WS round-trip allows. Saved volume is restored in the background after the target handoff completes (and on handoff failure) so the next non-intercepted native playback isn't muted.
+
 ## [1.4.7] - 2026-05-04
 
 ### Fixed
