@@ -211,7 +211,7 @@ class YandexStationPlayer(Player):
         # any of them.  PAUSE / VOLUME_SET / SEEK are nice-to-have mirrors
         # that gracefully no-op when missing, and a stricter filter ended
         # up showing an empty dropdown for many setups.  We also include
-        # currently-unavailable players so the user can pre-select a
+        # currently-unavailable players so the user can preselect a
         # target that's offline at setup time.
         target_options = [
             ConfigValueOption(p.display_name, p.player_id)
