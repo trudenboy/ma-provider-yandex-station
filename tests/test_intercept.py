@@ -59,6 +59,10 @@ def _make_intercept_player(
     player._last_progress_wall = 0.0
     player._intercept_lock = asyncio.Lock()
     player._alice_active_pause_sent = False
+    player._saved_station_volume = None
+    player._station_muted_by_intercept = False
+    player._prev_alice_state = ""
+    player._attr_volume_level = 50  # baseline for saved-volume capture
 
     # Mock provider config (master switch) and player config (per-player toggle)
     provider_config = MagicMock()
@@ -154,12 +158,10 @@ async def test_intercept_triggers_on_alice_play() -> None:
 
     await player._handle_intercept_tick(state, player_state, playing)
 
-    # mute(0) + stop are sent in that order to mask the brief native blip
+    # Only mute(0) is sent — no `stop`, so the Station keeps emitting
+    # playerState ticks for each next track Alice queues (continuous handoff).
     sent_payloads = [c.args[0] for c in player.glagol.send.await_args_list]
-    assert sent_payloads == [
-        {"command": "setVolume", "volume": 0.0},
-        {"command": "stop"},
-    ]
+    assert sent_payloads == [{"command": "setVolume", "volume": 0.0}]
     player.mass.music.get_item.assert_awaited_once()
     kwargs = player.mass.music.get_item.await_args.kwargs
     assert kwargs["item_id"] == "12345"
@@ -242,8 +244,8 @@ async def test_intercept_dedup_same_track_within_window() -> None:
     await player._handle_intercept_tick(state, player_state, playing)
 
     assert player.mass.player_queues.play_media.await_count == 1
-    # 2 sends (mute + stop) on the first tick; second tick debounced.
-    assert player.glagol.send.await_count == 2
+    # 1 send (mute(0) only — no stop) on the first tick; second debounced.
+    assert player.glagol.send.await_count == 1
 
 
 async def test_intercept_resolve_failure_does_not_silence_station() -> None:
@@ -334,24 +336,6 @@ async def test_volume_mirror_skipped_when_unchanged() -> None:
     # exactly one volume command for the value 50
     calls = [c.args for c in player.mass.players.cmd_volume_set.await_args_list]
     assert calls == [("target_player", 50)]
-
-
-async def test_session_survives_lingering_playing_false() -> None:
-    """playing=False after intercept must not end the session.
-
-    The Station stays stopped after our intercept; subsequent state updates
-    arrive with ``playing=False`` indefinitely.  Treating those as
-    "user paused" would kill the session and break the contract that intercept
-    survives Alice queries / quiet periods until the next track arrives.
-    """
-    player = _make_intercept_player()
-    player._intercept_active = True
-    state, player_state, _ = _state(track_id="X", playing=False)
-
-    await player._handle_intercept_tick(state, player_state, False)
-
-    player.mass.players.cmd_pause.assert_not_awaited()
-    assert player._intercept_active is True
 
 
 async def test_seek_mirror_on_progress_jump() -> None:
@@ -462,9 +446,11 @@ async def test_failed_intercept_on_new_track_ends_stale_session() -> None:
 
 
 async def test_handoff_failure_clears_intercept_active() -> None:
-    """Failed handoff after stop must clear intercept_active.
+    """Failed handoff after mute must clear intercept_active.
 
     Otherwise mirror code would forward state to a target that isn't playing.
+    Volume is also restored via _end_intercept_session so the Station isn't
+    stuck muted with no way for the user to recover.
     """
     player = _make_intercept_player()
     player.mass.player_queues.play_media = AsyncMock(side_effect=RuntimeError("boom"))
@@ -472,8 +458,12 @@ async def test_handoff_failure_clears_intercept_active() -> None:
 
     await player._handle_intercept_tick(state, player_state, True)
 
-    # mute(0) + stop fired (resolve succeeded), but handoff failed.
-    assert player.glagol.send.await_count == 2
+    # mute(0) fired (resolve succeeded) + restore on session-end cleanup → 2 sends.
+    sent_payloads = [c.args[0] for c in player.glagol.send.await_args_list]
+    assert sent_payloads == [
+        {"command": "setVolume", "volume": 0.0},
+        {"command": "setVolume", "volume": 0.5},  # 50/100 from fixture baseline
+    ]
     assert player._intercept_active is False
 
 
@@ -525,10 +515,204 @@ async def test_concurrent_ticks_do_not_double_handoff() -> None:
     resolve_release.set()
     await asyncio.gather(t1, t2)
 
-    # First tick: mute(0) + stop = 2 sends.  Second tick: short-circuits
-    # before sending anything → still 2 total.
-    assert player.glagol.send.await_count == 2
+    # First tick: mute(0) only = 1 send (no stop in continuous-playback mode).
+    # Second tick: short-circuits via debounce → still 1 total.
+    assert player.glagol.send.await_count == 1
     assert player.mass.player_queues.play_media.await_count == 1
+
+
+# ── Continuous playback (v1.4.14) ────────────────────────────────────
+
+
+async def test_intercept_does_not_send_stop() -> None:
+    """Continuous-playback contract: a handoff must never send {"command":"stop"}.
+
+    Sending stop pauses the Station's queue → no more playerState ticks → no
+    next-track handoff.  We only ever mute via setVolume(0).
+    """
+    player = _make_intercept_player()
+    state, player_state, _ = _state(track_id="42")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    sent = [c.args[0] for c in player.glagol.send.await_args_list]
+    assert all(p.get("command") != "stop" for p in sent)
+    assert {"command": "setVolume", "volume": 0.0} in sent
+
+
+async def test_continuous_handoff_on_track_id_change() -> None:
+    """Subsequent track_id → second handoff. Station muted ONCE per session."""
+    player = _make_intercept_player()
+
+    state_a, ps_a, _ = _state(track_id="trackA")
+    await player._handle_intercept_tick(state_a, ps_a, True)
+    # Move beyond the 5s same-track debounce by rewinding _last_intercept_time.
+    player._last_intercept_time -= 10
+    state_b, ps_b, _ = _state(track_id="trackB")
+    await player._handle_intercept_tick(state_b, ps_b, True)
+
+    # Two handoffs, one per track.
+    assert player.mass.player_queues.play_media.await_count == 2
+    # Mute(0) is sent only ONCE — at session start.  Subsequent handoffs
+    # don't re-mute (Station already at vol=0).
+    mute_sends = [
+        c.args[0]
+        for c in player.glagol.send.await_args_list
+        if c.args[0] == {"command": "setVolume", "volume": 0.0}
+    ]
+    assert len(mute_sends) == 1
+    assert player._last_intercepted_track_id == "trackB"
+
+
+async def test_session_end_restores_station_volume() -> None:
+    """_end_intercept_session must send setVolume(saved/100) back to the Station."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._saved_station_volume = 70
+    player._station_muted_by_intercept = True
+
+    await player._end_intercept_session(clear_debounce=True)
+
+    sent = [c.args[0] for c in player.glagol.send.await_args_list]
+    assert {"command": "setVolume", "volume": 0.7} in sent
+    assert player._intercept_active is False
+    assert player._saved_station_volume is None
+    assert player._station_muted_by_intercept is False
+    assert player._last_intercepted_track_id is None
+
+
+async def test_session_end_when_not_muted_does_not_send_volume() -> None:
+    """If we never muted (e.g. user beat us to it via app), don't send volume."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._saved_station_volume = 70
+    player._station_muted_by_intercept = False
+
+    await player._end_intercept_session(clear_debounce=False)
+
+    player.glagol.send.assert_not_awaited()
+    assert player._intercept_active is False
+
+
+async def test_volume_mirror_skips_zero_during_session() -> None:
+    """Self-induced mute must not propagate to target."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._station_muted_by_intercept = True
+    player._saved_station_volume = 60
+
+    await player._maybe_mirror_volume(0.0)
+
+    player.mass.players.cmd_volume_set.assert_not_awaited()
+
+
+async def test_volume_mirror_allows_zero_when_no_session() -> None:
+    """Outside a session, vol=0 must mirror normally."""
+    player = _make_intercept_player()
+    player._intercept_active = False
+
+    await player._maybe_mirror_volume(0.0)
+
+    player.mass.players.cmd_volume_set.assert_awaited_once_with("target_player", 0)
+
+
+async def test_user_unmute_via_yandex_app_clears_self_mute_flag() -> None:
+    """Station vol > 0 mid-session: clear self-mute flag, update saved baseline."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._station_muted_by_intercept = True
+    player._saved_station_volume = 50
+
+    await player._maybe_mirror_volume(0.8)
+
+    player.mass.players.cmd_volume_set.assert_awaited_once_with("target_player", 80)
+    assert player._station_muted_by_intercept is False
+    assert player._saved_station_volume == 80
+
+
+async def test_alice_active_unmutes_station() -> None:
+    """LISTENING/SPEAKING during a session → restore Station volume for Alice TTS."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._saved_station_volume = 70
+    player._station_muted_by_intercept = True
+    state, player_state, _ = _state(track_id="X", alice_state="LISTENING")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    sent = [c.args[0] for c in player.glagol.send.await_args_list]
+    assert {"command": "setVolume", "volume": 0.7} in sent
+    assert player._station_muted_by_intercept is False
+    # mirror baseline pre-set so the next vol-tick doesn't bounce to target
+    assert player._last_mirrored_volume == 70
+    # target paused once
+    player.mass.players.cmd_pause.assert_awaited_once_with("target_player")
+
+
+async def test_alice_idle_remutes_station() -> None:
+    """LISTENING → IDLE edge: re-mute Station now that Alice is done."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._saved_station_volume = 70
+    player._station_muted_by_intercept = False  # currently unmuted (alice was active)
+    player._prev_alice_state = "SPEAKING"
+    state, player_state, _ = _state(track_id="X", alice_state="IDLE", playing=False)
+
+    await player._handle_intercept_tick(state, player_state, False)
+
+    sent = [c.args[0] for c in player.glagol.send.await_args_list]
+    assert {"command": "setVolume", "volume": 0.0} in sent
+    assert player._station_muted_by_intercept is True
+
+
+async def test_playing_false_during_session_pauses_target() -> None:
+    """Physical pause / 'Алиса, пауза' mid-session → pause target, keep session."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = "X"  # established session
+    player._last_intercept_time = time.time()
+    state, player_state, _ = _state(track_id="X", playing=False, alice_state="IDLE")
+
+    await player._handle_intercept_tick(state, player_state, False)
+
+    player.mass.players.cmd_pause.assert_awaited_once_with("target_player")
+    assert player._intercept_active is True
+    # debounce cleared so a same-track resume re-handoffs
+    assert player._last_intercepted_track_id is None
+
+
+async def test_playing_false_without_established_session_does_not_pause() -> None:
+    """Lingering playing=False before any track was intercepted is a no-op.
+
+    Replaces the old test_session_survives_lingering_playing_false but with the
+    correct invariant: we only treat playing=False as 'user paused' when a
+    session has actually established a track (debounce non-None).
+    """
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._last_intercepted_track_id = None  # no track yet
+    state, player_state, _ = _state(track_id="X", playing=False, alice_state="IDLE")
+
+    await player._handle_intercept_tick(state, player_state, False)
+
+    player.mass.players.cmd_pause.assert_not_awaited()
+    assert player._intercept_active is True
+
+
+async def test_pause_target_clear_session_restores_station_volume() -> None:
+    """_pause_target(clear_session=True) funnels through _end_intercept_session."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._saved_station_volume = 40
+    player._station_muted_by_intercept = True
+
+    await player._pause_target(clear_session=True, clear_debounce=False)
+
+    player.mass.players.cmd_pause.assert_awaited_once_with("target_player")
+    sent = [c.args[0] for c in player.glagol.send.await_args_list]
+    assert {"command": "setVolume", "volume": 0.4} in sent
+    assert player._intercept_active is False
+    assert player._saved_station_volume is None
 
 
 # ── Real entrypoint ──────────────────────────────────────────────────
