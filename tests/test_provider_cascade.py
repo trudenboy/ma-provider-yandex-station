@@ -578,3 +578,104 @@ async def test_get_speakers_propagates_non_auth_error(
     with pytest.raises(RuntimeError, match="500"):
         await provider._get_speakers_with_reauth()
     assert quasar.get_speakers.await_count == 1
+
+
+# ── discover_players: Glagol device_list fallback ─────────────────────
+
+
+async def test_discover_falls_back_to_glagol_device_list_when_quasar_fails(
+    fake_session_cls: Any,  # noqa: ARG001
+) -> None:
+    """When Quasar fails but Glagol works, register from the local list.
+
+    Covers the case: cookies expired / x_token mishap, but music_token still
+    valid.  Without the fallback, discovery would return empty and the user
+    would be left with an integration that surfaces no players until the
+    cloud auth recovers.
+    """
+    provider = _make_provider(
+        {
+            CONF_MUSIC_TOKEN: "mt",
+            CONF_X_TOKEN: "xt",
+            CONF_REFRESH_TOKEN: None,
+            CONF_REMEMBER_SESSION: True,
+        }
+    )
+    provider._init_session = mock.AsyncMock(return_value=True)
+    provider._session = mock.MagicMock()
+
+    quasar = mock.MagicMock()
+    # Cloud-side speakers fetch fails (cookie/CSRF auth path)
+    quasar.get_speakers = mock.AsyncMock(side_effect=RuntimeError("returned 401"))
+    quasar.load_device_config = mock.AsyncMock()
+    # But Glagol device_list (music_token auth path) succeeds
+    quasar.get_local_speakers = mock.AsyncMock(
+        return_value=[
+            {
+                "device_id": "dev_a",
+                "name": "Kitchen Mini",
+                "platform": "yandexmini",
+                "host": "192.168.1.10",
+                "port": 1961,
+                "glagol": {"security": {"server_certificate": "..."}},
+            },
+            {
+                "device_id": "dev_b",
+                "name": "Bedroom Mini",
+                "platform": "yandexmini_2",
+                "host": "192.168.1.11",
+                "port": 1961,
+                "glagol": {},
+            },
+        ]
+    )
+    # Patch silent_reauth so the 401 retry inside _get_speakers_with_reauth
+    # also fails (otherwise the retry would synthesise a success path).
+    provider._silent_reauth = mock.AsyncMock(return_value=False)
+    provider._create_player = mock.AsyncMock()
+
+    with mock.patch(f"{_MOD}.YandexQuasar", return_value=quasar):
+        await provider.discover_players()
+
+    # Both devices were registered using the synthetic quasar_info built
+    # from the local list.
+    assert provider._create_player.await_count == 2
+    registered_ids = {c.args[0] for c in provider._create_player.await_args_list}
+    assert registered_ids == {"ys_dev_a", "ys_dev_b"}
+    # Speakers passed in carry the synthesised quasar_info.
+    speakers_arg = [c.args[1] for c in provider._create_player.await_args_list]
+    for s in speakers_arg:
+        qi = s["quasar_info"]
+        assert qi["device_id"] in {"dev_a", "dev_b"}
+        assert qi["platform"] in {"yandexmini", "yandexmini_2"}
+        assert s["host"] in {"192.168.1.10", "192.168.1.11"}
+    assert provider._discovery_done is True
+
+
+async def test_discover_returns_when_both_quasar_and_glagol_fail(
+    fake_session_cls: Any,  # noqa: ARG001
+) -> None:
+    """If both auth paths fail, leave _discovery_done=False so MA retries later."""
+    provider = _make_provider(
+        {
+            CONF_MUSIC_TOKEN: "mt",
+            CONF_X_TOKEN: "xt",
+            CONF_REFRESH_TOKEN: None,
+            CONF_REMEMBER_SESSION: True,
+        }
+    )
+    provider._init_session = mock.AsyncMock(return_value=True)
+    provider._session = mock.MagicMock()
+
+    quasar = mock.MagicMock()
+    quasar.get_speakers = mock.AsyncMock(side_effect=RuntimeError("returned 401"))
+    # Glagol device_list returns empty (caught exception inside get_local_speakers)
+    quasar.get_local_speakers = mock.AsyncMock(return_value=[])
+    provider._silent_reauth = mock.AsyncMock(return_value=False)
+    provider._create_player = mock.AsyncMock()
+
+    with mock.patch(f"{_MOD}.YandexQuasar", return_value=quasar):
+        await provider.discover_players()
+
+    provider._create_player.assert_not_awaited()
+    assert provider._discovery_done is False  # retry-friendly

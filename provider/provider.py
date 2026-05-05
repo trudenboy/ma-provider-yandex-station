@@ -381,23 +381,36 @@ class YandexStationProvider(PlayerProvider):
         if not await self._init_session():
             return
 
-        # Load device list from Quasar cloud API
+        # Load device list from Quasar cloud API.  Two endpoints with
+        # *different* auth — ``get_speakers`` uses cookie/CSRF auth and
+        # carries cloud-side metadata (name, model, room, etc.), while
+        # ``get_local_speakers`` uses Glagol/music_token auth and carries
+        # the IP/port needed for the local WebSocket.  When cookies are
+        # stale or x_token broke (but music_token is still valid), the
+        # cloud call fails — we fall back to registering devices from
+        # the Glagol list only, so users in that state still get working
+        # players (with placeholder names) instead of an empty integration.
         assert self._session is not None  # guaranteed by _init_session()
         self._quasar = YandexQuasar(self._session)
+        speakers: list[dict[str, Any]] = []
+        quasar_ok = False
         try:
             speakers = await self._get_speakers_with_reauth()
             self.logger.info("Found %d speakers via Quasar API", len(speakers))
-
             for speaker in speakers:
                 if "quasar_info" not in speaker:
                     await self._quasar.load_device_config(speaker)
+            quasar_ok = True
         except Exception:
-            # Leave _discovery_done=False so MA can retry on transient API/auth errors
-            self.logger.exception("Failed to load speakers from Quasar — will retry later")
-            return
+            self.logger.warning(
+                "Failed to load speakers from Quasar (cloud auth or API issue) — "
+                "falling back to Glagol device_list",
+                exc_info=True,
+            )
 
-        # Register all cloud-discovered speakers as players
-        # Enrich with local connection info from glagol API (mDNS fallback)
+        # Local connection info from glagol API (host/port + glagol-side info).
+        # Used both as enrichment for Quasar-listed speakers AND as the primary
+        # device source when Quasar fails.
         local_speakers: dict[str, dict[str, Any]] = {}
         try:
             local_list = await self._quasar.get_local_speakers()
@@ -406,6 +419,37 @@ class YandexStationProvider(PlayerProvider):
             self.logger.info("Found %d local speakers via Glagol API", len(local_speakers))
         except Exception:
             self.logger.debug("Failed to get local speakers from Glagol API")
+
+        # If Quasar failed, build a synthetic speakers list from the local
+        # device_list response.  Local entries already carry device_id, name,
+        # platform, host, port — enough to register a working player.
+        if not quasar_ok:
+            if not local_speakers:
+                # Both auth paths failed — leave _discovery_done=False so MA
+                # retries when cookies/x_token/music_token become valid again.
+                self.logger.warning(
+                    "Both Quasar and Glagol device_list discovery failed — "
+                    "will retry later"
+                )
+                return
+            for device_id, ls in local_speakers.items():
+                speakers.append(
+                    {
+                        "name": ls.get("name") or "Yandex Station",
+                        "host": ls["host"],
+                        "port": ls["port"],
+                        "glagol": ls.get("glagol", {}),
+                        "quasar_info": {
+                            "device_id": device_id,
+                            "platform": ls.get("platform", ""),
+                        },
+                    }
+                )
+            self.logger.info(
+                "Registering %d speakers from Glagol device_list only "
+                "(cloud-side metadata unavailable)",
+                len(speakers),
+            )
 
         for speaker in speakers:
             qi = speaker.get("quasar_info", {})

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.15] - 2026-05-05
+
+### Fixed
+- **`discover_players` falls back to Glagol `device_list` when Quasar fails** (upstream MA PR #3605, Copilot): the cloud `get_speakers` call uses cookie/CSRF auth while `get_local_speakers` uses Glagol/music_token auth — these are independent paths. Previously, a failing Quasar call (stale cookies, transient API issue) returned early and never tried the local list, leaving users with an empty integration even when their `music_token` was still valid and the Glagol API would have surfaced their devices. We now build a synthetic speaker list from the Glagol response (with `quasar_info` containing `device_id` + `platform`) so registration still succeeds. If both paths fail, `_discovery_done` stays `False` for MA's retry loop.
+
 ## [1.4.14] - 2026-05-04
 
 ### Changed
