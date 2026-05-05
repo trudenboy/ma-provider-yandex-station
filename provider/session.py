@@ -189,4 +189,3 @@ class YandexSession:
 
         msg = f"{url} returned HTTP {r.status} ({r.reason or 'no reason'})"
         raise RuntimeError(msg)
-
