@@ -667,9 +667,7 @@ async def test_alice_idle_remutes_station() -> None:
     player._last_intercepted_track_id = None
     state, player_state, _ = _state(track_id="X", alice_state="IDLE", playing=False)
 
-    await player._handle_intercept_tick(
-        state, player_state, False, prev_alice_state="SPEAKING"
-    )
+    await player._handle_intercept_tick(state, player_state, False, prev_alice_state="SPEAKING")
 
     sent = [c.args[0] for c in player.glagol.send.await_args_list]
     assert {"command": "setVolume", "volume": 0.0} in sent

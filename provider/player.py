@@ -621,10 +621,7 @@ class YandexStationPlayer(Player):
             # BEFORE awaiting cmd_pause so two concurrent ticks racing on
             # the lock both see it after the first wins.
             if self._intercept_active and alice_active:
-                if (
-                    self._station_muted_by_intercept
-                    and self._saved_station_volume is not None
-                ):
+                if self._station_muted_by_intercept and self._saved_station_volume is not None:
                     try:
                         await self.glagol.send(
                             {
@@ -638,9 +635,7 @@ class YandexStationPlayer(Player):
                         # spuriously bounce that volume to the target.
                         self._last_mirrored_volume = self._saved_station_volume
                     except Exception as exc:
-                        _LOGGER.debug(
-                            "[%s] alice-unmute failed: %s", self.player_id, exc
-                        )
+                        _LOGGER.debug("[%s] alice-unmute failed: %s", self.player_id, exc)
                 if not self._alice_active_pause_sent:
                     self._alice_active_pause_sent = True
                     await self._pause_target(clear_session=False, clear_debounce=True)
@@ -659,9 +654,7 @@ class YandexStationPlayer(Player):
                         await self.glagol.send({"command": "setVolume", "volume": 0.0})
                         self._station_muted_by_intercept = True
                     except Exception as exc:
-                        _LOGGER.debug(
-                            "[%s] alice-remute failed: %s", self.player_id, exc
-                        )
+                        _LOGGER.debug("[%s] alice-remute failed: %s", self.player_id, exc)
                 self._alice_active_pause_sent = False
 
             # Physical pause / "Алиса, пауза" / end-of-queue on a Station
@@ -1095,9 +1088,7 @@ class YandexStationPlayer(Player):
 
         if self._intercept_enabled and self._intercept_target_player_id:
             self.mass.create_task(
-                self._handle_intercept_tick(
-                    state, player_state, playing, prev_alice_state_snapshot
-                )
+                self._handle_intercept_tick(state, player_state, playing, prev_alice_state_snapshot)
             )
 
         self.update_state()
