@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.4.20] - 2026-05-05
+
+### Fixed
+- **Removed dead `cookie` persistence surface from `YandexSession`** (upstream MA PR #3605, Copilot): the constructor accepted a base64-encoded `cookie` argument and the class exposed a `cookie` property to serialise the cookie jar, but the provider never persisted to or restored from any config key — the surface was unused and could mislead future maintainers into thinking cookie state survived restarts. Removed the constructor argument, the property, the `CONF_COOKIE` constant, and now-unused imports (`base64`, `json`, `yarl`). Cookie-based authentication still works (it goes through the `CONF_COOKIES` action input flow which is unrelated to the session-side persistence).
+- **Removed dead `load_device_config` enrichment loop in `discover_players`** (upstream MA PR #3605, Copilot): `YandexQuasar.get_speakers()` already filters the bulk device list to only entries that carry `quasar_info`, so the post-fetch `if "quasar_info" not in speaker: await load_device_config(speaker)` branch was unreachable. `load_device_config` itself remains available as a public method for callers that bypass the filter.
+- **`tests/test_quasar.py` docstring no longer pins a specific version** (upstream MA PR #3605, Copilot): the module docstring referenced "v1.4.18" while the upstream PR description references a different sync version. Reworded to describe the contract without a version anchor so the docstring stays accurate as upstream tracks rolling-version syncs from the source repo.
+
 ## [1.4.19] - 2026-05-05
 
 ### Fixed

@@ -397,9 +397,13 @@ class YandexStationProvider(PlayerProvider):
         try:
             speakers = await self._get_speakers_with_reauth()
             self.logger.info("Found %d speakers via Quasar API", len(speakers))
-            for speaker in speakers:
-                if "quasar_info" not in speaker:
-                    await self._quasar.load_device_config(speaker)
+            # ``YandexQuasar.get_speakers()`` filters the bulk device list
+            # to only entries that already carry ``quasar_info``, so we
+            # don't need a per-device ``load_device_config`` enrichment
+            # loop here — every returned speaker is guaranteed to have
+            # the field set.  ``load_device_config`` remains available
+            # for callers that bypass the filter and want to enrich a
+            # raw device entry on demand.
             quasar_ok = True
         except Exception:
             self.logger.warning(

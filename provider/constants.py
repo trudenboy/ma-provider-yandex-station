@@ -9,7 +9,6 @@ CONF_X_TOKEN = "x_token"
 CONF_MUSIC_TOKEN = "music_token"
 CONF_REFRESH_TOKEN = "refresh_token"
 CONF_REMEMBER_SESSION = "remember_session"
-CONF_COOKIE = "cookie"
 CONF_COOKIES = "cookies"
 
 # Config action keys

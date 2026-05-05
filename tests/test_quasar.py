@@ -1,7 +1,7 @@
 """Tests for the YandexQuasar HTTP client.
 
-Pinned-down contract for the response-release behaviour added in v1.4.18:
-each ``self.session.get(...)`` is wrapped in ``async with`` so the
+Pinned-down contract for the response-release behaviour: each
+``self.session.get(...)`` is wrapped in ``async with`` so the
 connector slot is returned to aiohttp's pool when the body has been
 read.  A mock response with ``__aenter__``/``__aexit__`` validates that
 the context-manager protocol is exercised on every endpoint.

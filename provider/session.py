@@ -9,14 +9,11 @@ cookie refresh and CSRF token management.
 from __future__ import annotations
 
 import asyncio
-import base64
-import json
 import logging
 import time
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-import yarl
 from ya_passport_auth.exceptions import YaPassportError
 
 if TYPE_CHECKING:
@@ -44,7 +41,6 @@ class YandexSession:
         x_token: SecretStr | None = None,
         music_token: SecretStr | None = None,
         refresh_token: SecretStr | None = None,
-        cookie: str | None = None,
     ) -> None:
         """Initialize with aiohttp session, PassportClient, and optional credentials."""
         self._session = session
@@ -54,19 +50,6 @@ class YandexSession:
         self.refresh_token = refresh_token
         self.csrf_token: str | None = None
         self.last_ts: float = 0
-
-        # Restore cookies from JSON-serialized list
-        if cookie:
-            try:
-                raw = base64.b64decode(cookie).decode()
-                cookie_list: list[dict[str, str]] = json.loads(raw)
-                for c in cookie_list:
-                    self._session.cookie_jar.update_cookies(
-                        {c["name"]: c["value"]},
-                        response_url=yarl.URL(c.get("domain") or "https://yandex.ru"),
-                    )
-            except Exception:
-                _LOGGER.warning("Failed to restore cookies from saved state")
 
     # ── Token management ─────────────────────────────────────────
 
@@ -207,21 +190,3 @@ class YandexSession:
         msg = f"{url} returned HTTP {r.status} ({r.reason or 'no reason'})"
         raise RuntimeError(msg)
 
-    # ── Serialization ────────────────────────────────────────────
-
-    @property
-    def cookie(self) -> str:
-        """Serialize cookies to base64 JSON for persistent storage."""
-        cookies: list[dict[str, str]] = []
-        for cookie in self._session.cookie_jar:
-            cookies.append(
-                {
-                    "name": cookie.key,
-                    "value": cookie.value,
-                    "domain": (
-                        f"https://{cookie['domain'].lstrip('.')}" if cookie.get("domain") else ""
-                    ),
-                }
-            )
-        raw = json.dumps(cookies).encode()
-        return base64.b64encode(raw).decode()
