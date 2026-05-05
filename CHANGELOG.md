@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.19] - 2026-05-05
+
+### Fixed
+- **`tests/test_quasar.py` annotates `device` as `dict[str, Any]`** (upstream MA PR #3605 CI): mypy strict mode flagged `[comparison-overlap]` on `device["quasar_info"] == {...}` because `device = {"id": "..."}` was inferred as `dict[str, str]`. Widened the annotation so the equality check is type-valid.
+
 ## [1.4.18] - 2026-05-05
 
 ### Fixed
