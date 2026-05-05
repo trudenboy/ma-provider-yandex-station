@@ -161,6 +161,15 @@ class YandexStationPlayer(Player):
         # interaction.  Prevents repeating the pause on every WS tick while
         # Alice is still LISTENING/SPEAKING.  Cleared when alice goes IDLE.
         self._alice_active_pause_sent: bool = False
+        # Saved Station volume captured ONCE at intercept-session start;
+        # restored at session end (target unavailable, handoff failure,
+        # provider unload, etc.).  Also used to unmute Station for Alice
+        # TTS during a session.
+        self._saved_station_volume: int | None = None
+        # True iff we currently hold the Station at vol=0 for intercept.
+        # Gates volume mirror (skip vol=0 self-mute) and the alice-state
+        # mute lifecycle (only restore when we actually muted).
+        self._station_muted_by_intercept: bool = False
 
         # Static attributes
         self._attr_type = PlayerType.PLAYER
@@ -492,6 +501,12 @@ class YandexStationPlayer(Player):
         """Clean up on player unload."""
         if self._voice_resume_task:
             self._voice_resume_task.cancel()
+        # End any active intercept session so the Station's volume is
+        # restored before we tear down — otherwise users unloading the
+        # integration mid-session would be left with a Station stuck at
+        # vol=0 with no way for our code to fix it.
+        if self._intercept_active:
+            await self._end_intercept_session(clear_debounce=True)
         await super().on_unload()
         await self.glagol.stop()
 
@@ -571,6 +586,7 @@ class YandexStationPlayer(Player):
         state: dict[str, Any],
         player_state: dict[str, Any],
         playing: bool,
+        prev_alice_state: str = "",
     ) -> None:
         """Dispatch intercept actions for a single Glagol state update.
 
@@ -579,13 +595,14 @@ class YandexStationPlayer(Player):
         can't apply mirror operations out of order — e.g. an older volume
         write completing after a newer one and leaving the target stale.
 
-        The session is intentionally not torn down on lingering
-        ``playing=False`` updates: after an intercept the Station stays
-        stopped, so every subsequent state update arrives with
-        ``playing=False`` and we can't distinguish "user stopped" from
-        "Station is silent because we silenced it".  The session ends
-        instead when a new ``playerState.id`` arrives and is re-handed off
-        (or fails cleanly), or when the provider unloads.
+        ``prev_alice_state`` is the value of ``self._prev_alice_state``
+        captured by ``_on_glagol_update`` *before* it overwrites the field
+        with the current tick's ``aliceState``.  Reading the field here
+        directly would return the post-write value (i.e. the *current*
+        state) because the dispatcher schedules this coroutine via
+        ``mass.create_task`` and the assignment runs synchronously before
+        the task is awaited — making the IDLE-edge re-mute branch dead
+        code in production.  The caller threads the snapshot in.
         """
         if self._external_playing:
             return  # our own bypass stream — never intercept
@@ -596,21 +613,76 @@ class YandexStationPlayer(Player):
             alice_state = state.get("aliceState", "")
             alice_active = alice_state in ("LISTENING", "SPEAKING")
 
-            # Alice activates → pause target once so she's heard.  Also
-            # clear the same-track debounce so a quick resume of the same
-            # song after Alice's question triggers a fresh intercept.  The
-            # flag is set BEFORE awaiting cmd_pause so two concurrent
-            # ticks racing on the lock both see it after the first wins.
+            # Alice activates → unmute Station so her TTS is audible (the
+            # Station mixes Alice voice into the music output, so a vol=0
+            # Station can drown out / quiet her reply on some firmwares),
+            # pause the target once so she's heard cleanly, and skip a
+            # new handoff until she goes IDLE.  The pause-once flag is set
+            # BEFORE awaiting cmd_pause so two concurrent ticks racing on
+            # the lock both see it after the first wins.
             if self._intercept_active and alice_active:
+                if (
+                    self._station_muted_by_intercept
+                    and self._saved_station_volume is not None
+                ):
+                    try:
+                        await self.glagol.send(
+                            {
+                                "command": "setVolume",
+                                "volume": self._saved_station_volume / 100,
+                            }
+                        )
+                        self._station_muted_by_intercept = False
+                        # Pre-set mirror baseline so the next state-update
+                        # tick (with the new non-zero Station volume) doesn't
+                        # spuriously bounce that volume to the target.
+                        self._last_mirrored_volume = self._saved_station_volume
+                    except Exception as exc:
+                        _LOGGER.debug(
+                            "[%s] alice-unmute failed: %s", self.player_id, exc
+                        )
                 if not self._alice_active_pause_sent:
                     self._alice_active_pause_sent = True
                     await self._pause_target(clear_session=False, clear_debounce=True)
-                # Don't start a new handoff while Alice is talking — the
-                # next track starts only after she goes IDLE.
                 return
 
             if not alice_active:
+                # Edge LISTENING/SPEAKING → IDLE: re-mute Station now that
+                # Alice is done.  Without this, the Station would resume
+                # audible playback and double up with the target.
+                if (
+                    self._intercept_active
+                    and prev_alice_state in ("LISTENING", "SPEAKING")
+                    and not self._station_muted_by_intercept
+                ):
+                    try:
+                        await self.glagol.send({"command": "setVolume", "volume": 0.0})
+                        self._station_muted_by_intercept = True
+                    except Exception as exc:
+                        _LOGGER.debug(
+                            "[%s] alice-remute failed: %s", self.player_id, exc
+                        )
                 self._alice_active_pause_sent = False
+
+            # Physical pause / "Алиса, пауза" / end-of-queue on a Station
+            # with an active intercept session: mirror the pause to the
+            # target AND end the session (restore Station volume).  We
+            # can't reliably distinguish "transient user pause" from
+            # "queue ended for good" from a single playing=False event,
+            # so always end the session — leaving it open would strand
+            # the Station at vol=0 indefinitely after a queue ends.
+            # Quick-resume cost: ~one WS round-trip of native audio
+            # before the new session's mute(0) lands; matches v1.4.7
+            # baseline behaviour.  Gated on having an established
+            # session (debounce non-None) so the very-first WS update
+            # with playing=False doesn't fire a spurious cmd_pause.
+            if (
+                self._intercept_active
+                and not playing
+                and self._last_intercepted_track_id is not None
+            ):
+                await self._pause_target(clear_session=True, clear_debounce=True)
+                return
 
             if playing and track_id:
                 await self._maybe_intercept_locked(track_id)
@@ -698,18 +770,25 @@ class YandexStationPlayer(Player):
                 await self._pause_target(clear_session=True, clear_debounce=False)
             return
 
-        # Silence the Station as fast as possible.  setVolume(0) reaches the
-        # Station before the audio buffer fully flushes, masking the brief
-        # native-playback blip the user would otherwise hear between Alice's
-        # command and our stop arriving over the WebSocket.  The follow-up
-        # stop fully tears down the native player.  Volume is restored in
-        # the background after the handoff so the next non-intercepted
-        # native playback isn't silent.
-        saved_station_vol = getattr(self, "_attr_volume_level", None)
+        # Silence the Station via setVolume(0) only — no `stop` command.
+        # Crucial difference from one-shot intercept: a stopped Station
+        # halts its own queue and stops emitting playerState updates, so
+        # we'd never see the next track Alice queued.  Keeping it muted
+        # but playing means Glagol keeps ticking with each new track ID,
+        # which we forward to the target → continuous handoff for the
+        # whole Alice session.  Saved volume is captured ONCE at session
+        # start and restored only when the session actually ends.
+        is_session_start = not self._intercept_active
+        if is_session_start:
+            self._saved_station_volume = getattr(self, "_attr_volume_level", None)
         try:
-            await self.glagol.send({"command": "setVolume", "volume": 0.0})
-            stop_result = await self.glagol.send({"command": "stop"})
-            _raise_if_failed(stop_result, "intercept-stop")
+            # Mute only when not already muted: skips redundant WS traffic
+            # for back-to-back track handoffs in the same session, but does
+            # re-mute after an alice-active unmute brought the Station
+            # back to its saved volume.
+            if not self._station_muted_by_intercept:
+                await self.glagol.send({"command": "setVolume", "volume": 0.0})
+                self._station_muted_by_intercept = True
             await self.mass.player_queues.play_media(
                 queue_id=target_id,
                 media=track_uri,
@@ -722,19 +801,10 @@ class YandexStationPlayer(Player):
                 track_id,
                 exc,
             )
-            # Station is already silenced; clear active so mirror code
-            # doesn't keep forwarding to a target that may not be playing.
-            # Restore volume so the Station isn't stuck muted for the user.
-            if saved_station_vol is not None:
-                self.mass.create_task(self._restore_station_volume(saved_station_vol))
-            self._intercept_active = False
+            # End the session cleanly: restore Station volume so the user
+            # isn't stuck with a muted Station, clear all session flags.
+            await self._end_intercept_session(clear_debounce=False)
             return
-
-        # Restore Station volume in the background — Station is stopped so
-        # this is silent, but it leaves the volume level sensible for the
-        # next native playback (or for the user opening the Yandex app).
-        if saved_station_vol is not None:
-            self.mass.create_task(self._restore_station_volume(saved_station_vol))
 
         self._intercept_active = True
         self._last_mirrored_volume = None
@@ -751,6 +821,26 @@ class YandexStationPlayer(Player):
         except Exception as exc:
             _LOGGER.debug("[%s] failed to restore Station volume: %s", self.player_id, exc)
 
+    async def _end_intercept_session(self, *, clear_debounce: bool) -> None:
+        """End an intercept session: restore Station volume + clear flags.
+
+        Single funnel for session-end side effects.  Idempotent — safe to
+        call when no session is active (volume restore is gated by both
+        ``_saved_station_volume`` and ``_station_muted_by_intercept``).
+        Awaited (not scheduled as a task) so callers can rely on the
+        Station's volume being back at the saved baseline before they
+        return — important for the next mute-on-handoff to capture a
+        fresh baseline if the user manually changed volume mid-session.
+        """
+        if self._saved_station_volume is not None and self._station_muted_by_intercept:
+            await self._restore_station_volume(self._saved_station_volume)
+        self._saved_station_volume = None
+        self._station_muted_by_intercept = False
+        self._intercept_active = False
+        if clear_debounce:
+            self._last_intercepted_track_id = None
+            self._last_intercept_time = 0.0
+
     async def _maybe_mirror_volume(self, vol: float | None) -> None:
         """Mirror Station volume changes to the intercept target player.
 
@@ -758,11 +848,34 @@ class YandexStationPlayer(Player):
         we treat that as a no-op (matches the dropdown's documented
         relaxed-feature contract: only PLAY_MEDIA is required, the rest
         gracefully degrade).
+
+        During an active session the Station is held at vol=0 by us, so
+        we skip mirroring that — otherwise the self-induced mute would
+        silence the target.  A user-initiated unmute (vol > 0 via the
+        Yandex app or "Алиса, громче") clears the self-mute flag and
+        updates the saved baseline so we don't restore a stale volume
+        when the session ends.
         """
         target_id = self._intercept_target_player_id
         if vol is None or not target_id:
             return
         target_vol = round(vol * 100)
+        if self._intercept_active and target_vol == 0:
+            return
+        # Differentiate "stale pre-mute volume reading from the WS update
+        # we're processing" (target_vol == saved_station_volume) from
+        # "user manually moved Station volume mid-session"
+        # (target_vol != saved).  The first WS update after our mute
+        # often still carries the pre-mute volume; only treat actual
+        # changes as a user action that should clear the self-mute flag.
+        if (
+            self._intercept_active
+            and target_vol > 0
+            and self._station_muted_by_intercept
+            and target_vol != self._saved_station_volume
+        ):
+            self._station_muted_by_intercept = False
+            self._saved_station_volume = target_vol
         if target_vol != self._last_mirrored_volume:
             try:
                 await self.mass.players.cmd_volume_set(target_id, target_vol)
@@ -832,8 +945,11 @@ class YandexStationPlayer(Player):
             )
         finally:
             if clear_session:
-                self._intercept_active = False
-            if clear_debounce:
+                # Funnels session-end side effects (volume restore + flag
+                # reset) through the single helper so we don't leave the
+                # Station stuck at vol=0 after a session-ending pause.
+                await self._end_intercept_session(clear_debounce=clear_debounce)
+            elif clear_debounce:
                 self._last_intercepted_track_id = None
                 self._last_intercept_time = 0.0
 
@@ -928,6 +1044,11 @@ class YandexStationPlayer(Player):
             self._attr_volume_level = round(state["volume"] * 100)
 
         alice_state = state.get("aliceState", "")
+        # Snapshot prev BEFORE the assignment below so _handle_intercept_tick
+        # (scheduled via mass.create_task — runs after this function returns)
+        # can detect the LISTENING/SPEAKING → IDLE edge.  Reading the field
+        # inside the task would always observe the post-assignment value.
+        prev_alice_state_snapshot = self._prev_alice_state
 
         self._update_playback_state(playing, alice_state)
 
@@ -973,6 +1094,10 @@ class YandexStationPlayer(Player):
                 self._attr_current_media = None
 
         if self._intercept_enabled and self._intercept_target_player_id:
-            self.mass.create_task(self._handle_intercept_tick(state, player_state, playing))
+            self.mass.create_task(
+                self._handle_intercept_tick(
+                    state, player_state, playing, prev_alice_state_snapshot
+                )
+            )
 
         self.update_state()
