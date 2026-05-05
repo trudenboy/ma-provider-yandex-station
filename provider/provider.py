@@ -428,8 +428,7 @@ class YandexStationProvider(PlayerProvider):
                 # Both auth paths failed — leave _discovery_done=False so MA
                 # retries when cookies/x_token/music_token become valid again.
                 self.logger.warning(
-                    "Both Quasar and Glagol device_list discovery failed — "
-                    "will retry later"
+                    "Both Quasar and Glagol device_list discovery failed — will retry later"
                 )
                 return
             for device_id, ls in local_speakers.items():
