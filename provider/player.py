@@ -247,7 +247,9 @@ class YandexStationPlayer(Player):
                 description=(
                     "When the Station starts native Yandex Music playback "
                     "(typically triggered by an Alice voice command, but "
-                    "also a touch on the Station UI), stop the Station and "
+                    "also a touch on the Station UI), silence the Station "
+                    "(setVolume 0; the Station keeps playing its own queue "
+                    "in the background so we see every next track) and "
                     "play the same track on the chosen target player. "
                     "Requires the provider-level intercept feature to be "
                     "enabled and a configured 'yandex_music' music provider."
@@ -622,13 +624,21 @@ class YandexStationPlayer(Player):
             # the lock both see it after the first wins.
             if self._intercept_active and alice_active:
                 if self._station_muted_by_intercept and self._saved_station_volume is not None:
+                    # YandexGlagol.send() reports failures via {"error": ...}
+                    # rather than raising, so a naive try/except wouldn't
+                    # catch a timeout or transport error and we'd flip the
+                    # mute flag while the Station is still actually muted
+                    # (and Alice's reply would be inaudible).  Validate the
+                    # result via _raise_if_failed and only mutate state if
+                    # the device confirmed success.
                     try:
-                        await self.glagol.send(
+                        result = await self.glagol.send(
                             {
                                 "command": "setVolume",
                                 "volume": self._saved_station_volume / 100,
                             }
                         )
+                        _raise_if_failed(result, "alice-unmute")
                         self._station_muted_by_intercept = False
                         # Pre-set mirror baseline so the next state-update
                         # tick (with the new non-zero Station volume) doesn't
@@ -644,14 +654,19 @@ class YandexStationPlayer(Player):
             if not alice_active:
                 # Edge LISTENING/SPEAKING → IDLE: re-mute Station now that
                 # Alice is done.  Without this, the Station would resume
-                # audible playback and double up with the target.
+                # audible playback and double up with the target.  Same
+                # validation reason as the alice-unmute branch above:
+                # don't flip the flag unless the device confirms success.
                 if (
                     self._intercept_active
                     and prev_alice_state in ("LISTENING", "SPEAKING")
                     and not self._station_muted_by_intercept
                 ):
                     try:
-                        await self.glagol.send({"command": "setVolume", "volume": 0.0})
+                        result = await self.glagol.send(
+                            {"command": "setVolume", "volume": 0.0}
+                        )
+                        _raise_if_failed(result, "alice-remute")
                         self._station_muted_by_intercept = True
                     except Exception as exc:
                         _LOGGER.debug("[%s] alice-remute failed: %s", self.player_id, exc)
@@ -792,7 +807,16 @@ class YandexStationPlayer(Player):
             # re-mute after an alice-active unmute brought the Station
             # back to its saved volume.
             if not self._station_muted_by_intercept:
-                await self.glagol.send({"command": "setVolume", "volume": 0.0})
+                # YandexGlagol.send() returns {"error": ...} on transport
+                # failures (timeout / disconnected / etc.) instead of
+                # raising.  Without _raise_if_failed we'd start the target
+                # while the Station was still audible (or never confirmed
+                # muted) and flip _station_muted_by_intercept anyway —
+                # leaving session state inconsistent with the device.
+                mute_result = await self.glagol.send(
+                    {"command": "setVolume", "volume": 0.0}
+                )
+                _raise_if_failed(mute_result, "intercept-mute")
                 self._station_muted_by_intercept = True
             await self.mass.player_queues.play_media(
                 queue_id=target_id,
@@ -820,11 +844,30 @@ class YandexStationPlayer(Player):
         self._last_progress_wall = time.time()
 
     async def _restore_station_volume(self, vol_pct: int) -> None:
-        """Restore Station volume after we muted it for intercept handoff."""
+        """Restore Station volume after we muted it for intercept handoff.
+
+        YandexGlagol.send() reports failures via ``{"error": ...}`` rather
+        than raising, so a bare ``try/except`` would silently swallow
+        timeouts/disconnects and leave the Station muted with no signal
+        to the operator.  We validate via ``_raise_if_failed`` and log
+        the failure at WARNING (not DEBUG) so it's visible in normal
+        log levels — a stuck-muted Station is user-visible.  The flag
+        reset upstream in ``_end_intercept_session`` still fires so the
+        session doesn't dangle indefinitely (Station can be unmuted via
+        Yandex app or "Алиса, погромче").
+        """
         try:
-            await self.glagol.send({"command": "setVolume", "volume": vol_pct / 100})
+            result = await self.glagol.send(
+                {"command": "setVolume", "volume": vol_pct / 100}
+            )
+            _raise_if_failed(result, "restore_volume")
         except Exception as exc:
-            _LOGGER.debug("[%s] failed to restore Station volume: %s", self.player_id, exc)
+            _LOGGER.warning(
+                "[%s] failed to restore Station volume to %s%%: %s",
+                self.player_id,
+                vol_pct,
+                exc,
+            )
 
     async def _end_intercept_session(self, *, clear_debounce: bool) -> None:
         """End an intercept session: restore Station volume + clear flags.

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.4.18] - 2026-05-05
+
+### Fixed
+- **Quasar HTTP responses are now released back to the connector pool** (upstream MA PR #3605, Copilot, ×3): `get_devices`, `load_device_config` and `get_local_speakers` previously did `r = await self.session.get(...); resp = await r.json()` without releasing `r`. Wrapped each in `async with await self.session.get(...) as r:` so the connector slot returns to aiohttp's pool when the body is fully read. Without this, repeated discovery retries (or other long-lived providers calling here) could exhaust the connection pool over time. New `tests/test_quasar.py` validates the context-manager protocol is exercised on every endpoint.
+- **`glagol.send()` results are now validated via `_raise_if_failed`** (upstream MA PR #3605, Copilot, ×4): `YandexGlagol.send()` reports transport failures via `{"error": ...}` instead of raising — so the previous bare `try/except` blocks around the alice-active unmute, alice-idle re-mute, intercept-handoff mute, and `_restore_station_volume` could silently mark `_station_muted_by_intercept = True` while the device was still actually muted (or vice-versa), leaving session state inconsistent with the device. Each call now captures the result, runs it through `_raise_if_failed`, and only mutates state on confirmed success. `_restore_station_volume` failures now log at WARNING (not DEBUG) since a stuck-muted Station is user-visible. Four new tests pin the contract.
+- **`CONF_INTERCEPT_ENABLED` description matches the actual behaviour** (upstream MA PR #3605, Copilot): the description still said "stop the Station" from before the v1.4.14 continuous-playback rework. Updated to "silence the Station (setVolume 0; the Station keeps playing its own queue in the background…)" so users aren't misled at config time.
+
 ## [1.4.17] - 2026-05-05
 
 ### Fixed

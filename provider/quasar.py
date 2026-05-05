@@ -29,8 +29,12 @@ class YandexQuasar:
     async def get_devices(self) -> list[dict[str, Any]]:
         """Fetch all devices from Quasar IoT API."""
         _LOGGER.debug("Fetching device list from Quasar")
-        r = await self.session.get(QUASAR_DEVICES_URL, timeout=15)
-        resp = await r.json()
+        # ``async with`` releases the connector slot back to aiohttp's
+        # pool when the body is fully read.  Without it, repeated
+        # discovery retries (or other long-lived providers calling here)
+        # could exhaust the connection pool over time.
+        async with await self.session.get(QUASAR_DEVICES_URL, timeout=15) as r:
+            resp = await r.json()
         if resp.get("status") != "ok":
             msg = f"Failed to get devices: {resp}"
             raise RuntimeError(msg)
@@ -54,10 +58,10 @@ class YandexQuasar:
         device_cloud_id = device.get("id")
         if not device_cloud_id:
             return
-        r = await self.session.get(
+        async with await self.session.get(
             f"https://iot.quasar.yandex.ru/m/user/devices/{device_cloud_id}/configuration"
-        )
-        resp = await r.json()
+        ) as r:
+            resp = await r.json()
         if resp.get("status") == "ok" and "quasar_info" in resp:
             device["quasar_info"] = resp["quasar_info"]
 
@@ -68,8 +72,10 @@ class YandexQuasar:
         Only returns devices that have networkInfo with IP addresses.
         """
         try:
-            r = await self.session.get("https://quasar.yandex.net/glagol/device_list")
-            resp = await r.json()
+            async with await self.session.get(
+                "https://quasar.yandex.net/glagol/device_list"
+            ) as r:
+                resp = await r.json()
             result: list[dict[str, Any]] = []
             for d in resp.get("devices", []):
                 ni = d.get("networkInfo") or {}

@@ -19,12 +19,16 @@ The feature is gated by two switches: a provider-level master toggle
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
 from music_assistant_models.enums import PlaybackState, PlayerFeature
 from music_assistant_models.errors import UnsupportedFeaturedException
+
+if TYPE_CHECKING:
+    import pytest
 
 from music_assistant.providers.yandex_station.constants import (
     CONF_INTERCEPT_ENABLED,
@@ -761,6 +765,104 @@ async def test_pause_target_clear_session_restores_station_volume() -> None:
     assert {"command": "setVolume", "volume": 0.4} in sent
     assert player._intercept_active is False
     assert player._saved_station_volume is None
+
+
+# ── glagol.send() result validation (PR #3605 review) ────────────────
+
+
+async def test_handoff_aborts_on_mute_send_error() -> None:
+    """Mute-send transport error must abort the handoff, not silently proceed.
+
+    glagol.send returns {"error": ...} for transport failures rather than
+    raising — without explicit validation we'd flip _station_muted_by_intercept
+    to True and start the target while the Station is still audible.
+    _raise_if_failed must convert the error into PlayerCommandFailed so the
+    surrounding handoff try/except runs the session-end cleanup path.
+    """
+    player = _make_intercept_player()
+    # Mute send fails with the standard transport-error envelope
+    player.glagol.send = AsyncMock(return_value={"error": "timeout"})
+    state, player_state, _ = _state(track_id="42")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    # Mute call attempted; play_media never reached because mute failed
+    player.glagol.send.assert_awaited_once_with({"command": "setVolume", "volume": 0.0})
+    player.mass.player_queues.play_media.assert_not_awaited()
+    # Session not active, mute flag not set, debounce still recorded
+    assert player._intercept_active is False
+    assert player._station_muted_by_intercept is False
+
+
+async def test_alice_unmute_keeps_flag_when_send_errors() -> None:
+    """Alice activates and our setVolume(saved/100) returns {"error": ...}.
+
+    The flag must NOT flip — an inconsistent flag would prevent the
+    edge-IDLE re-mute branch from firing later (because it gates on
+    `not _station_muted_by_intercept`).
+    """
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._saved_station_volume = 70
+    player._station_muted_by_intercept = True
+    player._last_intercepted_track_id = None  # avoid playing=False session-end branch
+    player.glagol.send = AsyncMock(return_value={"error": "not_connected"})
+    state, player_state, _ = _state(track_id="X", alice_state="LISTENING")
+
+    await player._handle_intercept_tick(state, player_state, True)
+
+    player.glagol.send.assert_awaited_once_with(
+        {"command": "setVolume", "volume": 0.7}
+    )
+    # Flag preserved — Station is still (presumably) muted; next attempt
+    # to unmute can happen on the next alice tick.
+    assert player._station_muted_by_intercept is True
+
+
+async def test_alice_remute_keeps_flag_when_send_errors() -> None:
+    """Edge LISTENING/SPEAKING → IDLE: re-mute send fails → flag stays False."""
+    player = _make_intercept_player()
+    player._intercept_active = True
+    player._saved_station_volume = 70
+    player._station_muted_by_intercept = False
+    player._last_intercepted_track_id = None  # avoid playing=False session-end branch
+    player.glagol.send = AsyncMock(return_value={"error": "timeout"})
+    state, player_state, _ = _state(track_id="X", alice_state="IDLE", playing=False)
+
+    await player._handle_intercept_tick(
+        state, player_state, False, prev_alice_state="SPEAKING"
+    )
+
+    player.glagol.send.assert_awaited_once_with(
+        {"command": "setVolume", "volume": 0.0}
+    )
+    # Re-mute didn't actually land → flag stays False so the next IDLE-edge
+    # tick can attempt it again (the prev_alice_state parameter would no
+    # longer be LISTENING/SPEAKING, but a future alice activation will reset
+    # the cycle).
+    assert player._station_muted_by_intercept is False
+
+
+async def test_restore_station_volume_logs_warning_on_send_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Volume-restore transport error must log at WARNING for operator visibility.
+
+    A stuck-muted Station is user-visible, so we surface the failure loudly
+    (not DEBUG).  Validates that _restore_station_volume catches the error
+    envelope from glagol.send and emits a WARNING-level log line.
+    """
+    player = _make_intercept_player()
+    player.glagol.send = AsyncMock(return_value={"error": "not_connected"})
+
+    with caplog.at_level(logging.WARNING):
+        await player._restore_station_volume(50)
+
+    # The send was attempted; the transport error surfaced in a WARNING.
+    player.glagol.send.assert_awaited_once_with(
+        {"command": "setVolume", "volume": 0.5}
+    )
+    assert any("failed to restore Station volume" in r.message for r in caplog.records)
 
 
 # ── Real entrypoint ──────────────────────────────────────────────────
