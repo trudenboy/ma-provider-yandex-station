@@ -457,6 +457,14 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.16] - 2026-05-05
+
+- chore: bump VERSION to 1.4.16 to push setattr test fix to upstream (`22bf95b`)
+- fix: setattr() for method-assign in test_provider_cascade fallback tests (`a01f085`)
+- style: auto-fix ruff (`b282fcd`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
