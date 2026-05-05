@@ -61,7 +61,7 @@ async def test_load_device_config_releases_response() -> None:
     session.get = AsyncMock(return_value=resp)
 
     quasar = YandexQuasar(session)
-    device = {"id": "cloud_id_1"}
+    device: dict[str, Any] = {"id": "cloud_id_1"}
     await quasar.load_device_config(device)
 
     assert device["quasar_info"] == {"device_id": "abc", "platform": "yandexmini"}
