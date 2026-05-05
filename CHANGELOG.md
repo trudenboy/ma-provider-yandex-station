@@ -470,6 +470,13 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.17] - 2026-05-05
+
+- fix: same-track no-op during active intercept session (`6c95228`)
+- chore: update changelog for v1.4.16 [skip ci] (`c6813f1`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
