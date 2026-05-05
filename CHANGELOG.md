@@ -17,6 +17,8 @@
 ### Fixed
 - **Volume restore deferred to session end** instead of after every handoff. Previously every handoff scheduled a background `setVolume(saved)` task that raced the next handoff's mute, leaving timing-dependent audio leaks. The restore now fires once, in `_end_intercept_session`.
 - **Re-mute conditional on `_station_muted_by_intercept`** so back-to-back track handoffs don't spam the WS with redundant `setVolume(0)` commands. Re-mute still fires after an alice-active unmute so the next handoff re-silences the Station.
+- **`_handle_intercept_tick` now receives `prev_alice_state` via parameter** (PR #57, Copilot): `_on_glagol_update` overwrites `self._prev_alice_state` with the current `aliceState` *before* scheduling the tick via `mass.create_task` — so the tick used to read the post-assignment value, making the `LISTENING/SPEAKING → IDLE` edge re-mute branch dead code in production (passing only in tests that manually preset the field). The dispatcher now snapshots the field before assignment and threads it in.
+- **`playing=False` during a session ends the session** (PR #57, Copilot): previously kept `_intercept_active=True` and only cleared debounce, which left the Station stuck at `vol=0` indefinitely on end-of-queue or any `playing=False` not followed by a same-track resume. We can't reliably distinguish "transient pause" from "queue ended" in a single event, so always end the session — accepting ~one WS round-trip of native audio leak on quick resume (matches v1.4.7 baseline).
 
 ## [1.4.13] - 2026-05-04
 

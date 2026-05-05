@@ -586,6 +586,7 @@ class YandexStationPlayer(Player):
         state: dict[str, Any],
         player_state: dict[str, Any],
         playing: bool,
+        prev_alice_state: str = "",
     ) -> None:
         """Dispatch intercept actions for a single Glagol state update.
 
@@ -594,13 +595,14 @@ class YandexStationPlayer(Player):
         can't apply mirror operations out of order — e.g. an older volume
         write completing after a newer one and leaving the target stale.
 
-        The session is intentionally not torn down on lingering
-        ``playing=False`` updates: after an intercept the Station stays
-        stopped, so every subsequent state update arrives with
-        ``playing=False`` and we can't distinguish "user stopped" from
-        "Station is silent because we silenced it".  The session ends
-        instead when a new ``playerState.id`` arrives and is re-handed off
-        (or fails cleanly), or when the provider unloads.
+        ``prev_alice_state`` is the value of ``self._prev_alice_state``
+        captured by ``_on_glagol_update`` *before* it overwrites the field
+        with the current tick's ``aliceState``.  Reading the field here
+        directly would return the post-write value (i.e. the *current*
+        state) because the dispatcher schedules this coroutine via
+        ``mass.create_task`` and the assignment runs synchronously before
+        the task is awaited — making the IDLE-edge re-mute branch dead
+        code in production.  The caller threads the snapshot in.
         """
         if self._external_playing:
             return  # our own bypass stream — never intercept
@@ -650,7 +652,7 @@ class YandexStationPlayer(Player):
                 # audible playback and double up with the target.
                 if (
                     self._intercept_active
-                    and self._prev_alice_state in ("LISTENING", "SPEAKING")
+                    and prev_alice_state in ("LISTENING", "SPEAKING")
                     and not self._station_muted_by_intercept
                 ):
                     try:
@@ -662,19 +664,24 @@ class YandexStationPlayer(Player):
                         )
                 self._alice_active_pause_sent = False
 
-            # Physical pause / "Алиса, пауза" on a Station with an active
-            # intercept session: mirror the pause to the target.  Keep
-            # _intercept_active True (transient pause, not session end),
-            # clear debounce so a same-track resume re-triggers handoff.
-            # Gated on having an established session (debounce non-None)
-            # so the very-first WS update with playing=False doesn't fire
-            # a spurious cmd_pause.
+            # Physical pause / "Алиса, пауза" / end-of-queue on a Station
+            # with an active intercept session: mirror the pause to the
+            # target AND end the session (restore Station volume).  We
+            # can't reliably distinguish "transient user pause" from
+            # "queue ended for good" from a single playing=False event,
+            # so always end the session — leaving it open would strand
+            # the Station at vol=0 indefinitely after a queue ends.
+            # Quick-resume cost: ~one WS round-trip of native audio
+            # before the new session's mute(0) lands; matches v1.4.7
+            # baseline behaviour.  Gated on having an established
+            # session (debounce non-None) so the very-first WS update
+            # with playing=False doesn't fire a spurious cmd_pause.
             if (
                 self._intercept_active
                 and not playing
                 and self._last_intercepted_track_id is not None
             ):
-                await self._pause_target(clear_session=False, clear_debounce=True)
+                await self._pause_target(clear_session=True, clear_debounce=True)
                 return
 
             if playing and track_id:
@@ -1037,6 +1044,11 @@ class YandexStationPlayer(Player):
             self._attr_volume_level = round(state["volume"] * 100)
 
         alice_state = state.get("aliceState", "")
+        # Snapshot prev BEFORE the assignment below so _handle_intercept_tick
+        # (scheduled via mass.create_task — runs after this function returns)
+        # can detect the LISTENING/SPEAKING → IDLE edge.  Reading the field
+        # inside the task would always observe the post-assignment value.
+        prev_alice_state_snapshot = self._prev_alice_state
 
         self._update_playback_state(playing, alice_state)
 
@@ -1082,6 +1094,10 @@ class YandexStationPlayer(Player):
                 self._attr_current_media = None
 
         if self._intercept_enabled and self._intercept_target_player_id:
-            self.mass.create_task(self._handle_intercept_tick(state, player_state, playing))
+            self.mass.create_task(
+                self._handle_intercept_tick(
+                    state, player_state, playing, prev_alice_state_snapshot
+                )
+            )
 
         self.update_state()
