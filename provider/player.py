@@ -698,9 +698,21 @@ class YandexStationPlayer(Player):
         new track's debounce intact via ``_pause_target(clear_debounce=False)``.
         """
         now = time.time()
-        # Debounce: skip if we already attempted this track recently.
-        # Covers both successful and failed prior attempts.
-        if track_id == self._last_intercepted_track_id and (now - self._last_intercept_time) < 5:
+        # Same-track guard:
+        #   - Active session (`_intercept_active=True`) + same track_id:
+        #     we already handed it off, target is playing it.  Glagol
+        #     emits ``playerState`` ~1Hz with the same id for the entire
+        #     track duration (3-5min), so without this guard we'd
+        #     re-trigger ``play_media(REPLACE)`` every WS tick the 5-second
+        #     failure-debounce expired.  In the live logs that manifested
+        #     as the target's audio stuttering every ~5 seconds with
+        #     repeated ``StreamEnd``/``StreamStart`` cycles.
+        #   - Inactive (failed prior attempt) + same track within 5s:
+        #     keep the debounce so a quick-fire of a failing lookup
+        #     doesn't spam logs / hammer the API.
+        if track_id == self._last_intercepted_track_id and (
+            self._intercept_active or (now - self._last_intercept_time) < 5
+        ):
             return
         new_track = track_id != self._last_intercepted_track_id
         # Mark the attempt up-front so failure paths debounce too.

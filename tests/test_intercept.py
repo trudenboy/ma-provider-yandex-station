@@ -564,6 +564,32 @@ async def test_continuous_handoff_on_track_id_change() -> None:
     assert player._last_intercepted_track_id == "trackB"
 
 
+async def test_same_track_during_active_session_is_no_op() -> None:
+    """Same playerState.id on every WS tick must NOT re-trigger handoff.
+
+    Regression guard for the live-station bug where the target's audio
+    stuttered every ~5s.  Glagol emits ``playerState`` once per second
+    for the entire track duration (3-5min) carrying the same ``id``;
+    the original 5-second failure-debounce expired mid-track and let
+    every subsequent tick fire a fresh ``play_media(REPLACE)``.  Once a
+    track is handed off (``_intercept_active=True``), the same id must
+    short-circuit regardless of how much time has passed.
+    """
+    player = _make_intercept_player()
+    # Establish a session with track X already handed off.
+    player._intercept_active = True
+    player._last_intercepted_track_id = "X"
+    player._last_intercept_time = time.time() - 100  # well past 5s debounce
+
+    state, player_state, _ = _state(track_id="X")
+    await player._handle_intercept_tick(state, player_state, True)
+
+    # No new handoff, no API churn.
+    player.mass.music.get_item.assert_not_awaited()
+    player.mass.player_queues.play_media.assert_not_awaited()
+    player.glagol.send.assert_not_awaited()
+
+
 async def test_session_end_restores_station_volume() -> None:
     """_end_intercept_session must send setVolume(saved/100) back to the Station."""
     player = _make_intercept_player()

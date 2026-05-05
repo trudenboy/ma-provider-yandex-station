@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.17] - 2026-05-05
+
+### Fixed
+- **Target audio no longer stutters every ~5 seconds during continuous-mode intercept** (live-station bug report): Glagol emits `playerState` ~1Hz with the same `id` for the *entire* track duration (3-5min). The 5-second failure-debounce we kept from one-shot intercept expired mid-track, and every subsequent tick fired a fresh `play_media(REPLACE)` on the target — manifesting as repeated `StreamEnd`/`StreamStart` cycles and audible stuttering in the live MA logs. The same-track guard is now: skip the handoff if `_intercept_active=True` *regardless of time elapsed*; only apply the 5-second debounce to failed prior attempts (where `_intercept_active=False`). New regression test `test_same_track_during_active_session_is_no_op` pins down the contract.
+
 ## [1.4.16] - 2026-05-05
 
 ### Fixed
