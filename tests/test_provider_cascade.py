@@ -601,7 +601,9 @@ async def test_discover_falls_back_to_glagol_device_list_when_quasar_fails(
             CONF_REMEMBER_SESSION: True,
         }
     )
-    provider._init_session = mock.AsyncMock(return_value=True)
+    # setattr() rather than direct attribute assignment to dodge mypy strict
+    # mode's [method-assign] complaint in upstream's lint job.
+    setattr(provider, "_init_session", mock.AsyncMock(return_value=True))  # noqa: B010
     provider._session = mock.MagicMock()
 
     quasar = mock.MagicMock()
@@ -631,19 +633,20 @@ async def test_discover_falls_back_to_glagol_device_list_when_quasar_fails(
     )
     # Patch silent_reauth so the 401 retry inside _get_speakers_with_reauth
     # also fails (otherwise the retry would synthesise a success path).
-    provider._silent_reauth = mock.AsyncMock(return_value=False)
-    provider._create_player = mock.AsyncMock()
+    setattr(provider, "_silent_reauth", mock.AsyncMock(return_value=False))  # noqa: B010
+    setattr(provider, "_create_player", mock.AsyncMock())  # noqa: B010
 
     with mock.patch(f"{_MOD}.YandexQuasar", return_value=quasar):
         await provider.discover_players()
 
     # Both devices were registered using the synthetic quasar_info built
     # from the local list.
-    assert provider._create_player.await_count == 2
-    registered_ids = {c.args[0] for c in provider._create_player.await_args_list}
+    create_player = cast("mock.AsyncMock", provider._create_player)
+    assert create_player.await_count == 2
+    registered_ids = {c.args[0] for c in create_player.await_args_list}
     assert registered_ids == {"ys_dev_a", "ys_dev_b"}
     # Speakers passed in carry the synthesised quasar_info.
-    speakers_arg = [c.args[1] for c in provider._create_player.await_args_list]
+    speakers_arg = [c.args[1] for c in create_player.await_args_list]
     for s in speakers_arg:
         qi = s["quasar_info"]
         assert qi["device_id"] in {"dev_a", "dev_b"}
@@ -664,18 +667,18 @@ async def test_discover_returns_when_both_quasar_and_glagol_fail(
             CONF_REMEMBER_SESSION: True,
         }
     )
-    provider._init_session = mock.AsyncMock(return_value=True)
+    setattr(provider, "_init_session", mock.AsyncMock(return_value=True))  # noqa: B010
     provider._session = mock.MagicMock()
 
     quasar = mock.MagicMock()
     quasar.get_speakers = mock.AsyncMock(side_effect=RuntimeError("returned 401"))
     # Glagol device_list returns empty (caught exception inside get_local_speakers)
     quasar.get_local_speakers = mock.AsyncMock(return_value=[])
-    provider._silent_reauth = mock.AsyncMock(return_value=False)
-    provider._create_player = mock.AsyncMock()
+    setattr(provider, "_silent_reauth", mock.AsyncMock(return_value=False))  # noqa: B010
+    setattr(provider, "_create_player", mock.AsyncMock())  # noqa: B010
 
     with mock.patch(f"{_MOD}.YandexQuasar", return_value=quasar):
         await provider.discover_players()
 
-    provider._create_player.assert_not_awaited()
+    cast("mock.AsyncMock", provider._create_player).assert_not_awaited()
     assert provider._discovery_done is False  # retry-friendly
