@@ -811,9 +811,7 @@ async def test_alice_unmute_keeps_flag_when_send_errors() -> None:
 
     await player._handle_intercept_tick(state, player_state, True)
 
-    player.glagol.send.assert_awaited_once_with(
-        {"command": "setVolume", "volume": 0.7}
-    )
+    player.glagol.send.assert_awaited_once_with({"command": "setVolume", "volume": 0.7})
     # Flag preserved — Station is still (presumably) muted; next attempt
     # to unmute can happen on the next alice tick.
     assert player._station_muted_by_intercept is True
@@ -829,13 +827,9 @@ async def test_alice_remute_keeps_flag_when_send_errors() -> None:
     player.glagol.send = AsyncMock(return_value={"error": "timeout"})
     state, player_state, _ = _state(track_id="X", alice_state="IDLE", playing=False)
 
-    await player._handle_intercept_tick(
-        state, player_state, False, prev_alice_state="SPEAKING"
-    )
+    await player._handle_intercept_tick(state, player_state, False, prev_alice_state="SPEAKING")
 
-    player.glagol.send.assert_awaited_once_with(
-        {"command": "setVolume", "volume": 0.0}
-    )
+    player.glagol.send.assert_awaited_once_with({"command": "setVolume", "volume": 0.0})
     # Re-mute didn't actually land → flag stays False so the next IDLE-edge
     # tick can attempt it again (the prev_alice_state parameter would no
     # longer be LISTENING/SPEAKING, but a future alice activation will reset
@@ -859,9 +853,7 @@ async def test_restore_station_volume_logs_warning_on_send_error(
         await player._restore_station_volume(50)
 
     # The send was attempted; the transport error surfaced in a WARNING.
-    player.glagol.send.assert_awaited_once_with(
-        {"command": "setVolume", "volume": 0.5}
-    )
+    player.glagol.send.assert_awaited_once_with({"command": "setVolume", "volume": 0.5})
     assert any("failed to restore Station volume" in r.message for r in caplog.records)
 
 

@@ -72,9 +72,7 @@ class YandexQuasar:
         Only returns devices that have networkInfo with IP addresses.
         """
         try:
-            async with await self.session.get(
-                "https://quasar.yandex.net/glagol/device_list"
-            ) as r:
+            async with await self.session.get("https://quasar.yandex.net/glagol/device_list") as r:
                 resp = await r.json()
             result: list[dict[str, Any]] = []
             for d in resp.get("devices", []):

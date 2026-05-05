@@ -663,9 +663,7 @@ class YandexStationPlayer(Player):
                     and not self._station_muted_by_intercept
                 ):
                     try:
-                        result = await self.glagol.send(
-                            {"command": "setVolume", "volume": 0.0}
-                        )
+                        result = await self.glagol.send({"command": "setVolume", "volume": 0.0})
                         _raise_if_failed(result, "alice-remute")
                         self._station_muted_by_intercept = True
                     except Exception as exc:
@@ -813,9 +811,7 @@ class YandexStationPlayer(Player):
                 # while the Station was still audible (or never confirmed
                 # muted) and flip _station_muted_by_intercept anyway —
                 # leaving session state inconsistent with the device.
-                mute_result = await self.glagol.send(
-                    {"command": "setVolume", "volume": 0.0}
-                )
+                mute_result = await self.glagol.send({"command": "setVolume", "volume": 0.0})
                 _raise_if_failed(mute_result, "intercept-mute")
                 self._station_muted_by_intercept = True
             await self.mass.player_queues.play_media(
@@ -857,9 +853,7 @@ class YandexStationPlayer(Player):
         Yandex app or "Алиса, погромче").
         """
         try:
-            result = await self.glagol.send(
-                {"command": "setVolume", "volume": vol_pct / 100}
-            )
+            result = await self.glagol.send({"command": "setVolume", "volume": vol_pct / 100})
             _raise_if_failed(result, "restore_volume")
         except Exception as exc:
             _LOGGER.warning(
