@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.16] - 2026-05-05
+
+### Fixed
+- **`setattr()` for method-assign in `test_provider_cascade` fallback tests** (upstream MA PR #3605 CI): mypy strict mode flagged 6 `[method-assign]` errors on direct `AsyncMock` assignment to provider methods (`_init_session`, `_silent_reauth`, `_create_player`). Same pattern previously applied to `test_intercept.py` — switched to `setattr(..., noqa: B010)`. Tests still green.
+
 ## [1.4.15] - 2026-05-05
 
 ### Fixed
