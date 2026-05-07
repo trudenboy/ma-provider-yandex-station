@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.21] - 2026-05-07
+
+### Fixed
+- **`YandexQuasar.devices` is now a per-instance attribute** (upstream MA PR #3605, Copilot): the cached bulk device list was previously declared at the class level (`devices: list[dict] | None = None`). The current `None` default isn't a sharing risk on its own, but it's a recurring footgun pattern — any future change to a mutable default (or in-place mutation by a caller) would silently leak state across instances. Moved into `__init__` so multiple `YandexQuasar` instances (across reload cycles or parallel tests) each carry their own cache. New regression test `test_devices_cache_is_per_instance` pins the contract.
+
 ## [1.4.20] - 2026-05-05
 
 ### Fixed

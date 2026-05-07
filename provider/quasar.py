@@ -20,11 +20,15 @@ _LOGGER = logging.getLogger(__name__)
 class YandexQuasar:
     """Yandex Quasar cloud API client for device discovery."""
 
-    devices: list[dict[str, Any]] | None = None
-
     def __init__(self, session: YandexSession) -> None:
         """Initialize with an authenticated session."""
         self.session = session
+        # Cached bulk device list, populated on first ``get_devices`` call
+        # and read by external callers (e.g. ``provider.py`` for cloud-side
+        # metadata enrichment).  Per-instance so multiple ``YandexQuasar``
+        # objects (across reload cycles or parallel tests) don't leak
+        # stale state via a shared class attribute.
+        self.devices: list[dict[str, Any]] | None = None
 
     async def get_devices(self) -> list[dict[str, Any]]:
         """Fetch all devices from Quasar IoT API."""

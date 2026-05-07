@@ -114,3 +114,41 @@ async def test_get_local_speakers_returns_empty_on_session_failure() -> None:
     result = await quasar.get_local_speakers()
 
     assert result == []
+
+
+async def test_devices_cache_is_per_instance() -> None:
+    """``devices`` cache must not leak across instances.
+
+    Originally a class-level attribute (``YandexQuasar.devices = None``),
+    which is fine for ``None`` but a recurring footgun pattern: any future
+    move to a mutable default would silently share state across instances.
+    Two independent instances must each see their own ``devices`` cache,
+    and one populating its cache must not affect the other.
+    """
+    s1 = MagicMock(name="Session1")
+    s1.get = AsyncMock(
+        return_value=_ctx_response(
+            {
+                "status": "ok",
+                "households": [{"name": "Home1", "all": [{"id": "d1"}]}],
+            }
+        )
+    )
+    s2 = MagicMock(name="Session2")
+    s2.get = AsyncMock(
+        return_value=_ctx_response({"status": "ok", "households": []})
+    )
+
+    q1 = YandexQuasar(s1)
+    q2 = YandexQuasar(s2)
+
+    # Both start with a fresh per-instance None.
+    assert q1.devices is None
+    assert q2.devices is None
+
+    await q1.get_devices()
+
+    # q1's cache populated; q2's stayed independent.
+    assert q1.devices is not None
+    assert q1.devices[0]["id"] == "d1"
+    assert q2.devices is None
