@@ -514,6 +514,14 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.22] - 2026-05-07
+
+- chore: bump VERSION to 1.4.22 to push mypy fix to upstream (`b8097fe`)
+- fix: avoid mypy [unreachable] in test_devices_cache_is_per_instance (`7321e93`)
+- style: auto-fix ruff (`704a741`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
