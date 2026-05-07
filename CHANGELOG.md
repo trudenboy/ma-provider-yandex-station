@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.4.22] - 2026-05-07
+
+### Fixed
+- **Avoid mypy `[unreachable]` in `test_devices_cache_is_per_instance`** (upstream MA PR #3605 CI): the prior `assert q1.devices is None` narrowed the attribute type to `None` permanently — mypy can't see that `await q1.get_devices()` mutates it, so the subsequent `q1.devices[0]` access was treated as unreachable. Reordered: populate q1 first, then capture the post-state via a local variable to avoid type narrowing on the attribute access chain.
+
 ## [1.4.21] - 2026-05-07
 
 ### Fixed
