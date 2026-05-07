@@ -140,13 +140,14 @@ async def test_devices_cache_is_per_instance() -> None:
     q1 = YandexQuasar(s1)
     q2 = YandexQuasar(s2)
 
-    # Both start with a fresh per-instance None.
-    assert q1.devices is None
-    assert q2.devices is None
-
+    # Initial-state and post-call assertions in opposite order so mypy's
+    # type-narrowing on the ``is None`` branch doesn't poison the later
+    # ``is not None`` widening (the ``await`` mutates the attribute,
+    # which mypy can't see).  We start by populating q1, then check both
+    # — the contract is "q1 populated, q2 still None".
     await q1.get_devices()
 
-    # q1's cache populated; q2's stayed independent.
-    assert q1.devices is not None
-    assert q1.devices[0]["id"] == "d1"
+    devices_q1 = q1.devices
+    assert devices_q1 is not None
+    assert devices_q1[0]["id"] == "d1"
     assert q2.devices is None
