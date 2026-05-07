@@ -135,9 +135,7 @@ async def test_devices_cache_is_per_instance() -> None:
         )
     )
     s2 = MagicMock(name="Session2")
-    s2.get = AsyncMock(
-        return_value=_ctx_response({"status": "ok", "households": []})
-    )
+    s2.get = AsyncMock(return_value=_ctx_response({"status": "ok", "households": []}))
 
     q1 = YandexQuasar(s1)
     q2 = YandexQuasar(s2)
