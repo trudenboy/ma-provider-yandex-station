@@ -1,86 +1,104 @@
+<!-- ma-provider-tools: rendered from wrappers/CLAUDE.md.j2 -->
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file aligns development of the **Yandex Station** provider with the
+upstream [`music-assistant/server`](https://github.com/music-assistant/server)
+standards. It is rendered from `wrappers/CLAUDE.md.j2` in
+[`trudenboy/ma-provider-tools`](https://github.com/trudenboy/ma-provider-tools)
+and is kept in sync across every provider repo — **do not edit it here**.
 
-## Project Overview
+Provider-specific architecture, key flows, and gotchas live in
+[`CLAUDE.local.md`](./CLAUDE.local.md). Claude Code automatically picks up both
+files when working in this repository.
 
-Music Assistant (MA) Player Provider for Yandex Station smart speakers. Streams music to Yandex Station via the local Glagol WebSocket protocol. Adapted from AlexxIT/YandexStation.
+## Development Commands
 
-## Architecture
+- `./scripts/setup.sh` — initial setup (venv via `uv`, dependencies, pre-commit hooks). Re-run after pulling latest code.
+- `uv run pytest` — run all tests
+- `uv run pytest provider/tests/<file>.py` — run a specific test file
+- `uv run ruff check provider/` — lint
+- `uv run ruff format provider/` — auto-format
+- `uv run mypy provider/` — type check
+- `pre-commit run --all-files` — full pre-commit gate
 
-```
-MA Core --play_media()--> YandexStationPlayer --radio_play--> Glagol WS --> Yandex Station
-                                                                        <-- state updates
-```
+Always run `pre-commit run --all-files` after a code change to ensure the new
+code adheres to the project standards.
 
-**Provider** (`provider/`): MA Player Provider with Glagol WebSocket client.
-- `__init__.py` — `setup()`, `get_config_entries()` (x_token, music_token)
-- `provider.py` — `YandexStationProvider(PlayerProvider)`: mDNS discovery, Quasar API fallback, player lifecycle
-- `player.py` — `YandexStationPlayer(Player)`: transport controls (play/pause/stop/seek/volume/next/prev), state updates from Glagol WS, `play_media()` via `radio_play` command
-- `glagol.py` — `YandexGlagol`: persistent WebSocket client with auto-reconnect, command send/receive, device token management
-- `quasar.py` — `YandexQuasar`: cloud API for device list, device config, fallback commands
-- `session.py` — `YandexSession`: Yandex Passport auth (x_token → music_token → cookies → CSRF), HTTP client with retry/auth refresh
-- `protobuf.py` — minimal protobuf encoder/decoder for `externalCommandBypass` payload
-- `constants.py` — API URLs, config keys, protocol constants
-- `manifest.json` — provider metadata for MA
+## Code Style
 
-### Key Flows
+### Comments
 
-**Discovery:**
-1. MA core discovers `_yandexio._tcp.local.` via mDNS → `on_mdns_service_state_change()`
-2. Provider extracts deviceId, platform, host, port from mDNS properties
-3. Enriches with Quasar cloud data (device name, model, house)
-4. Creates `YandexGlagol` + `YandexStationPlayer`, registers with MA
+Only use comments to explain complex, multi-line blocks of code. Do not comment
+obvious operations.
 
-**Playback:**
-1. MA Queue Controller → `player.play_media(media)`
-2. `resolve_stream_url()` → `http://192.168.x.x:8097/streams/{id}.flac`
-3. Build `radio_play` payload: `{streamUrl, title, imageUrl, force_restart_player}`
-4. Encode via `externalCommandBypass` (protobuf) → send via Glagol WS
-5. Station fetches stream URL and plays audio
+### Docstring Format
 
-**State Updates:**
-1. Glagol WS sends state every 1-5 seconds
-2. `_on_glagol_update()` parses `playerState` (progress, duration, title, playing)
-3. Updates MA player attributes, calls `update_state()`
+Use Sphinx-style docstrings with `:param:` syntax. For simple functions, a
+single-line docstring is fine.
 
-## Development Setup
+Don't explain inner workings of the code in the docstrings (you can use inline
+comments for that if/when needed). The docstring should provide clarity to the
+**caller** of the function/method, not explain how it works
+technically/internally.
 
-```bash
-# Clone MA server fork alongside this project
-cd /tmp && git clone https://github.com/trudenboy/ma-server.git
+```python
+def my_function(param1: str, param2: int, param3: bool = False) -> str:
+    """
+    Brief one-line description of the function.
 
-# Setup venv, install deps, symlink provider
-./scripts/link-to-ma.sh  # (when available, after wrapper distribution)
-
-# Or manual setup:
-cd /tmp/ma-server && python -m venv .venv && source .venv/bin/activate
-pip install -e ".[test]"
-ln -s /path/to/ma-provider-yandex-station/provider .venv/lib/python3.12/site-packages/music_assistant/providers/yandex_station
+    :param param1: Description of what param1 is used for.
+    :param param2: Description of what param2 is used for.
+    :param param3: Description of what param3 is used for.
+    """
 ```
 
-## Code Standards
+Do **not** use Google-style (`Args:`) or bullet-style (`- param:`) docstrings.
+AI assistants tend to generate Google-style by default — explicitly steer them
+to Sphinx, and rewrite anything that slips through.
 
-- **Python**: PEP 8, type hints on all functions, `from __future__ import annotations`
-- **Commits**: `type(scope): description` — types: feat, fix, docs, style, refactor, test, chore
-- **Async**: All I/O uses async/await (aiohttp)
-- **MA conventions**: Follow patterns from Chromecast and `_demo_player_provider`
-- **DO NOT use subagents (Task tool) without explicit user instruction or confirmation!**
+## Branching and PRs
 
-## Key Files Reference (MA Server)
+- All work-in-progress PRs target `dev` (primary development branch).
+- Before opening a PR: run lint + tests + `pre-commit run --all-files`. CI runs `ruff format --check`, so pushing without `ruff format` is the most common red build.
 
-| Path | Purpose |
-|------|---------|
-| `music_assistant/models/player.py` | `Player` base class |
-| `music_assistant/models/player_provider.py` | `PlayerProvider` base class |
-| `music_assistant/providers/_demo_player_provider/` | Template provider |
-| `music_assistant/providers/chromecast/` | Reference: mDNS + socket + callbacks |
+## Pull Request Workflow
 
-## Gotchas
+All non-trivial changes go through a pull request — never push directly to
+`dev`. Inside a PR, follow this loop:
 
-- **URL format**: Yandex Station requires file extension in stream URL (`.flac`, `.mp3`). MA's `resolve_stream_url()` already provides this.
-- **HTTP only for local**: Station may reject HTTPS for local network URLs
-- **IP, not hostname**: Station prefers IP addresses over DNS names
-- **Infinite loop**: Station replays URL endlessly. MA stream endpoint closes after track ends, solving this naturally.
-- **Volume scale**: Glagol uses 0.0-1.0, MA uses 0-100. Convert in player.
-- **`stop` command**: Glagol's "stop" is actually "pause". Use it for both pause() and stop().
+1. **Self-review.** Run at least one self-review pass on the diff (e.g. the
+   `/code-review` skill or an equivalent reviewer) before asking for human
+   review.
+2. **Copilot triage.** Check the PR for GitHub Copilot review comments. For
+   each comment: analyze it, apply a fix when warranted, reply with a short
+   justification, and resolve the thread.
+3. **Version + changelog.** *After* review feedback is addressed, bump the
+   `VERSION` file (PEP 440 — `1.2.0` stable, `1.2.0b1` beta) and add a
+   `CHANGELOG.md` entry — in the same PR. The release pipeline tags and
+   publishes automatically when the new `VERSION` lands on `dev`.
+4. **Ask before merging.** Always request explicit maintainer approval to
+   merge. Do not self-merge or enable auto-merge without it. (Auto-merge is
+   reserved for `distribute.yml`-generated wrapper-sync PRs from
+   `ma-provider-tools`.)
+
+Follow-up commits driven by review (your own pass or Copilot's) land directly
+on the PR branch — no separate PR needed.
+
+## Upstream is Read-Only
+
+Never push to or open PRs against the upstream Music Assistant repo
+(`music-assistant/server` — the true upstream) or the integration fork
+(`trudenboy/ma-server`) without an explicit maintainer instruction. The
+provider repo is the source of truth; sync to the integration fork and
+upstream PR submission run automatically through `ma-provider-tools`
+workflows (`sync-to-fork.yml`, `upstream-pr.yml`).
+
+## Debugging
+
+Music Assistant stores its data in `$HOME/.musicassistant/`. When debugging
+locally:
+
+- **Logs:** `$HOME/.musicassistant/musicassistant.log` (current),
+  `musicassistant.log.1`, `.log.2`, etc. for older rotated logs.
+- **Database:** `$HOME/.musicassistant/library.db` — query via `sqlite3`.
+  **Only execute SELECT queries** — never write to a live database.
