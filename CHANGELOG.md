@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.4.23] - 2026-05-09
+
+### Changed
+
+- Rewrote three Google-style docstrings (`refresh_music_token`, `refresh_credentials_via_passport`, `_init_session`) to Sphinx-style `:param:` / `:returns:` / `:raises:` per the upstream music-assistant/server CLAUDE.md docstring rule.
+
 ## [1.4.22] - 2026-05-07
 
 ### Fixed

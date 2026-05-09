@@ -63,9 +63,8 @@ class YandexStationProvider(PlayerProvider):
     # ── Credential cascade ────────────────────────────────────────────
 
     async def _init_session(self) -> bool:
-        """Initialize Yandex HTTP session with credential cascade.
-
-        Returns ``True`` when a working session is established, ``False`` otherwise.
+        """
+        Initialize Yandex HTTP session with credential cascade.
 
         Cascade steps (each step updates config on success):
           1. Fast-path: if *both* ``music_token`` and ``x_token`` are present,
@@ -83,10 +82,12 @@ class YandexStationProvider(PlayerProvider):
         Respects :const:`CONF_REMEMBER_SESSION`: when False, steps 2-4 are skipped
         because x_token/refresh_token are not stored for throw-away sessions.
 
-        Raises:
-            ProviderUnavailableError: Transient failure (network, rate limit)
-                while talking to Yandex Passport during silent refresh.
-                Stored credentials are preserved so retrying later can succeed.
+        :returns: ``True`` when a working session is established, ``False``
+            otherwise.
+        :raises ProviderUnavailableError: Transient failure (network,
+            rate limit) while talking to Yandex Passport during silent
+            refresh. Stored credentials are preserved so retrying later
+            can succeed.
         """
         # Serialize init: concurrent callers (discover_players + mDNS-triggered
         # _create_player) must not race on self._http_session/self._session. The
