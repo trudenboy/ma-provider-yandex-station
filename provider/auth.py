@@ -328,12 +328,16 @@ async def perform_qr_auth(mass: MusicAssistant, session_id: str) -> tuple[str, s
 
 
 async def refresh_music_token(x_token: SecretStr) -> SecretStr:
-    """Exchange an x_token for a fresh music-scoped OAuth token.
+    """
+    Exchange an x_token for a fresh music-scoped OAuth token.
 
-    Raises:
-        ProviderUnavailableError: On transient failures (network, rate limit)
-            — callers should retry later instead of clearing credentials.
-        LoginFailed: On real credential failures (x_token expired/rejected).
+    :param x_token: Long-lived Yandex Passport session token.
+    :returns: A fresh music-scoped OAuth token.
+    :raises ProviderUnavailableError: On transient failures (network,
+        rate limit) — callers should retry later instead of clearing
+        credentials.
+    :raises LoginFailed: On real credential failures (x_token
+        expired or rejected).
     """
     try:
         async with PassportClient.create() as client:
@@ -347,17 +351,23 @@ async def refresh_music_token(x_token: SecretStr) -> SecretStr:
 async def refresh_credentials_via_passport(
     x_token: SecretStr, refresh_token: SecretStr
 ) -> Credentials:
-    """Silently re-issue the full credential triple using a refresh token.
+    """
+    Silently re-issue the full credential triple using a refresh token.
 
-    Only available for accounts authenticated via the Device Flow (QR and
-    cookies login do not yield a ``refresh_token``). Rotates both ``x_token``
-    and ``refresh_token`` server-side, so callers must persist the returned
-    Credentials.
+    Only available for accounts authenticated via the Device Flow (QR
+    and cookies login do not yield a ``refresh_token``). Rotates both
+    ``x_token`` and ``refresh_token`` server-side, so callers must
+    persist the returned Credentials.
 
-    Raises:
-        ProviderUnavailableError: On transient failures (network, rate limit)
-            — callers should retry later instead of clearing credentials.
-        LoginFailed: On real credential failures (refresh_token rejected).
+    :param x_token: Current long-lived Yandex Passport session token.
+    :param refresh_token: Refresh token issued during Device Flow.
+    :returns: New Credentials with rotated ``x_token`` and
+        ``refresh_token``.
+    :raises ProviderUnavailableError: On transient failures (network,
+        rate limit) — callers should retry later instead of clearing
+        credentials.
+    :raises LoginFailed: On real credential failures (refresh_token
+        rejected).
     """
     try:
         async with PassportClient.create() as client:
