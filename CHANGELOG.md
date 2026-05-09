@@ -528,6 +528,17 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.4.23] - 2026-05-09
+
+- fix: rewrite 3 Google-style docstrings to Sphinx style (#70) (`e5624c9`)
+- chore: sync workflow wrappers from ma-provider-tools (#69) (`ac489f7`)
+- style: auto-fix ruff (`5cc1308`)
+- chore: sync workflow wrappers from ma-provider-tools (#68) (`47866e3`)
+- chore: sync workflow wrappers from ma-provider-tools (#67) (`e42abc9`)
+- chore: update changelog for v1.4.22 [skip ci] (`b0edf30`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
