@@ -10,7 +10,7 @@
 
 **📖 [Documentation / Документация](https://trudenboy.github.io/ma-provider-yandex-station/)** · **🔄 [Changelog / Журнал](CHANGELOG.md)** · **🐛 [Issues / Проблемы](https://github.com/trudenboy/ma-provider-yandex-station/issues)** · **💬 [Discussions / Обсуждения](https://github.com/trudenboy/ma-provider-yandex-station/discussions)**
 
-**Related providers:** [Yandex Smart Home](https://github.com/trudenboy/ma-provider-yandex-smarthome) · [Yandex Alice](https://github.com/trudenboy/ma-provider-yandex-alice)
+**Related providers:** [Yandex Smart Home](https://github.com/trudenboy/ma-provider-yandex-smarthome) · [Yandex Alice](https://github.com/trudenboy/ma-provider-yandex-alice) · [Yandex Music](https://github.com/trudenboy/ma-provider-yandex-music)
 <!-- <<< ma-provider-tools sync (readme header) <<< -->
 
 Play music on Yandex Station smart speakers via the local Glagol WebSocket protocol.
