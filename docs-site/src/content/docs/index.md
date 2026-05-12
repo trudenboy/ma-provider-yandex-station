@@ -16,7 +16,7 @@ description: Документация провайдера Yandex Station для
 [![Stars](https://img.shields.io/github/stars/trudenboy/ma-provider-yandex-station?style=flat&logo=github)](https://github.com/trudenboy/ma-provider-yandex-station/stargazers)
 
 
-<div class="topic-pills"> <code>music-assistant</code> <code>home-assistant</code> <code>python</code> <code>player-provider</code> <code>yandex-station</code> <code>glagol</code> <code>russia</code> <code>russian-music</code> <code>alice</code> <code>smart-speaker</code>
+<div class="topic-pills"> <code>music-assistant</code> <code>home-assistant</code> <code>python</code> <code>player-provider</code> <code>yandex</code> <code>glagol</code> <code>station</code> <code>Станция</code> <code>Яндекс</code> <code>Алиса</code> <code>alice</code> <code>smart-speaker</code>
 </div>
 
 
@@ -26,7 +26,7 @@ Music Assistant поддерживает [Yandex Station](https://yandex.ru/alic
 
 
 
-**Связанные провайдеры:** [Yandex Smart Home](https://github.com/trudenboy/ma-provider-yandex-smarthome) · [Yandex Alice](https://github.com/trudenboy/ma-provider-yandex-alice)
+**Связанные провайдеры:** [Yandex Smart Home](https://github.com/trudenboy/ma-provider-yandex-smarthome) · [Yandex Alice](https://github.com/trudenboy/ma-provider-yandex-alice) · [Yandex Music](https://github.com/trudenboy/ma-provider-yandex-music)
 
 
 
