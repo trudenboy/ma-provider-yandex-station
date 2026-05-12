@@ -5,7 +5,7 @@
 [![CI](https://github.com/trudenboy/ma-provider-yandex-station/actions/workflows/test.yml/badge.svg)](https://github.com/trudenboy/ma-provider-yandex-station/actions/workflows/test.yml)
 [![Release](https://img.shields.io/github/v/release/trudenboy/ma-provider-yandex-station?display_name=tag)](https://github.com/trudenboy/ma-provider-yandex-station/releases/latest)
 [![License](https://img.shields.io/github/license/trudenboy/ma-provider-yandex-station)](LICENSE)
-[![Music Assistant](https://img.shields.io/endpoint?url=https%3A%2F%2Ftrudenboy.github.io%2Fma-provider-tools%2Fbadges%2Fyandex_station.json)](https://www.music-assistant.io/)
+[![Music Assistant](https://img.shields.io/badge/Music%20Assistant-9070B8?logo=python&logoColor=white)](https://www.music-assistant.io/)[![stable](https://img.shields.io/endpoint?url=https%3A%2F%2Ftrudenboy.github.io%2Fma-provider-tools%2Fbadges%2Fyandex_station-stable.json)](https://github.com/music-assistant/server/releases/latest)[![beta](https://img.shields.io/endpoint?url=https%3A%2F%2Ftrudenboy.github.io%2Fma-provider-tools%2Fbadges%2Fyandex_station-beta.json)](https://github.com/music-assistant/server/releases?q=prerelease)
 [![Stars](https://img.shields.io/github/stars/trudenboy/ma-provider-yandex-station?style=flat&logo=github)](https://github.com/trudenboy/ma-provider-yandex-station/stargazers)
 
 **📖 [Documentation / Документация](https://trudenboy.github.io/ma-provider-yandex-station/)** · **🔄 [Changelog / Журнал](CHANGELOG.md)** · **🐛 [Issues / Проблемы](https://github.com/trudenboy/ma-provider-yandex-station/issues)** · **💬 [Discussions / Обсуждения](https://github.com/trudenboy/ma-provider-yandex-station/discussions)**
