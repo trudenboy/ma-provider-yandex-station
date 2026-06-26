@@ -17,7 +17,7 @@ test = [
   "syrupy>=5.0",
   "codespell>=2.4",
   "music-assistant @ git+https://github.com/music-assistant/server.git@dev",
-  "ruff>=0.14",
+  "ruff>=0.14,<0.15",
   "mypy>=1.19",
   "pre-commit>=4.5",
   "pre-commit-hooks>=6.0",
@@ -46,7 +46,7 @@ filterwarnings = [
 
 [tool.codespell]
 # >>> ma-provider-tools sync (codespell skip) — DO NOT EDIT >>>
-skip = "*.js,*.svg,docs-site/package-lock.json"
+skip = "*.js,*.svg,NOTICE,docs-site/package-lock.json"
 # <<< ma-provider-tools sync (codespell skip) <<<
 
 # >>> ma-provider-tools sync (mypy) — DO NOT EDIT >>>
