@@ -43,7 +43,7 @@ _MOD = "music_assistant.providers.yandex_station.auth"
 
 
 @pytest.fixture(autouse=True)
-def skip_grace_sleep() -> Generator[mock.AsyncMock, None, None]:
+def skip_grace_sleep() -> Generator[mock.AsyncMock]:
     """Bypass the post-auth grace ``asyncio.sleep`` so tests run instantly."""
     with mock.patch(f"{_MOD}.asyncio.sleep", new=mock.AsyncMock()) as patched:
         yield patched
