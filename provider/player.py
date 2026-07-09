@@ -35,11 +35,6 @@ from .constants import (
 CONF_ENTRY_VOICE_CONTROL = ConfigEntry(
     key=CONF_VOICE_CONTROL,
     type=ConfigEntryType.BOOLEAN,
-    label="Experimental: Voice control integration",
-    description=(
-        "Auto-resume MA queue after voice commands like 'Алиса, стоп' or 'Алиса, дальше'. "
-        "Experimental — may cause unexpected behavior."
-    ),
     default_value=False,
     required=False,
     advanced=True,
@@ -243,30 +238,12 @@ class YandexStationPlayer(Player):
             ConfigEntry(
                 key=CONF_INTERCEPT_ENABLED,
                 type=ConfigEntryType.BOOLEAN,
-                label="Experimental: Intercept native Station playback",
-                description=(
-                    "When the Station starts native Yandex Music playback "
-                    "(typically triggered by an Alice voice command, but "
-                    "also a touch on the Station UI), silence the Station "
-                    "(setVolume 0; the Station keeps playing its own queue "
-                    "in the background so we see every next track) and "
-                    "play the same track on the chosen target player. "
-                    "Requires the provider-level intercept feature to be "
-                    "enabled and a configured 'yandex_music' music provider."
-                ),
                 default_value=False,
                 required=False,
             ),
             ConfigEntry(
                 key=CONF_INTERCEPT_TARGET,
                 type=ConfigEntryType.STRING,
-                label="Intercept target player",
-                description=(
-                    "Music Assistant player that receives intercepted "
-                    "playback. Lists every registered player except this "
-                    "Station; pause / volume_set / seek mirrors gracefully "
-                    "no-op on players that don't support them."
-                ),
                 options=target_options,
                 required=False,
             ),

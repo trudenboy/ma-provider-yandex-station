@@ -120,20 +120,14 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_ACTION_AUTH_DEVICE,
             type=ConfigEntryType.ACTION,
-            label="Login with device code",
-            description="Open a verification URL on any device and enter the short code.",
             action=CONF_ACTION_AUTH_DEVICE,
-            action_label="Login with device code",
             hidden=is_authenticated,
         ),
         # QR authentication (alternative)
         ConfigEntry(
             key=CONF_ACTION_AUTH_QR,
             type=ConfigEntryType.ACTION,
-            label="Login with QR code",
-            description="Opens a QR code page — scan it with the Yandex app on your phone.",
             action=CONF_ACTION_AUTH_QR,
-            action_label="Login with QR code",
             hidden=is_authenticated,
         ),
         # Remember session toggle — stays visible after login so users can
@@ -141,13 +135,6 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_REMEMBER_SESSION,
             type=ConfigEntryType.BOOLEAN,
-            label="Remember session (auto-refresh token)",
-            description=(
-                "When enabled, stores a long-lived session token to automatically "
-                "refresh your music token when it expires. When disabled, you must "
-                "re-authenticate manually when the token expires — toggling this off "
-                "after logging in immediately drops the stored long-lived tokens."
-            ),
             default_value=True,
             advanced=True,
         ),
@@ -156,15 +143,6 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_INTERCEPT_FEATURE_ENABLED,
             type=ConfigEntryType.BOOLEAN,
-            label="Experimental: Enable intercept feature",
-            description=(
-                "Master switch for the intercept feature. When ON, individual "
-                "stations can be configured (in their player settings) to "
-                "redirect Alice-initiated playback to another Music Assistant "
-                "player. When OFF, intercept is fully disabled regardless of "
-                "per-player settings. Requires the 'yandex_music' music "
-                "provider to be configured to actually resolve tracks."
-            ),
             default_value=False,
             required=False,
         ),
@@ -172,12 +150,6 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_COOKIES,
             type=ConfigEntryType.SECURE_STRING,
-            label="Browser Cookies",
-            description=(
-                "Open passport.yandex.ru/profile in your browser, "
-                'use "Copy Cookies" extension to copy cookies, paste here. '
-                "Supports JSON array or raw cookie string."
-            ),
             required=False,
             hidden=is_authenticated,
             advanced=True,
@@ -186,10 +158,7 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_ACTION_AUTH_COOKIES,
             type=ConfigEntryType.ACTION,
-            label="Login with Cookies",
-            description="Authenticate using browser cookies from passport.yandex.ru.",
             action=CONF_ACTION_AUTH_COOKIES,
-            action_label="Login with Cookies",
             hidden=is_authenticated,
             advanced=True,
         ),
@@ -197,18 +166,13 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_ACTION_CLEAR_AUTH,
             type=ConfigEntryType.ACTION,
-            label="Reset authentication",
-            description="Clear the current authentication details.",
             action=CONF_ACTION_CLEAR_AUTH,
-            action_label="Reset authentication",
             hidden=not is_authenticated,
         ),
         # x_token (internal storage, always hidden)
         ConfigEntry(
             key=CONF_X_TOKEN,
             type=ConfigEntryType.SECURE_STRING,
-            label="Yandex X-Token",
-            description="Long-lived session token. Auto-obtained via login flows.",
             required=False,
             hidden=True,
             advanced=True,
@@ -218,8 +182,6 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_MUSIC_TOKEN,
             type=ConfigEntryType.SECURE_STRING,
-            label="Yandex Music Token",
-            description="Auto-obtained from one of the login flows.",
             required=False,
             hidden=True,
             value=cast("str", values.get(CONF_MUSIC_TOKEN)) if values else None,
@@ -228,7 +190,6 @@ async def get_config_entries(
         ConfigEntry(
             key=CONF_REFRESH_TOKEN,
             type=ConfigEntryType.SECURE_STRING,
-            label="Refresh token",
             required=False,
             hidden=True,
             value=cast("str", values.get(CONF_REFRESH_TOKEN)) if values else None,

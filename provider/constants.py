@@ -15,7 +15,9 @@ CONF_COOKIES = "cookies"
 CONF_ACTION_AUTH_DEVICE = "action_auth_device"
 CONF_ACTION_AUTH_QR = "action_auth_qr"
 CONF_ACTION_AUTH_COOKIES = "action_auth_cookies"
-CONF_ACTION_CLEAR_AUTH = "action_clear_auth"
+# "clear_auth" (not "action_clear_auth") so the entry's strings resolve to the
+# shared common config_entries.clear_auth translations.
+CONF_ACTION_CLEAR_AUTH = "clear_auth"
 CONF_VOICE_CONTROL = "voice_control"
 
 # Intercept feature: provider-level kill switch (off by default)
