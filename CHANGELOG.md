@@ -561,6 +561,45 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 
 ---
 
+## [1.5.0] - 2026-07-09
+
+- Bump version from 1.4.23 to 1.5.0 (`8f9540e`)
+- refactor(auth): adopt the shared ya_passport_auth.ma layer (#97) (`9a22342`)
+- style: auto-fix ruff (`c6a7b81`)
+- chore: sync workflow wrappers from ma-provider-tools (#99) (`520c677`)
+- chore: sync workflow wrappers from ma-provider-tools (#93) (`9a6904b`)
+- chore(deps): bump ya-passport-auth to 1.5.0 (#92) (`ffd18d0`)
+- style: auto-fix ruff (`6834374`)
+- fix: address final upstream review round on MA PR #3605 (#91) (`e9f3af7`)
+- style: auto-fix ruff (`5b456f1`)
+- chore: sync workflow wrappers from ma-provider-tools (#88) (`7e965f8`)
+- style: auto-fix ruff (`7ef2848`)
+- style: auto-fix ruff (`890c2cd`)
+- style: auto-fix ruff (`398693b`)
+- chore: sync workflow wrappers from ma-provider-tools (#86) (`224551e`)
+- style: auto-fix ruff (`c676972`)
+- style: auto-fix ruff (`83201b2`)
+- style: auto-fix ruff (`ea80a79`)
+- style: auto-fix ruff (`20122f8`)
+- chore: sync workflow wrappers from ma-provider-tools (#83) (`491579b`)
+- chore: sync workflow wrappers from ma-provider-tools (#82) (`9d4cc92`)
+- chore: sync workflow wrappers from ma-provider-tools (#81) (`5202a70`)
+- style: auto-fix ruff (`9fc247f`)
+- Update ya-passport-auth requirement to version 1.4.1 (`516d448`)
+- style: auto-fix ruff (`e3740ef`)
+- chore: sync workflow wrappers from ma-provider-tools (#80) (`52d0a73`)
+- style: auto-fix ruff (`01d61e3`)
+- chore: sync workflow wrappers from ma-provider-tools (#77) (`79149e3`)
+- chore: sync workflow wrappers from ma-provider-tools (#76) (`8f4525b`)
+- chore: sync workflow wrappers from ma-provider-tools (#75) (`3d7307b`)
+- chore: sync workflow wrappers from ma-provider-tools (#74) (`76a40a3`)
+- chore: sync workflow wrappers from ma-provider-tools (#73) (`b1b760b`)
+- chore: sync workflow wrappers from ma-provider-tools (#71) (`7ff3519`)
+- style: auto-fix ruff (`9945b23`)
+- chore: update changelog for v1.4.23 [skip ci] (`d033fe2`)
+
+---
+
 <!-- changelog entries will be added here by release workflow -->
 
 ## [0.0.1] - 2026-04-06
