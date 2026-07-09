@@ -908,7 +908,7 @@ wheels = [
 name = "ma-provider-yandex-station"
 source = { editable = "." }
 dependencies = [
-    { name = "ya-passport-auth" },
+    { name = "ya-passport-auth", extra = ["ma"] },
 ]
 
 [package.optional-dependencies]
@@ -939,7 +939,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'test'", specifier = ">=0.14,<0.15" },
     { name = "syrupy", marker = "extra == 'test'", specifier = ">=5.0" },
-    { name = "ya-passport-auth", specifier = ">=1.5.0" },
+    { name = "ya-passport-auth", extras = ["ma"], specifier = "==1.6.0" },
 ]
 provides-extras = ["test"]
 
@@ -2155,15 +2155,20 @@ wheels = [
 
 [[package]]
 name = "ya-passport-auth"
-version = "1.5.0"
+version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fd/1a/22a1dab06db72a3688a1dba15fd514ccdf75903adec1c243f0ee7c3d5bd3/ya_passport_auth-1.5.0.tar.gz", hash = "sha256:551d64febfae04b97e64621e91e82fe09250d378b92e97b537949472bdcfe90c", size = 60310, upload-time = "2026-05-27T14:33:21.005Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/de/8b54d3129765b167e4f299b325071171335816afeaa6196fb8b1480c0510/ya_passport_auth-1.6.0.tar.gz", hash = "sha256:10179196bb3ea79521c6fba5b6825502620243e74d5b86afe0df58a36285a1e4", size = 94476, upload-time = "2026-07-09T15:27:51.973Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/99/3ff3147917d6a93e4387c765566a9e5f0b8941d4f9526491c46442cf3eb7/ya_passport_auth-1.5.0-py3-none-any.whl", hash = "sha256:3aa60b658e061b1fb48b51daf2adf72025232855214fa4112e160342651debf6", size = 41689, upload-time = "2026-05-27T14:33:19.426Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/b1/54a5973759bea771d7d0fd0f0b07af2f71bd84ec90d9bc478e8557064a21/ya_passport_auth-1.6.0-py3-none-any.whl", hash = "sha256:ca8bdf385296c25dca45720ac214ff37cb8ccb2ee7fc957930a3dd3fd4a6195b", size = 67234, upload-time = "2026-07-09T15:27:50.753Z" },
+]
+
+[package.optional-dependencies]
+ma = [
+    { name = "music-assistant-models" },
 ]
 
 [[package]]

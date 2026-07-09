@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.4.25] - 2026-07-09
+
+### Added
+
+- The device-code login page is fully modernized via the shared `ya-passport-auth[ma]` layer: Russian/English localization through Music Assistant's translation pipeline, dark-theme support, tap-to-copy code that works on plain-HTTP LAN deployments, an honest countdown of the code's remaining lifetime, and clear terminal states explaining why a login failed (expired / denied / error).
+
+### Changed
+
+- The login dialog now responds the moment the outcome is known instead of pausing for a grace period; the login page keeps polling in the background and closes itself.
+- Login flows, the silent credential-refresh cascade and token maintenance now come from the shared `ya-passport-auth[ma]` layer used by all Music Assistant yandex providers — one implementation to receive fixes.
+- Transient Yandex Passport failures (network, rate limiting) now consistently surface as "temporarily unavailable" in every path — including interactive logins and token validation — so stored credentials survive hiccups; a silent refresh only clears credentials when Yandex explicitly rejects them.
+
 ## [1.4.24] - 2026-07-09
 
 ### Changed

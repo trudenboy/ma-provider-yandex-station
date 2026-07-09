@@ -17,7 +17,7 @@ from typing import Any, cast
 from unittest import mock
 
 import pytest
-from music_assistant_models.errors import LoginFailed, ProviderUnavailableError
+from music_assistant_models.errors import LoginFailed, ResourceTemporarilyUnavailable
 from ya_passport_auth import SecretStr
 
 from music_assistant.providers.yandex_station.constants import (
@@ -95,8 +95,8 @@ def _make_provider(config_values: dict[str, Any]) -> YandexStationProvider:
     provider._pending_discoveries = set()
     provider._mdns_players = {}
     provider._discovery_done = False
-    provider._reauth_lock = asyncio.Lock()
     provider._init_lock = asyncio.Lock()
+    provider._cascade = provider._build_cascade()
     return provider
 
 
@@ -143,8 +143,8 @@ async def test_fast_path_with_music_and_x_token(fake_session_cls: Any) -> None:
     session.login_token.return_value = True
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         ok = await provider._init_session()
 
@@ -170,8 +170,8 @@ async def test_refresh_via_x_token(fake_session_cls: Any) -> None:
     session.login_token.side_effect = [False, True]  # fast-path fails, retry ok
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         rmt.return_value = SecretStr("mt_fresh")
         ok = await provider._init_session()
@@ -203,8 +203,8 @@ async def test_refresh_via_refresh_token(fake_session_cls: Any) -> None:
     new_creds.refresh_token = SecretStr("rt_new")
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         rmt.side_effect = LoginFailed("x_token expired")
         rcp.return_value = new_creds
@@ -233,8 +233,8 @@ async def test_terminal_failure_clears_creds(fake_session_cls: Any) -> None:
     session.login_token.return_value = False  # fast path dead
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         rmt.side_effect = LoginFailed("x_token expired")
         ok = await provider._init_session()
@@ -259,8 +259,8 @@ async def test_remember_session_disabled_skips_refresh(fake_session_cls: Any) ->
     session.login_token.return_value = False  # would fail but shouldn't be hit
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         ok = await provider._init_session()
 
@@ -285,8 +285,8 @@ async def test_music_token_only_with_remember_session_default(fake_session_cls: 
     session.login_token.return_value = False  # would fail but must not be reached
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         ok = await provider._init_session()
 
@@ -313,7 +313,7 @@ async def test_no_credentials_returns_false(fake_session_cls: Any) -> None:  # n
 async def test_network_error_raises_provider_unavailable(
     fake_session_cls: Any,  # noqa: ARG001
 ) -> None:
-    """Generic exception from refresh_music_token → ProviderUnavailableError (transient)."""
+    """Generic exception from refresh_music_token → ResourceTemporarilyUnavailable (transient)."""
     provider = _make_provider(
         {
             CONF_MUSIC_TOKEN: None,
@@ -322,9 +322,9 @@ async def test_network_error_raises_provider_unavailable(
             CONF_REMEMBER_SESSION: True,
         }
     )
-    with mock.patch(f"{_MOD}.refresh_music_token") as rmt:
+    with mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt:
         rmt.side_effect = RuntimeError("boom")
-        with pytest.raises(ProviderUnavailableError):
+        with pytest.raises(ResourceTemporarilyUnavailable):
             await provider._init_session()
 
 
@@ -357,7 +357,7 @@ async def test_init_session_reuses_existing_healthy_session(
 
 
 async def test_transient_refresh_failure_does_not_wipe_tokens(fake_session_cls: Any) -> None:
-    """ProviderUnavailableError from refresh must propagate without clearing creds."""
+    """ResourceTemporarilyUnavailable from refresh must propagate without clearing creds."""
     provider = _make_provider(
         {
             CONF_MUSIC_TOKEN: "mt",
@@ -370,11 +370,11 @@ async def test_transient_refresh_failure_does_not_wipe_tokens(fake_session_cls: 
     fake_session_cls.return_value.login_token = mock.AsyncMock(return_value=False)
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
-        rmt.side_effect = ProviderUnavailableError("network")
-        with pytest.raises(ProviderUnavailableError):
+        rmt.side_effect = ResourceTemporarilyUnavailable("network")
+        with pytest.raises(ResourceTemporarilyUnavailable):
             await provider._init_session()
 
     rcp.assert_not_called()
@@ -401,8 +401,8 @@ async def test_silent_reauth_via_x_token(fake_session_cls: Any) -> None:  # noqa
     provider._session.login_token = mock.AsyncMock(return_value=True)
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         rmt.return_value = SecretStr("mt_new")
         ok = await provider._silent_reauth()
@@ -435,8 +435,8 @@ async def test_silent_reauth_falls_back_to_refresh_token(
     new_creds.refresh_token = SecretStr("rt_new")
 
     with (
-        mock.patch(f"{_MOD}.refresh_music_token") as rmt,
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport") as rcp,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt,
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials") as rcp,
     ):
         rmt.side_effect = LoginFailed("expired")
         rcp.return_value = new_creds
@@ -480,16 +480,18 @@ async def test_silent_reauth_reads_tokens_inside_lock(
     provider._session = mock.MagicMock()
     provider._session.login_token = mock.AsyncMock(return_value=True)
 
-    # Acquire the lock first so the reauth coroutine has to wait.
-    await provider._reauth_lock.acquire()
+    # Acquire the cascade's rotation lock first so the reauth has to wait.
+    # (Reaching into the engine's lock pins the serialization contract the
+    # provider relies on for 401 storms.)
+    await provider._cascade._lock.acquire()
 
-    with mock.patch(f"{_MOD}.refresh_music_token") as rmt:
+    with mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt:
         rmt.return_value = SecretStr("mt_new")
         task = asyncio.create_task(provider._silent_reauth())
         await asyncio.sleep(0)  # let the task reach the lock
         # Rotate x_token while the reauth is blocked on the lock.
         provider.config.values[CONF_X_TOKEN].value = "xt_rotated"
-        provider._reauth_lock.release()
+        provider._cascade._lock.release()
         ok = await task
 
     assert ok is True
@@ -497,10 +499,16 @@ async def test_silent_reauth_reads_tokens_inside_lock(
     assert rmt.await_args.args[0].get_secret() == "xt_rotated"
 
 
-async def test_reauth_via_refresh_token_raises_when_cookie_refresh_fails(
+async def test_rotation_persists_creds_even_when_cookie_refresh_fails(
     fake_session_cls: Any,  # noqa: ARG001
 ) -> None:
-    """New creds are stored but session cookies won't refresh → LoginFailed."""
+    """New creds are stored even when session cookies won't refresh.
+
+    The rotation itself succeeded server-side (the old refresh_token is
+    burned), so the fresh triple must be persisted before the cookie
+    failure is surfaced — otherwise a retry would rotate with a dead
+    token. The reauth reports failure (False) to its caller.
+    """
     provider = _make_provider(
         {
             CONF_MUSIC_TOKEN: "mt_stale",
@@ -519,11 +527,15 @@ async def test_reauth_via_refresh_token_raises_when_cookie_refresh_fails(
     new_creds.refresh_token = SecretStr("rt_new")
 
     with (
-        mock.patch(f"{_MOD}.refresh_credentials_via_passport", return_value=new_creds),
-        pytest.raises(LoginFailed),
+        mock.patch(
+            "ya_passport_auth.ma.cascade.refresh_music_token",
+            side_effect=LoginFailed("x expired"),
+        ),
+        mock.patch("ya_passport_auth.ma.cascade.refresh_credentials", return_value=new_creds),
     ):
-        await provider._reauth_via_refresh_token(SecretStr("xt_stale"), SecretStr("rt_good"))
+        ok = await provider._silent_reauth()
 
+    assert ok is False
     # New creds were persisted before the cookie failure was surfaced.
     written = {k: v for (_inst, k, v, _enc) in _updates(provider)}
     assert written[CONF_X_TOKEN] == "xt_new"
@@ -552,7 +564,7 @@ async def test_get_speakers_retries_after_401(fake_session_cls: Any) -> None:  #
     )
     provider._quasar = quasar
 
-    with mock.patch(f"{_MOD}.refresh_music_token") as rmt:
+    with mock.patch("ya_passport_auth.ma.cascade.refresh_music_token") as rmt:
         rmt.return_value = SecretStr("mt_new")
         speakers = await provider._get_speakers_with_reauth()
 

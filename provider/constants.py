@@ -11,12 +11,13 @@ CONF_REFRESH_TOKEN = "refresh_token"
 CONF_REMEMBER_SESSION = "remember_session"
 CONF_COOKIES = "cookies"
 
-# Config action keys
-CONF_ACTION_AUTH_DEVICE = "action_auth_device"
-CONF_ACTION_AUTH_QR = "action_auth_qr"
-CONF_ACTION_AUTH_COOKIES = "action_auth_cookies"
-# "clear_auth" (not "action_clear_auth") so the entry's strings resolve to the
-# shared common config_entries.clear_auth translations.
+# Config action keys — the canonical shared values from ya_passport_auth.ma
+# (auth_device / auth_qr / auth_cookies / clear_auth). All are UI-only ACTION
+# entries, so the rename from the old action_auth_* values affects nothing
+# persisted. Re-exported here for the provider's own action comparisons/tests.
+CONF_ACTION_AUTH_DEVICE = "auth_device"
+CONF_ACTION_AUTH_QR = "auth_qr"
+CONF_ACTION_AUTH_COOKIES = "auth_cookies"
 CONF_ACTION_CLEAR_AUTH = "clear_auth"
 CONF_VOICE_CONTROL = "voice_control"
 
