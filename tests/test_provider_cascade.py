@@ -97,6 +97,7 @@ def _make_provider(config_values: dict[str, Any]) -> YandexStationProvider:
     provider._discovery_done = False
     provider._init_lock = asyncio.Lock()
     provider._cascade = provider._build_cascade()
+    provider._borrow_source = provider._build_borrow_source()
     return provider
 
 

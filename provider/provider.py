@@ -5,11 +5,17 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from aiohttp import ClientSession, CookieJar
 from ya_passport_auth import PassportClient, SecretStr
-from ya_passport_auth.ma import CascadeHooks, CredentialCascade, KeySpec
+from ya_passport_auth.ma import (
+    BORROW_SOURCE_OWN,
+    BorrowedCredentialSource,
+    CascadeHooks,
+    CredentialCascade,
+    KeySpec,
+)
 
 from music_assistant.models.player_provider import PlayerProvider
 
@@ -18,6 +24,7 @@ from .constants import (
     CONF_REFRESH_TOKEN,
     CONF_REMEMBER_SESSION,
     CONF_X_TOKEN,
+    CONF_YM_INSTANCE,
     MDNS_TYPE,
 )
 from .glagol import YandexGlagol
@@ -59,6 +66,7 @@ class YandexStationProvider(PlayerProvider):
         self._discovery_done = False
         self._init_lock: asyncio.Lock = asyncio.Lock()
         self._cascade = self._build_cascade()
+        self._borrow_source = self._build_borrow_source()
 
     # ── Discovery ─────────────────────────────────────────────────────
 
@@ -260,6 +268,19 @@ class YandexStationProvider(PlayerProvider):
 
     # ── Credential cascade ────────────────────────────────────────────
 
+    def _build_borrow_source(self) -> BorrowedCredentialSource | None:
+        """
+        Build the borrowed-credentials source when an account source is set.
+
+        Borrow mode reads (never writes) the linked yandex_music instance's
+        credentials — the linked instance stays the single writer/rotator.
+        Returns None for the provider's own login.
+        """
+        ym_instance = cast("str | None", self.config.get_value(CONF_YM_INSTANCE))
+        if not ym_instance or ym_instance == BORROW_SOURCE_OWN:
+            return None
+        return BorrowedCredentialSource(self.mass, ym_instance)
+
     def _build_cascade(self) -> CredentialCascade:
         """
         Build the shared token engine wired to this provider.
@@ -312,6 +333,9 @@ class YandexStationProvider(PlayerProvider):
         # _create_player) must not race on self._http_session/self._session. The
         # first to arrive runs the cascade; others await and reuse the result.
         async with self._init_lock:
+            if self._borrow_source is not None:
+                return await self._init_session_borrowed()
+
             music_token_val = self.config.get_value(CONF_MUSIC_TOKEN)
             x_token_val = self.config.get_value(CONF_X_TOKEN)
             refresh_token_val = self.config.get_value(CONF_REFRESH_TOKEN)
@@ -370,7 +394,66 @@ class YandexStationProvider(PlayerProvider):
         serialized by the shared cascade engine so a storm triggers only
         one rotation.
         """
+        if self._borrow_source is not None:
+            return await self._silent_reauth_borrowed()
         return await self._cascade.silent_reauth()
+
+    async def _init_session_borrowed(self) -> bool:
+        """
+        Bootstrap the session from the linked yandex_music instance.
+
+        Read-only: nothing is persisted on either side; the linked instance
+        owns rotation. Caller holds ``_init_lock``.
+
+        :raises ResourceTemporarilyUnavailable: The linked instance is not
+            loaded yet (start-up ordering) or Passport is unavailable.
+        :raises LoginFailed: The linked instance holds no usable credentials.
+        """
+        assert self._borrow_source is not None
+        if (
+            self._session is not None
+            and self._http_session is not None
+            and not self._http_session.closed
+        ):
+            return True
+        if self._http_session is not None:
+            await self._cleanup_session()
+
+        music_token = await self._borrow_source.resolve_music_token()
+        _, x_token = self._borrow_source.read_tokens()
+
+        self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
+        self._passport_client = PassportClient(session=self._http_session)
+        self._session = YandexSession(
+            self._http_session,
+            self._passport_client,
+            x_token=x_token,
+            music_token=music_token,
+            refresh_token=None,
+        )
+        if await self._refresh_session_cookies():
+            return True
+        await self._cleanup_session()
+        return False
+
+    async def _silent_reauth_borrowed(self) -> bool:
+        """
+        Re-derive Quasar cookies from the linked instance after a 401.
+
+        Never rotates: re-reads the owner's current tokens, re-resolves the
+        music token (the source skips values it has seen rejected) and
+        refreshes session cookies. A terminal failure means the user must
+        re-authenticate the linked Yandex Music provider.
+        """
+        assert self._borrow_source is not None
+        if self._session is None:
+            return False
+        music_token = await self._borrow_source.resolve_music_token()
+        _, x_token = self._borrow_source.read_tokens()
+        if x_token is not None:
+            self._session.x_token = x_token
+        self._session.music_token = music_token
+        return await self._refresh_session_cookies()
 
     async def _fast_path(self) -> bool:
         """Validate the stored music_token + x_token pair as-is."""
