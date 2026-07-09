@@ -939,7 +939,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'test'", specifier = ">=0.14,<0.15" },
     { name = "syrupy", marker = "extra == 'test'", specifier = ">=5.0" },
-    { name = "ya-passport-auth", specifier = ">=1.5.0" },
+    { name = "ya-passport-auth", specifier = "==1.5.0" },
 ]
 provides-extras = ["test"]
 
