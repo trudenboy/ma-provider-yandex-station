@@ -21,6 +21,11 @@ CONF_ACTION_AUTH_COOKIES = "auth_cookies"
 CONF_ACTION_CLEAR_AUTH = "clear_auth"
 CONF_VOICE_CONTROL = "voice_control"
 
+# Yandex account source: instance_id of a linked yandex_music provider to
+# borrow credentials from, or the shared "__own__" sentinel for the
+# provider's own login (key name matches the yandex_ynison plugin).
+CONF_YM_INSTANCE = "ym_instance"
+
 # Intercept feature: provider-level kill switch (off by default)
 CONF_INTERCEPT_FEATURE_ENABLED = "intercept_feature_enabled"
 

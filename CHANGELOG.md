@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.4.26] - 2026-07-09
+
+### Added
+
+- **Yandex account source**: the provider can now borrow the Yandex account of a configured Yandex Music provider instead of running its own login — one sign-in, one token family for the whole household. Pick the source in the provider settings; "Use own credentials" remains the default and behaves exactly as before. When borrowing, the provider reads the linked account tokens without ever writing or rotating them (Yandex Music stays in charge), the provider-local login buttons are hidden, and a Yandex Music instance that has not started yet is treated as a temporary condition with automatic retry.
+
 ## [1.4.25] - 2026-07-09
 
 ### Added
