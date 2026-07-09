@@ -1,4 +1,5 @@
-"""Yandex Station Player Provider for Music Assistant.
+"""
+Yandex Station Player Provider for Music Assistant.
 
 Play music on Yandex Station smart speakers via local Glagol WebSocket protocol.
 Adapted from AlexxIT/YandexStation (MIT license).

@@ -1,4 +1,5 @@
-"""Tests for the experimental Alice-playback intercept feature.
+"""
+Tests for the experimental Alice-playback intercept feature.
 
 When Alice (Yandex voice assistant) starts music on a Station, the intercept
 feature stops the Station's native player, resolves the track via the
@@ -361,7 +362,8 @@ async def test_seek_mirror_on_progress_jump() -> None:
 
 
 async def test_alice_speaks_during_intercept_pauses_target_via_dispatcher() -> None:
-    """Alice activity arrives via Glagol state — dispatcher pauses target.
+    """
+    Alice activity arrives via Glagol state — dispatcher pauses target.
 
     This drives ``_handle_intercept_tick`` (the actual entry point), not the
     bypass-only ``_handle_voice_interrupt`` helper.  The intercept session
@@ -400,7 +402,8 @@ async def test_alice_idle_during_intercept_does_not_pause_target() -> None:
 
 
 async def test_failed_intercept_debounces_to_avoid_log_spam() -> None:
-    """Repeated WS ticks for the same failing track → only one resolve attempt.
+    """
+    Repeated WS ticks for the same failing track → only one resolve attempt.
 
     Failed lookups must update the debounce timestamp; otherwise every Glagol
     tick (~1Hz) would re-run get_item and emit a fresh warning.
@@ -429,7 +432,8 @@ async def test_target_player_unavailable_does_not_silence_station() -> None:
 
 
 async def test_failed_intercept_on_new_track_ends_stale_session() -> None:
-    """A new track that fails to resolve must pause the target from the prior session.
+    """
+    A new track that fails to resolve must pause the target from the prior session.
 
     Otherwise mirror updates from the Station's native fallback playback would
     keep being forwarded to the target that's still on the previous track.
@@ -450,7 +454,8 @@ async def test_failed_intercept_on_new_track_ends_stale_session() -> None:
 
 
 async def test_handoff_failure_clears_intercept_active() -> None:
-    """Failed handoff after mute must clear intercept_active.
+    """
+    Failed handoff after mute must clear intercept_active.
 
     Otherwise mirror code would forward state to a target that isn't playing.
     Volume is also restored via _end_intercept_session so the Station isn't
@@ -472,7 +477,8 @@ async def test_handoff_failure_clears_intercept_active() -> None:
 
 
 async def test_session_end_clears_debounce_for_quick_resume() -> None:
-    """End of session must clear the debounce for quick same-track resumes.
+    """
+    End of session must clear the debounce for quick same-track resumes.
 
     Otherwise a follow-up of the same track within 5s would be debounced and
     left playing on the Station instead of being handed back to the target.
@@ -490,7 +496,8 @@ async def test_session_end_clears_debounce_for_quick_resume() -> None:
 
 
 async def test_concurrent_ticks_do_not_double_handoff() -> None:
-    """Two near-simultaneous WS ticks for the same track must only stop+play once.
+    """
+    Two near-simultaneous WS ticks for the same track must only stop+play once.
 
     Without the lock both tasks would pass the dedup check, both would call
     glagol.send(stop) and play_media.  The lock + early debounce-mark serialise
@@ -529,7 +536,8 @@ async def test_concurrent_ticks_do_not_double_handoff() -> None:
 
 
 async def test_intercept_does_not_send_stop() -> None:
-    """Continuous-playback contract: a handoff must never send {"command":"stop"}.
+    """
+    Continuous-playback contract: a handoff must never send {"command":"stop"}.
 
     Sending stop pauses the Station's queue → no more playerState ticks → no
     next-track handoff.  We only ever mute via setVolume(0).
@@ -569,7 +577,8 @@ async def test_continuous_handoff_on_track_id_change() -> None:
 
 
 async def test_same_track_during_active_session_is_no_op() -> None:
-    """Same playerState.id on every WS tick must NOT re-trigger handoff.
+    """
+    Same playerState.id on every WS tick must NOT re-trigger handoff.
 
     Regression guard for the live-station bug where the target's audio
     stuttered every ~5s.  Glagol emits ``playerState`` once per second
@@ -680,7 +689,8 @@ async def test_alice_active_unmutes_station() -> None:
 
 
 async def test_alice_idle_remutes_station() -> None:
-    """LISTENING → IDLE edge: re-mute Station now that Alice is done.
+    """
+    LISTENING → IDLE edge: re-mute Station now that Alice is done.
 
     Previous alice state is threaded in as a parameter (snapshot taken
     *before* the dispatcher overwrote ``_prev_alice_state``), since the
@@ -705,7 +715,8 @@ async def test_alice_idle_remutes_station() -> None:
 
 
 async def test_playing_false_during_session_ends_session_and_pauses_target() -> None:
-    """Physical pause / 'Алиса, пауза' / end-of-queue → end session.
+    """
+    Physical pause / 'Алиса, пауза' / end-of-queue → end session.
 
     We can't reliably distinguish a transient user pause from end-of-queue
     on a single ``playing=False`` event, so always end the session — that
@@ -734,7 +745,8 @@ async def test_playing_false_during_session_ends_session_and_pauses_target() -> 
 
 
 async def test_playing_false_without_established_session_does_not_pause() -> None:
-    """Lingering playing=False before any track was intercepted is a no-op.
+    """
+    Lingering playing=False before any track was intercepted is a no-op.
 
     Replaces the old test_session_survives_lingering_playing_false but with the
     correct invariant: we only treat playing=False as 'user paused' when a
@@ -771,7 +783,8 @@ async def test_pause_target_clear_session_restores_station_volume() -> None:
 
 
 async def test_handoff_aborts_on_mute_send_error() -> None:
-    """Mute-send transport error must abort the handoff, not silently proceed.
+    """
+    Mute-send transport error must abort the handoff, not silently proceed.
 
     glagol.send returns {"error": ...} for transport failures rather than
     raising — without explicit validation we'd flip _station_muted_by_intercept
@@ -795,7 +808,8 @@ async def test_handoff_aborts_on_mute_send_error() -> None:
 
 
 async def test_alice_unmute_keeps_flag_when_send_errors() -> None:
-    """Alice activates and our setVolume(saved/100) returns {"error": ...}.
+    """
+    Alice activates and our setVolume(saved/100) returns {"error": ...}.
 
     The flag must NOT flip — an inconsistent flag would prevent the
     edge-IDLE re-mute branch from firing later (because it gates on
@@ -840,7 +854,8 @@ async def test_alice_remute_keeps_flag_when_send_errors() -> None:
 async def test_restore_station_volume_logs_warning_on_send_error(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Volume-restore transport error must log at WARNING for operator visibility.
+    """
+    Volume-restore transport error must log at WARNING for operator visibility.
 
     A stuck-muted Station is user-visible, so we surface the failure loudly
     (not DEBUG).  Validates that _restore_station_volume catches the error
@@ -861,7 +876,8 @@ async def test_restore_station_volume_logs_warning_on_send_error(
 
 
 async def test_on_glagol_update_dispatches_intercept_tick_via_create_task() -> None:
-    """_on_glagol_update must hand intercept work off through mass.create_task.
+    """
+    _on_glagol_update must hand intercept work off through mass.create_task.
 
     This covers the integration boundary the other tests bypass by calling
     _handle_intercept_tick directly.
@@ -910,7 +926,8 @@ async def test_on_glagol_update_dispatches_intercept_tick_via_create_task() -> N
 
 
 async def test_dispatcher_threads_prev_alice_state_snapshot() -> None:
-    """_on_glagol_update must pass the *pre-assignment* alice state to the tick.
+    """
+    _on_glagol_update must pass the *pre-assignment* alice state to the tick.
 
     The dispatcher overwrites self._prev_alice_state with the current
     aliceState before scheduling the tick coroutine.  If the tick read
@@ -1087,7 +1104,8 @@ async def test_pause_target_helper_flag_combinations() -> None:
 
 
 async def test_concurrent_alice_ticks_send_one_pause() -> None:
-    """Two parallel LISTENING ticks → only one cmd_pause to the target.
+    """
+    Two parallel LISTENING ticks → only one cmd_pause to the target.
 
     Without the tick-level lock, both tasks would see
     `_alice_active_pause_sent=False` before either await completes and both
@@ -1119,7 +1137,8 @@ async def test_concurrent_alice_ticks_send_one_pause() -> None:
 
 
 async def test_pause_target_cleanup_runs_when_cmd_pause_raises() -> None:
-    """If cmd_pause raises, the state-cleanup must still happen.
+    """
+    If cmd_pause raises, the state-cleanup must still happen.
 
     Otherwise _intercept_active stays stale and every later WS update retries
     the failing path forever.
@@ -1138,7 +1157,8 @@ async def test_pause_target_cleanup_runs_when_cmd_pause_raises() -> None:
 
 
 async def test_target_dropdown_lists_all_players_except_self() -> None:
-    """Every registered player except the Station itself shows in the dropdown.
+    """
+    Every registered player except the Station itself shows in the dropdown.
 
     Intercept dispatches via ``mass.player_queues.play_media(queue_id=...)``
     which routes through the per-player queue, so any registered player is
@@ -1186,7 +1206,8 @@ async def test_target_dropdown_lists_all_players_except_self() -> None:
 
 
 async def test_concurrent_mirror_volume_serialised() -> None:
-    """Back-to-back volume updates must be applied in order.
+    """
+    Back-to-back volume updates must be applied in order.
 
     Without the tick-level lock, an older volume task could finish after a
     newer one and leave the target stale.  With the lock, the second tick

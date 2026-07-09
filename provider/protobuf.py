@@ -1,4 +1,5 @@
-"""Lightweight protobuf encoder/decoder for Yandex externalCommandBypass.
+"""
+Lightweight protobuf encoder/decoder for Yandex externalCommandBypass.
 
 Adapted from AlexxIT/YandexStation (MIT license).
 """

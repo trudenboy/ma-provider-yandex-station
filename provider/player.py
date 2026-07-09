@@ -60,7 +60,8 @@ def _external_command(name: str, payload: dict[str, Any] | str | None = None) ->
 
 
 def _parse_yandex_track_id(raw: str) -> str:
-    """Extract numeric Yandex Music track ID from Glagol playerState.id.
+    """
+    Extract numeric Yandex Music track ID from Glagol playerState.id.
 
     Glagol may emit `12345` (plain) or `12345:67890` (track:album).  Strip the
     album suffix so the value is consumable by the yandex_music music provider.
@@ -69,7 +70,8 @@ def _parse_yandex_track_id(raw: str) -> str:
 
 
 def _raise_if_failed(result: dict[str, Any] | None, command: str) -> None:
-    """Raise PlayerCommandFailed if a Glagol send result indicates failure.
+    """
+    Raise PlayerCommandFailed if a Glagol send result indicates failure.
 
     Two distinct failure shapes:
     - Transport error (no response, or ``error`` key set).
@@ -205,7 +207,8 @@ class YandexStationPlayer(Player):
         action: str | None = None,
         values: dict[str, ConfigValueType] | None = None,
     ) -> list[ConfigEntry]:
-        """Return player-specific config entries.
+        """
+        Return player-specific config entries.
 
         Yandex Station requires Content-Length in HTTP responses (no chunked encoding),
         so we default to forced_content_length HTTP profile.
@@ -250,7 +253,8 @@ class YandexStationPlayer(Player):
         ]
 
     def update_connection(self, host: str, port: int) -> None:
-        """Update connection info when mDNS reports new IP.
+        """
+        Update connection info when mDNS reports new IP.
 
         Pure mutation — no side effects.  Callers decide whether to (re)connect
         via ``async_setup()`` so a single mDNS update can't trigger
@@ -271,7 +275,8 @@ class YandexStationPlayer(Player):
     # ── Transport controls ───────────────────────────────────────
 
     async def power(self, powered: bool) -> None:
-        """Power on/off the station.
+        """
+        Power on/off the station.
 
         Power on: resumes playback via player_continue scenario.
         Power off: sends station to home screen via go_home scenario.
@@ -289,7 +294,8 @@ class YandexStationPlayer(Player):
         self.update_state()
 
     async def play(self) -> None:
-        """Send PLAY command.
+        """
+        Send PLAY command.
 
         After external playback was stopped via Alice, native 'play' has nothing
         to resume.  Re-trigger queue playback through MA instead.
@@ -304,7 +310,8 @@ class YandexStationPlayer(Player):
         _raise_if_failed(result, "play")
 
     async def pause(self) -> None:
-        """Send PAUSE command.
+        """
+        Send PAUSE command.
 
         Glagol 'stop' only affects the native player, not externalCommandBypass.
         Send a radio_play with invalid URL to replace current bypass stream —
@@ -413,7 +420,8 @@ class YandexStationPlayer(Player):
     async def play_announcement(
         self, announcement: PlayerMedia, volume_level: int | None = None
     ) -> None:
-        """Play announcement by streaming the MA-hosted announcement URL.
+        """
+        Play announcement by streaming the MA-hosted announcement URL.
 
         Blocks until the announcement finishes so MA core can properly
         manage ANNOUNCEMENT_IN_PROGRESS state and volume restoration.
@@ -507,7 +515,8 @@ class YandexStationPlayer(Player):
     # ── State updates from Glagol WebSocket ──────────────────────
 
     def _handle_voice_interrupt(self, alice_state: str) -> None:
-        """Handle Alice activation during bypass playback.
+        """
+        Handle Alice activation during bypass playback.
 
         Intercept-mode voice handling lives in ``_handle_intercept_tick`` —
         this branch is reached only via ``_update_playback_state`` while
@@ -567,7 +576,8 @@ class YandexStationPlayer(Player):
         playing: bool,
         prev_alice_state: str = "",
     ) -> None:
-        """Dispatch intercept actions for a single Glagol state update.
+        """
+        Dispatch intercept actions for a single Glagol state update.
 
         Holds ``_intercept_lock`` for the whole tick so back-to-back WS
         updates (each scheduled as its own background task by the dispatcher)
@@ -674,7 +684,8 @@ class YandexStationPlayer(Player):
                     await self._maybe_mirror_volume(state.get("volume"))
 
     async def _maybe_intercept_locked(self, track_id: str) -> None:
-        """Resolve the track, stop the Station, then play on the target.
+        """
+        Resolve the track, stop the Station, then play on the target.
 
         Caller MUST hold ``_intercept_lock``.  Serialisation prevents two
         concurrent Glagol updates from issuing duplicate stop/play commands
@@ -817,7 +828,8 @@ class YandexStationPlayer(Player):
         self._last_progress_wall = time.time()
 
     async def _restore_station_volume(self, vol_pct: int) -> None:
-        """Restore Station volume after we muted it for intercept handoff.
+        """
+        Restore Station volume after we muted it for intercept handoff.
 
         YandexGlagol.send() reports failures via ``{"error": ...}`` rather
         than raising, so a bare ``try/except`` would silently swallow
@@ -841,7 +853,8 @@ class YandexStationPlayer(Player):
             )
 
     async def _end_intercept_session(self, *, clear_debounce: bool) -> None:
-        """End an intercept session: restore Station volume + clear flags.
+        """
+        End an intercept session: restore Station volume + clear flags.
 
         Single funnel for session-end side effects.  Idempotent — safe to
         call when no session is active (volume restore is gated by both
@@ -861,7 +874,8 @@ class YandexStationPlayer(Player):
             self._last_intercept_time = 0.0
 
     async def _maybe_mirror_volume(self, vol: float | None) -> None:
-        """Mirror Station volume changes to the intercept target player.
+        """
+        Mirror Station volume changes to the intercept target player.
 
         Targets without VOLUME_SET raise ``UnsupportedFeaturedException`` —
         we treat that as a no-op (matches the dropdown's documented
@@ -907,7 +921,8 @@ class YandexStationPlayer(Player):
             self._last_mirrored_volume = target_vol
 
     async def _maybe_mirror_seek(self, progress: int) -> None:
-        """Detect Alice-initiated seek by comparing reported progress to wall clock.
+        """
+        Detect Alice-initiated seek by comparing reported progress to wall clock.
 
         Targets without SEEK raise ``UnsupportedFeaturedException`` — treated
         as a no-op (see ``_maybe_mirror_volume`` docstring).
@@ -932,7 +947,8 @@ class YandexStationPlayer(Player):
         self._last_progress_wall = now
 
     async def _pause_target(self, *, clear_session: bool, clear_debounce: bool) -> None:
-        """Pause the target player; optionally clear session / debounce state.
+        """
+        Pause the target player; optionally clear session / debounce state.
 
         The two flags are independent because callers want different combos:
 
@@ -1023,7 +1039,8 @@ class YandexStationPlayer(Player):
                 self._attr_playback_state = PlaybackState.IDLE
 
     def _on_glagol_update(self, data: dict[str, Any] | None) -> None:
-        """Handle state update from Glagol WebSocket.
+        """
+        Handle state update from Glagol WebSocket.
 
         Called from the WebSocket receive loop (already in asyncio context).
         """

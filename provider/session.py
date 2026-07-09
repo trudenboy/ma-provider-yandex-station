@@ -1,4 +1,5 @@
-"""Yandex Session — HTTP client with cookie/CSRF management.
+"""
+Yandex Session — HTTP client with cookie/CSRF management.
 
 Adapted from AlexxIT/YandexStation (MIT license).
 Authentication flows delegate to ``ya-passport-auth`` via an injected
@@ -26,7 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class YandexSession:
-    """Yandex HTTP client with cookie/CSRF management.
+    """
+    Yandex HTTP client with cookie/CSRF management.
 
     Manages x_token (long-lived ~1 year), music_token (for Glagol API),
     cookies, and CSRF tokens for Quasar API.  Auth operations delegate to
@@ -74,7 +76,8 @@ class YandexSession:
             return False
 
     async def refresh_cookies(self) -> bool:
-        """Check cookies and refresh if needed.
+        """
+        Check cookies and refresh if needed.
 
         Yandex may answer with an HTML error/redirect page when cookies are
         stale; awaiting ``r.json()`` on that would raise and break the

@@ -1,4 +1,5 @@
-"""Yandex Glagol — local WebSocket client for Yandex Station.
+"""
+Yandex Glagol — local WebSocket client for Yandex Station.
 
 Adapted from AlexxIT/YandexStation (MIT license).
 Stripped of Home Assistant dependencies; uses pure aiohttp + asyncio.

@@ -63,7 +63,8 @@ class YandexStationProvider(PlayerProvider):
     # ── Discovery ─────────────────────────────────────────────────────
 
     async def discover_players(self) -> None:
-        """Discover Yandex Station players.
+        """
+        Discover Yandex Station players.
 
         Two-phase discovery:
         1. Cloud: Quasar API (requires session cookies from x_token)
@@ -173,7 +174,8 @@ class YandexStationProvider(PlayerProvider):
         state_change: ServiceStateChange,
         info: AsyncServiceInfo | None,
     ) -> None:
-        """Handle mDNS discovery callback (called by MA core).
+        """
+        Handle mDNS discovery callback (called by MA core).
 
         Note: MA passes info=None for Removed events, so we use a cached
         name→player_id mapping to mark players unavailable.
@@ -370,7 +372,8 @@ class YandexStationProvider(PlayerProvider):
         return False
 
     async def _finish_without_refresh(self, has_music_token: bool, reason: str) -> bool:
-        """Finalize init when no silent-refresh path is available.
+        """
+        Finalize init when no silent-refresh path is available.
 
         ``reason`` is used only for log clarity: ``"disabled"`` means Remember
         session is off, ``"no_x_token"`` means x_token isn't stored (e.g. a
@@ -451,7 +454,8 @@ class YandexStationProvider(PlayerProvider):
         refresh_token: SecretStr,
         original_err: Exception | None = None,
     ) -> None:
-        """Silently rotate the full credential triple via the refresh_token.
+        """
+        Silently rotate the full credential triple via the refresh_token.
 
         Device-flow accounts have a refresh_token that can mint a new
         x_token + refresh_token + music_token without user interaction.
@@ -498,7 +502,8 @@ class YandexStationProvider(PlayerProvider):
         self.logger.info("Re-issued credentials silently from refresh token")
 
     async def _silent_reauth(self) -> bool:
-        """Attempt a silent re-auth after a runtime 401/403 from Quasar.
+        """
+        Attempt a silent re-auth after a runtime 401/403 from Quasar.
 
         Returns ``True`` if credentials were rotated and the session was
         refreshed so the caller can retry its operation; ``False`` if silent
