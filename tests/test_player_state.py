@@ -1,4 +1,5 @@
-"""Tests for YandexStationPlayer state transitions during external playback.
+"""
+Tests for YandexStationPlayer state transitions during external playback.
 
 Covers physical pause detection: when the user presses pause on the speaker
 while MA is streaming via ``radio_play``, Glagol reports ``playing=False`` with
@@ -70,7 +71,8 @@ def test_physical_pause_during_external_playback_sets_paused() -> None:
 
 
 def test_external_startup_window_stays_playing_until_confirmed() -> None:
-    """Before the station starts fetching the stream, playing=False is expected.
+    """
+    Before the station starts fetching the stream, playing=False is expected.
 
     We must not misread that initial pre-stream window as a physical pause.
     """
@@ -102,7 +104,8 @@ def test_external_playing_true_sets_confirmed() -> None:
 
 
 def test_physical_pause_cancels_pending_voice_resume_task() -> None:
-    """A pending auto-resume from a prior voice interaction must be cancelled.
+    """
+    A pending auto-resume from a prior voice interaction must be cancelled.
 
     Without this, the task could wake up after the user physically paused and
     resume MA queue playback unexpectedly.
@@ -128,7 +131,8 @@ def test_physical_pause_cancels_pending_voice_resume_task() -> None:
 
 
 def test_physical_pause_ignored_during_voice_interaction() -> None:
-    """Alice speaking/listening must not be treated as a physical pause.
+    """
+    Alice speaking/listening must not be treated as a physical pause.
 
     Voice control is disabled here, so the fallthrough branch must keep PLAYING
     (voice handling itself is tested elsewhere).

@@ -1,4 +1,5 @@
-"""Yandex Quasar — cloud API for device discovery and fallback commands.
+"""
+Yandex Quasar — cloud API for device discovery and fallback commands.
 
 Adapted from AlexxIT/YandexStation (MIT license).
 Stripped of Home Assistant dependencies; uses pure aiohttp.
@@ -70,7 +71,8 @@ class YandexQuasar:
             device["quasar_info"] = resp["quasar_info"]
 
     async def get_local_speakers(self) -> list[dict[str, Any]]:
-        """Get device list via Glagol device_list API (includes IP/port).
+        """
+        Get device list via Glagol device_list API (includes IP/port).
 
         Returns devices with keys: device_id, name, platform, host, port, glagol.
         Only returns devices that have networkInfo with IP addresses.

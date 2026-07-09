@@ -1,4 +1,5 @@
-"""Tests for the Yandex Station provider credential cascade and silent re-auth.
+"""
+Tests for the Yandex Station provider credential cascade and silent re-auth.
 
 Covers:
 
@@ -586,7 +587,8 @@ async def test_get_speakers_propagates_non_auth_error(
 async def test_discover_falls_back_to_glagol_device_list_when_quasar_fails(
     fake_session_cls: Any,  # noqa: ARG001
 ) -> None:
-    """When Quasar fails but Glagol works, register from the local list.
+    """
+    When Quasar fails but Glagol works, register from the local list.
 
     Covers the case: cookies expired / x_token mishap, but music_token still
     valid.  Without the fallback, discovery would return empty and the user

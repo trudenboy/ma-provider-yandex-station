@@ -1,0 +1,62 @@
+{
+  "config_entries": {
+    "action_auth_device": {
+      "label": "Login with device code",
+      "description": "Open a verification URL on any device and enter the short code.",
+      "action_label": "Login with device code"
+    },
+    "action_auth_qr": {
+      "label": "Login with QR code",
+      "description": "Opens a QR code page — scan it with the Yandex app on your phone.",
+      "action_label": "Login with QR code"
+    },
+    "remember_session": {
+      "label": "Remember session (auto-refresh token)",
+      "description": "When enabled, stores a long-lived session token to automatically refresh your music token when it expires. When disabled, you must re-authenticate manually when the token expires — toggling this off after logging in immediately drops the stored long-lived tokens."
+    },
+    "intercept_feature_enabled": {
+      "label": "Experimental: Enable intercept feature",
+      "description": "Master switch for the intercept feature. When ON, individual stations can be configured (in their player settings) to redirect Alice-initiated playback to another Music Assistant player. When OFF, intercept is fully disabled regardless of per-player settings. Requires the 'yandex_music' music provider to be configured to actually resolve tracks."
+    },
+    "cookies": {
+      "label": "Browser Cookies",
+      "description": "Open passport.yandex.ru/profile in your browser, use \"Copy Cookies\" extension to copy cookies, paste here. Supports JSON array or raw cookie string."
+    },
+    "action_auth_cookies": {
+      "label": "Login with Cookies",
+      "description": "Authenticate using browser cookies from passport.yandex.ru.",
+      "action_label": "Login with Cookies"
+    },
+    "clear_auth": {
+      "label": "[%key:common::config_entries::clear_auth::label%]",
+      "description": "[%key:common::config_entries::clear_auth::description%]",
+      "action_label": "[%key:common::config_entries::clear_auth::action_label%]"
+    },
+    "x_token": {
+      "label": "Yandex X-Token",
+      "description": "Long-lived session token. Auto-obtained via login flows."
+    },
+    "music_token": {
+      "label": "Yandex Music Token",
+      "description": "Auto-obtained from one of the login flows."
+    },
+    "refresh_token": {
+      "label": "Refresh token"
+    },
+    "voice_control": {
+      "label": "Experimental: Voice control integration",
+      "description": "Auto-resume MA queue after voice commands like 'Алиса, стоп' or 'Алиса, дальше'. Experimental — may cause unexpected behavior."
+    },
+    "intercept_enabled": {
+      "label": "Experimental: Intercept native Station playback",
+      "description": "When the Station starts native Yandex Music playback (typically triggered by an Alice voice command, but also a touch on the Station UI), silence the Station (setVolume 0; the Station keeps playing its own queue in the background so we see every next track) and play the same track on the chosen target player. Requires the provider-level intercept feature to be enabled and a configured 'yandex_music' music provider."
+    },
+    "intercept_target_player_id": {
+      "label": "Intercept target player",
+      "description": "Music Assistant player that receives intercepted playback. Lists every registered player except this Station; pause / volume_set / seek mirrors gracefully no-op on players that don't support them."
+    }
+  },
+  "manifest": {
+    "description": "Play music on Yandex Station smart speakers via local Glagol protocol."
+  }
+}

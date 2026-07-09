@@ -1,4 +1,5 @@
-"""Yandex Passport authentication flows.
+"""
+Yandex Passport authentication flows.
 
 Three user-facing login paths, all backed by ``ya-passport-auth``:
 
@@ -63,7 +64,8 @@ def _build_device_code_page(
     verification_url: str,
     status_url: str,
 ) -> str:
-    """Render the HTML page shown to the user during Device Flow login.
+    """
+    Render the HTML page shown to the user during Device Flow login.
 
     Yandex's verification page does not pre-fill the code from query params,
     and the MA frontend opens auth URLs in a new tab, so the user would
@@ -202,7 +204,8 @@ def _build_device_code_page(
 
 
 async def perform_device_auth(mass: MusicAssistant, session_id: str) -> tuple[str, str, str]:
-    """Perform Yandex OAuth Device Flow and return credential tokens.
+    """
+    Perform Yandex OAuth Device Flow and return credential tokens.
 
     Asks Yandex for a device code, presents it to the user via an intermediate
     HTML page served from MA's own webserver, then polls until the user
@@ -296,7 +299,8 @@ async def perform_device_auth(mass: MusicAssistant, session_id: str) -> tuple[st
 
 
 async def perform_qr_auth(mass: MusicAssistant, session_id: str) -> tuple[str, str]:
-    """Perform full QR authentication flow.
+    """
+    Perform full QR authentication flow.
 
     Opens a QR code popup via MA frontend, polls for scan confirmation,
     then returns tokens as plain strings for MA config storage.
@@ -390,7 +394,8 @@ async def validate_x_token(x_token: SecretStr) -> bool:
 
 
 async def login_with_cookies(cookies_input: str) -> tuple[str, str]:
-    """Authenticate using browser cookies from passport.yandex.ru.
+    """
+    Authenticate using browser cookies from passport.yandex.ru.
 
     Supports two formats:
     - JSON from "Copy Cookies" Chrome extension: [{"name":"...", "value":"...", "domain":"..."}]

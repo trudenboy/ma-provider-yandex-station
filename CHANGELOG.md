@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.4.24] - 2026-07-09
+
+### Changed
+
+- Provider and player settings texts (labels, descriptions, action buttons) are now served through Music Assistant's translation system, so the settings UI can be localized. The "Reset authentication" action reuses the shared server-wide strings.
+
+### Fixed
+
+- Intercept target dropdown stored player display names instead of player ids after a Music Assistant models update, which broke target selection (surfaced by upstream MA PR #3605 CI).
+
 ## [1.4.23] - 2026-05-09
 
 ### Changed

@@ -60,6 +60,204 @@ class YandexStationProvider(PlayerProvider):
         self._reauth_lock: asyncio.Lock = asyncio.Lock()
         self._init_lock: asyncio.Lock = asyncio.Lock()
 
+    # ── Discovery ─────────────────────────────────────────────────────
+
+    async def discover_players(self) -> None:
+        """
+        Discover Yandex Station players.
+
+        Two-phase discovery:
+        1. Cloud: Quasar API (requires session cookies from x_token)
+        2. Local: mDNS (handled by MA core via manifest.json mdns_discovery)
+        """
+        if self._discovery_done:
+            return
+
+        if not await self._init_session():
+            return
+
+        # Load device list from Quasar cloud API.  Two endpoints with
+        # *different* auth — ``get_speakers`` uses cookie/CSRF auth and
+        # carries cloud-side metadata (name, model, room, etc.), while
+        # ``get_local_speakers`` uses Glagol/music_token auth and carries
+        # the IP/port needed for the local WebSocket.  When cookies are
+        # stale or x_token broke (but music_token is still valid), the
+        # cloud call fails — we fall back to registering devices from
+        # the Glagol list only, so users in that state still get working
+        # players (with placeholder names) instead of an empty integration.
+        assert self._session is not None  # guaranteed by _init_session()
+        self._quasar = YandexQuasar(self._session)
+        speakers: list[dict[str, Any]] = []
+        quasar_ok = False
+        try:
+            speakers = await self._get_speakers_with_reauth()
+            self.logger.info("Found %d speakers via Quasar API", len(speakers))
+            # ``YandexQuasar.get_speakers()`` filters the bulk device list
+            # to only entries that already carry ``quasar_info``, so we
+            # don't need a per-device ``load_device_config`` enrichment
+            # loop here — every returned speaker is guaranteed to have
+            # the field set.  ``load_device_config`` remains available
+            # for callers that bypass the filter and want to enrich a
+            # raw device entry on demand.
+            quasar_ok = True
+        except Exception:
+            self.logger.warning(
+                "Failed to load speakers from Quasar (cloud auth or API issue) — "
+                "falling back to Glagol device_list",
+                exc_info=True,
+            )
+
+        # Local connection info from glagol API (host/port + glagol-side info).
+        # Used both as enrichment for Quasar-listed speakers AND as the primary
+        # device source when Quasar fails.
+        local_speakers: dict[str, dict[str, Any]] = {}
+        try:
+            local_list = await self._quasar.get_local_speakers()
+            for ls in local_list:
+                local_speakers[ls["device_id"]] = ls
+            self.logger.info("Found %d local speakers via Glagol API", len(local_speakers))
+        except Exception:
+            self.logger.debug("Failed to get local speakers from Glagol API")
+
+        # If Quasar failed, build a synthetic speakers list from the local
+        # device_list response.  Local entries already carry device_id, name,
+        # platform, host, port — enough to register a working player.
+        if not quasar_ok:
+            if not local_speakers:
+                # Both auth paths failed — leave _discovery_done=False so MA
+                # retries when cookies/x_token/music_token become valid again.
+                self.logger.warning(
+                    "Both Quasar and Glagol device_list discovery failed — will retry later"
+                )
+                return
+            for device_id, ls in local_speakers.items():
+                speakers.append(
+                    {
+                        "name": ls.get("name") or "Yandex Station",
+                        "host": ls["host"],
+                        "port": ls["port"],
+                        "glagol": ls.get("glagol", {}),
+                        "quasar_info": {
+                            "device_id": device_id,
+                            "platform": ls.get("platform", ""),
+                        },
+                    }
+                )
+            self.logger.info(
+                "Registering %d speakers from Glagol device_list only "
+                "(cloud-side metadata unavailable)",
+                len(speakers),
+            )
+
+        for speaker in speakers:
+            qi = speaker.get("quasar_info", {})
+            device_id = qi.get("device_id", "")
+            if not device_id:
+                continue
+            player_id = f"ys_{device_id}"
+            # Merge local connection info (IP/port from glagol API)
+            if device_id in local_speakers:
+                ls = local_speakers[device_id]
+                speaker.setdefault("host", ls["host"])
+                speaker.setdefault("port", ls["port"])
+                speaker.setdefault("glagol", ls.get("glagol", {}))
+            self.logger.info(
+                "Registering speaker: %s [%s]", speaker.get("name"), qi.get("platform")
+            )
+            await self._create_player(player_id, speaker)
+
+        self._discovery_done = True
+
+    async def on_mdns_service_state_change(
+        self,
+        name: str,
+        state_change: ServiceStateChange,
+        info: AsyncServiceInfo | None,
+    ) -> None:
+        """
+        Handle mDNS discovery callback (called by MA core).
+
+        Note: MA passes info=None for Removed events, so we use a cached
+        name→player_id mapping to mark players unavailable.
+        """
+        from zeroconf import ServiceStateChange  # noqa: PLC0415, RUF100
+
+        if state_change == ServiceStateChange.Removed:
+            player_id = self._mdns_players.get(name)
+            if player_id:
+                existing = self.mass.players.get_player(player_id)
+                if existing and isinstance(existing, YandexStationPlayer):
+                    existing._attr_available = False
+                    existing.update_state()
+                    _LOGGER.debug("Marked player %s unavailable (mDNS removed)", player_id)
+            return
+
+        if not info or not info.addresses:
+            return
+
+        try:
+            properties: dict[str, Any] = {
+                k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v
+                for k, v in info.properties.items()
+            }
+
+            device_id = properties.get("deviceId", "")
+            platform = properties.get("platform", "")
+            host = str(ipaddress.ip_address(info.addresses[0]))
+            port = info.port or 0
+
+            if not device_id or not port:
+                return
+
+            player_id = f"ys_{device_id}"
+
+            # Cache mDNS name → player_id for Removed events (info=None)
+            self._mdns_players[name] = player_id
+
+            if player_id in self._pending_discoveries:
+                return
+
+            # Check if player already registered (cloud-discovered) — connect Glagol
+            existing = self.mass.players.get_player(player_id)
+            if existing and isinstance(existing, YandexStationPlayer):
+                if not existing.glagol.connected:
+                    existing.update_connection(host, port)
+                    await existing.async_setup()
+                else:
+                    existing.update_connection(host, port)
+                return
+
+            self._pending_discoveries.add(player_id)
+
+            device_info: dict[str, Any] = {
+                "quasar_info": {
+                    "device_id": device_id,
+                    "platform": platform,
+                },
+                "name": name.replace(f".{MDNS_TYPE}", ""),
+                "host": host,
+                "port": port,
+            }
+
+            # Enrich with Quasar cloud data if available
+            if self._quasar and self._quasar.devices:
+                for cloud_device in self._quasar.devices:
+                    qi = cloud_device.get("quasar_info", {})
+                    if qi.get("device_id") == device_id:
+                        device_info.update(
+                            {k: v for k, v in cloud_device.items() if k not in ("host", "port")}
+                        )
+                        break
+
+            await self._create_player(player_id, device_info)
+
+        except Exception:
+            _LOGGER.exception("Error processing mDNS discovery for %s", name)
+
+    async def unload(self, is_removed: bool = False) -> None:
+        """Clean up on provider unload."""
+        await self._cleanup_session()
+
     # ── Credential cascade ────────────────────────────────────────────
 
     async def _init_session(self) -> bool:
@@ -174,7 +372,8 @@ class YandexStationProvider(PlayerProvider):
         return False
 
     async def _finish_without_refresh(self, has_music_token: bool, reason: str) -> bool:
-        """Finalize init when no silent-refresh path is available.
+        """
+        Finalize init when no silent-refresh path is available.
 
         ``reason`` is used only for log clarity: ``"disabled"`` means Remember
         session is off, ``"no_x_token"`` means x_token isn't stored (e.g. a
@@ -255,7 +454,8 @@ class YandexStationProvider(PlayerProvider):
         refresh_token: SecretStr,
         original_err: Exception | None = None,
     ) -> None:
-        """Silently rotate the full credential triple via the refresh_token.
+        """
+        Silently rotate the full credential triple via the refresh_token.
 
         Device-flow accounts have a refresh_token that can mint a new
         x_token + refresh_token + music_token without user interaction.
@@ -302,7 +502,8 @@ class YandexStationProvider(PlayerProvider):
         self.logger.info("Re-issued credentials silently from refresh token")
 
     async def _silent_reauth(self) -> bool:
-        """Attempt a silent re-auth after a runtime 401/403 from Quasar.
+        """
+        Attempt a silent re-auth after a runtime 401/403 from Quasar.
 
         Returns ``True`` if credentials were rotated and the session was
         refreshed so the caller can retry its operation; ``False`` if silent
@@ -367,113 +568,6 @@ class YandexStationProvider(PlayerProvider):
         self._passport_client = None
         self._session = None
 
-    # ── Discovery ─────────────────────────────────────────────────────
-
-    async def discover_players(self) -> None:
-        """Discover Yandex Station players.
-
-        Two-phase discovery:
-        1. Cloud: Quasar API (requires session cookies from x_token)
-        2. Local: mDNS (handled by MA core via manifest.json mdns_discovery)
-        """
-        if self._discovery_done:
-            return
-
-        if not await self._init_session():
-            return
-
-        # Load device list from Quasar cloud API.  Two endpoints with
-        # *different* auth — ``get_speakers`` uses cookie/CSRF auth and
-        # carries cloud-side metadata (name, model, room, etc.), while
-        # ``get_local_speakers`` uses Glagol/music_token auth and carries
-        # the IP/port needed for the local WebSocket.  When cookies are
-        # stale or x_token broke (but music_token is still valid), the
-        # cloud call fails — we fall back to registering devices from
-        # the Glagol list only, so users in that state still get working
-        # players (with placeholder names) instead of an empty integration.
-        assert self._session is not None  # guaranteed by _init_session()
-        self._quasar = YandexQuasar(self._session)
-        speakers: list[dict[str, Any]] = []
-        quasar_ok = False
-        try:
-            speakers = await self._get_speakers_with_reauth()
-            self.logger.info("Found %d speakers via Quasar API", len(speakers))
-            # ``YandexQuasar.get_speakers()`` filters the bulk device list
-            # to only entries that already carry ``quasar_info``, so we
-            # don't need a per-device ``load_device_config`` enrichment
-            # loop here — every returned speaker is guaranteed to have
-            # the field set.  ``load_device_config`` remains available
-            # for callers that bypass the filter and want to enrich a
-            # raw device entry on demand.
-            quasar_ok = True
-        except Exception:
-            self.logger.warning(
-                "Failed to load speakers from Quasar (cloud auth or API issue) — "
-                "falling back to Glagol device_list",
-                exc_info=True,
-            )
-
-        # Local connection info from glagol API (host/port + glagol-side info).
-        # Used both as enrichment for Quasar-listed speakers AND as the primary
-        # device source when Quasar fails.
-        local_speakers: dict[str, dict[str, Any]] = {}
-        try:
-            local_list = await self._quasar.get_local_speakers()
-            for ls in local_list:
-                local_speakers[ls["device_id"]] = ls
-            self.logger.info("Found %d local speakers via Glagol API", len(local_speakers))
-        except Exception:
-            self.logger.debug("Failed to get local speakers from Glagol API")
-
-        # If Quasar failed, build a synthetic speakers list from the local
-        # device_list response.  Local entries already carry device_id, name,
-        # platform, host, port — enough to register a working player.
-        if not quasar_ok:
-            if not local_speakers:
-                # Both auth paths failed — leave _discovery_done=False so MA
-                # retries when cookies/x_token/music_token become valid again.
-                self.logger.warning(
-                    "Both Quasar and Glagol device_list discovery failed — will retry later"
-                )
-                return
-            for device_id, ls in local_speakers.items():
-                speakers.append(
-                    {
-                        "name": ls.get("name") or "Yandex Station",
-                        "host": ls["host"],
-                        "port": ls["port"],
-                        "glagol": ls.get("glagol", {}),
-                        "quasar_info": {
-                            "device_id": device_id,
-                            "platform": ls.get("platform", ""),
-                        },
-                    }
-                )
-            self.logger.info(
-                "Registering %d speakers from Glagol device_list only "
-                "(cloud-side metadata unavailable)",
-                len(speakers),
-            )
-
-        for speaker in speakers:
-            qi = speaker.get("quasar_info", {})
-            device_id = qi.get("device_id", "")
-            if not device_id:
-                continue
-            player_id = f"ys_{device_id}"
-            # Merge local connection info (IP/port from glagol API)
-            if device_id in local_speakers:
-                ls = local_speakers[device_id]
-                speaker.setdefault("host", ls["host"])
-                speaker.setdefault("port", ls["port"])
-                speaker.setdefault("glagol", ls.get("glagol", {}))
-            self.logger.info(
-                "Registering speaker: %s [%s]", speaker.get("name"), qi.get("platform")
-            )
-            await self._create_player(player_id, speaker)
-
-        self._discovery_done = True
-
     async def _get_speakers_with_reauth(self) -> list[dict[str, Any]]:
         """Fetch Quasar speakers with one silent-reauth retry on 401/403."""
         assert self._quasar is not None
@@ -485,91 +579,6 @@ class YandexStationProvider(PlayerProvider):
                 self.logger.info("Retrying Quasar get_speakers after silent reauth")
                 return await self._quasar.get_speakers()
             raise
-
-    async def on_mdns_service_state_change(
-        self,
-        name: str,
-        state_change: ServiceStateChange,
-        info: AsyncServiceInfo | None,
-    ) -> None:
-        """Handle mDNS discovery callback (called by MA core).
-
-        Note: MA passes info=None for Removed events, so we use a cached
-        name→player_id mapping to mark players unavailable.
-        """
-        from zeroconf import ServiceStateChange  # noqa: PLC0415, RUF100
-
-        if state_change == ServiceStateChange.Removed:
-            player_id = self._mdns_players.get(name)
-            if player_id:
-                existing = self.mass.players.get_player(player_id)
-                if existing and isinstance(existing, YandexStationPlayer):
-                    existing._attr_available = False
-                    existing.update_state()
-                    _LOGGER.debug("Marked player %s unavailable (mDNS removed)", player_id)
-            return
-
-        if not info or not info.addresses:
-            return
-
-        try:
-            properties: dict[str, Any] = {
-                k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v
-                for k, v in info.properties.items()
-            }
-
-            device_id = properties.get("deviceId", "")
-            platform = properties.get("platform", "")
-            host = str(ipaddress.ip_address(info.addresses[0]))
-            port = info.port or 0
-
-            if not device_id or not port:
-                return
-
-            player_id = f"ys_{device_id}"
-
-            # Cache mDNS name → player_id for Removed events (info=None)
-            self._mdns_players[name] = player_id
-
-            if player_id in self._pending_discoveries:
-                return
-
-            # Check if player already registered (cloud-discovered) — connect Glagol
-            existing = self.mass.players.get_player(player_id)
-            if existing and isinstance(existing, YandexStationPlayer):
-                if not existing.glagol.connected:
-                    existing.update_connection(host, port)
-                    await existing.async_setup()
-                else:
-                    existing.update_connection(host, port)
-                return
-
-            self._pending_discoveries.add(player_id)
-
-            device_info: dict[str, Any] = {
-                "quasar_info": {
-                    "device_id": device_id,
-                    "platform": platform,
-                },
-                "name": name.replace(f".{MDNS_TYPE}", ""),
-                "host": host,
-                "port": port,
-            }
-
-            # Enrich with Quasar cloud data if available
-            if self._quasar and self._quasar.devices:
-                for cloud_device in self._quasar.devices:
-                    qi = cloud_device.get("quasar_info", {})
-                    if qi.get("device_id") == device_id:
-                        device_info.update(
-                            {k: v for k, v in cloud_device.items() if k not in ("host", "port")}
-                        )
-                        break
-
-            await self._create_player(player_id, device_info)
-
-        except Exception:
-            _LOGGER.exception("Error processing mDNS discovery for %s", name)
 
     async def _create_player(self, player_id: str, device_info: dict[str, Any]) -> None:
         """Create and register a new YandexStationPlayer."""
@@ -615,7 +624,3 @@ class YandexStationProvider(PlayerProvider):
             self.logger.exception("Failed to create player %s", player_id)
         finally:
             self._pending_discoveries.discard(player_id)
-
-    async def unload(self, is_removed: bool = False) -> None:
-        """Clean up on provider unload."""
-        await self._cleanup_session()

@@ -1,4 +1,5 @@
-"""Tests for the YandexQuasar HTTP client.
+"""
+Tests for the YandexQuasar HTTP client.
 
 Pinned-down contract for the response-release behaviour: each
 ``self.session.get(...)`` is wrapped in ``async with`` so the
@@ -16,7 +17,8 @@ from music_assistant.providers.yandex_station.quasar import YandexQuasar
 
 
 def _ctx_response(json_payload: dict[str, Any]) -> MagicMock:
-    """Build a MagicMock matching the aiohttp ClientResponse contract.
+    """
+    Build a MagicMock matching the aiohttp ClientResponse contract.
 
     Behaves as both a coroutine return value and an async context
     manager — caller wires it as ``session.get = AsyncMock(return_value=resp)``.
@@ -117,7 +119,8 @@ async def test_get_local_speakers_returns_empty_on_session_failure() -> None:
 
 
 async def test_devices_cache_is_per_instance() -> None:
-    """``devices`` cache must not leak across instances.
+    """
+    ``devices`` cache must not leak across instances.
 
     Originally a class-level attribute (``YandexQuasar.devices = None``),
     which is fine for ``None`` but a recurring footgun pattern: any future
