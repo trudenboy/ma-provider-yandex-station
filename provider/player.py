@@ -230,11 +230,11 @@ class YandexStationPlayer(Player):
         # so the dropdown is easy to scan.
         target_options = sorted(
             (
-                ConfigValueOption(p.display_name, p.player_id)
+                ConfigValueOption(p.player_id, p.display_name)
                 for p in self.mass.players.all_players(return_unavailable=True)
                 if p.player_id != self.player_id
             ),
-            key=lambda o: o.title.lower(),
+            key=lambda o: (o.title or "").lower(),
         )
         return [
             CONF_ENTRY_OUTPUT_CODEC,

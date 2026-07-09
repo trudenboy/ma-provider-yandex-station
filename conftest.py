@@ -112,9 +112,12 @@ except ImportError:
         pass
 
     class _ConfigValueOption:
-        def __init__(self, title: str, value: object) -> None:
-            self.title = title
+        # Mirrors music_assistant_models.config_entries.ConfigValueOption:
+        # ``value`` is the first positional field, ``title`` is optional and
+        # resolved from translations when omitted.
+        def __init__(self, value: object, title: str | None = None) -> None:
             self.value = value
+            self.title = title
 
     class _MediaType:
         TRACK = "track"
