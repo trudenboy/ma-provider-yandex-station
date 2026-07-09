@@ -139,6 +139,81 @@ class YandexGlagol:
             self._connect_task.cancel()
             self._connect_task = None
 
+    async def send_tts(self, text: str) -> dict[str, Any] | None:
+        """Speak text using Alice's TTS via repeat_phrase scenario."""
+        return await self.send(
+            {
+                "command": "serverAction",
+                "serverActionEventPayload": {
+                    "type": "server_action",
+                    "name": "update_form",
+                    "payload": {
+                        "form_update": {
+                            "name": "personal_assistant.scenarios.quasar.iot.repeat_phrase",
+                            "slots": [
+                                {
+                                    "type": "string",
+                                    "name": "phrase_to_repeat",
+                                    "value": text,
+                                }
+                            ],
+                        },
+                        "resubmit": True,
+                    },
+                },
+            }
+        )
+
+    async def send_text(self, text: str) -> dict[str, Any] | None:
+        """Send text as if user spoke it (voice command simulation)."""
+        return await self.send({"command": "sendText", "text": text})
+
+    async def send(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Send a command and wait for response."""
+        if not self.ws or self.ws.closed:
+            _LOGGER.warning("[%s] Cannot send: not connected", self.name)
+            return {"error": "not_connected"}
+
+        # Log only the command name and the names of accompanying keys —
+        # never their values.  `externalCommandBypass.data` carries
+        # base64-encoded JSON with `streamUrl`, and MA stream URLs embed
+        # session IDs / tokens that should not end up in logs.
+        cmd = payload.get("command", "<unknown>")
+        extras = sorted(k for k in payload if k != "command")
+        _LOGGER.debug("[%s] => local | %s (extras: %s)", self.name, cmd, extras)
+
+        if not self.device_token:
+            _LOGGER.warning("[%s] Cannot send: not connected (missing device token)", self.name)
+            return {"error": "not_connected"}
+
+        request_id = str(uuid.uuid4())
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[dict[str, Any]] = loop.create_future()
+        self._waiters[request_id] = future
+
+        try:
+            await self.ws.send_json(
+                {
+                    "conversationToken": self.device_token.get_secret(),
+                    "id": request_id,
+                    "payload": payload,
+                    "sentTime": round(time.time() * 1000),
+                }
+            )
+
+            await asyncio.wait_for(future, WS_COMMAND_TIMEOUT)
+            return future.result()
+
+        except TimeoutError:
+            return {"error": "timeout"}
+
+        except Exception as e:
+            _LOGGER.error("[%s] Send error: %r", self.name, e)
+            return {"error": repr(e)}
+
+        finally:
+            self._waiters.pop(request_id, None)
+
     def _handle_message(self, data: dict[str, Any]) -> None:
         """Process a received WebSocket message."""
         request_id = data.get("requestId")
@@ -244,78 +319,3 @@ class YandexGlagol:
                     "sentTime": round(time.time() * 1000),
                 }
             )
-
-    async def send_tts(self, text: str) -> dict[str, Any] | None:
-        """Speak text using Alice's TTS via repeat_phrase scenario."""
-        return await self.send(
-            {
-                "command": "serverAction",
-                "serverActionEventPayload": {
-                    "type": "server_action",
-                    "name": "update_form",
-                    "payload": {
-                        "form_update": {
-                            "name": "personal_assistant.scenarios.quasar.iot.repeat_phrase",
-                            "slots": [
-                                {
-                                    "type": "string",
-                                    "name": "phrase_to_repeat",
-                                    "value": text,
-                                }
-                            ],
-                        },
-                        "resubmit": True,
-                    },
-                },
-            }
-        )
-
-    async def send_text(self, text: str) -> dict[str, Any] | None:
-        """Send text as if user spoke it (voice command simulation)."""
-        return await self.send({"command": "sendText", "text": text})
-
-    async def send(self, payload: dict[str, Any]) -> dict[str, Any] | None:
-        """Send a command and wait for response."""
-        if not self.ws or self.ws.closed:
-            _LOGGER.warning("[%s] Cannot send: not connected", self.name)
-            return {"error": "not_connected"}
-
-        # Log only the command name and the names of accompanying keys —
-        # never their values.  `externalCommandBypass.data` carries
-        # base64-encoded JSON with `streamUrl`, and MA stream URLs embed
-        # session IDs / tokens that should not end up in logs.
-        cmd = payload.get("command", "<unknown>")
-        extras = sorted(k for k in payload if k != "command")
-        _LOGGER.debug("[%s] => local | %s (extras: %s)", self.name, cmd, extras)
-
-        if not self.device_token:
-            _LOGGER.warning("[%s] Cannot send: not connected (missing device token)", self.name)
-            return {"error": "not_connected"}
-
-        request_id = str(uuid.uuid4())
-        loop = asyncio.get_running_loop()
-        future: asyncio.Future[dict[str, Any]] = loop.create_future()
-        self._waiters[request_id] = future
-
-        try:
-            await self.ws.send_json(
-                {
-                    "conversationToken": self.device_token.get_secret(),
-                    "id": request_id,
-                    "payload": payload,
-                    "sentTime": round(time.time() * 1000),
-                }
-            )
-
-            await asyncio.wait_for(future, WS_COMMAND_TIMEOUT)
-            return future.result()
-
-        except TimeoutError:
-            return {"error": "timeout"}
-
-        except Exception as e:
-            _LOGGER.error("[%s] Send error: %r", self.name, e)
-            return {"error": repr(e)}
-
-        finally:
-            self._waiters.pop(request_id, None)

@@ -249,29 +249,6 @@ class YandexStationPlayer(Player):
             ),
         ]
 
-    @property
-    def _voice_control_enabled(self) -> bool:
-        """Whether experimental voice control integration is enabled."""
-        return bool(self._config.get_value(CONF_VOICE_CONTROL))
-
-    @property
-    def _intercept_feature_enabled(self) -> bool:
-        """Provider-level intercept master switch.  Without it intercept is off."""
-        return bool(self._provider.config.get_value(CONF_INTERCEPT_FEATURE_ENABLED))
-
-    @property
-    def _intercept_enabled(self) -> bool:
-        """Both provider-level master switch AND per-player toggle must be ON."""
-        return self._intercept_feature_enabled and bool(
-            self._config.get_value(CONF_INTERCEPT_ENABLED)
-        )
-
-    @property
-    def _intercept_target_player_id(self) -> str | None:
-        """Configured target player_id for intercept playback (None when unset)."""
-        value = self._config.get_value(CONF_INTERCEPT_TARGET)
-        return str(value) if value else None
-
     def update_connection(self, host: str, port: int) -> None:
         """Update connection info when mDNS reports new IP.
 
@@ -488,6 +465,29 @@ class YandexStationPlayer(Player):
             await self._end_intercept_session(clear_debounce=True)
         await super().on_unload()
         await self.glagol.stop()
+
+    @property
+    def _voice_control_enabled(self) -> bool:
+        """Whether experimental voice control integration is enabled."""
+        return bool(self._config.get_value(CONF_VOICE_CONTROL))
+
+    @property
+    def _intercept_feature_enabled(self) -> bool:
+        """Provider-level intercept master switch.  Without it intercept is off."""
+        return bool(self._provider.config.get_value(CONF_INTERCEPT_FEATURE_ENABLED))
+
+    @property
+    def _intercept_enabled(self) -> bool:
+        """Both provider-level master switch AND per-player toggle must be ON."""
+        return self._intercept_feature_enabled and bool(
+            self._config.get_value(CONF_INTERCEPT_ENABLED)
+        )
+
+    @property
+    def _intercept_target_player_id(self) -> str | None:
+        """Configured target player_id for intercept playback (None when unset)."""
+        value = self._config.get_value(CONF_INTERCEPT_TARGET)
+        return str(value) if value else None
 
     async def _delayed_resume(self) -> None:
         """Auto-resume MA queue after a voice command that didn't start native player."""
