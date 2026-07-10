@@ -11,8 +11,8 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from music_assistant_models.enums import ProviderType
 from music_assistant_models.errors import ResourceTemporarilyUnavailable
-from ya_passport_auth import SecretStr
 from ya_passport_auth.ma import BORROW_SOURCE_OWN
 
 from music_assistant.providers.yandex_station import get_config_entries, setup
@@ -36,8 +36,6 @@ def _make_mass_with_ym(instances: dict[str, str]) -> mock.MagicMock:
 
 
 def _ym_owner(token: str | None, x_token: str | None) -> mock.MagicMock:
-    from music_assistant_models.enums import ProviderType
-
     owner = mock.MagicMock()
     owner.domain = "yandex_music"
     owner.type = ProviderType.MUSIC
@@ -58,7 +56,10 @@ def _borrow_provider(owner: mock.MagicMock | None) -> Any:
 
 
 class TestConfigEntries:
+    """Account-source dropdown rendering and normalization."""
+
     async def test_account_source_dropdown(self) -> None:
+        """Dropdown lists every YM instance plus the own-credentials sentinel."""
         mass = _make_mass_with_ym({"ym-a": "Main", "ym-b": "Second"})
         entries = await get_config_entries(mass, values={})
         source = next(e for e in entries if e.key == CONF_YM_INSTANCE)
@@ -68,6 +69,7 @@ class TestConfigEntries:
         assert "ym-b" in values
 
     async def test_login_actions_hidden_while_borrowing(self) -> None:
+        """Login actions disappear while a source instance is selected."""
         mass = _make_mass_with_ym({"ym-a": "Main"})
         entries = await get_config_entries(mass, values={CONF_YM_INSTANCE: "ym-a"})
         by_key = {e.key: e for e in entries}
@@ -75,6 +77,7 @@ class TestConfigEntries:
         assert by_key["auth_qr"].hidden is True
 
     async def test_stale_selection_normalizes_to_own(self) -> None:
+        """A removed instance selection falls back to own credentials."""
         mass = _make_mass_with_ym({"ym-a": "Main"})
         values: dict[str, Any] = {CONF_YM_INSTANCE: "removed-instance"}
         entries = await get_config_entries(mass, values=values)
@@ -84,7 +87,10 @@ class TestConfigEntries:
 
 
 class TestSetup:
+    """setup() gating in borrow mode."""
+
     async def test_setup_allows_borrow_without_own_tokens(self) -> None:
+        """Borrow mode passes setup() with empty own-token config."""
         mass = mock.MagicMock()
         config = mock.MagicMock()
         config.get_value = lambda key, default=None: {
@@ -98,7 +104,10 @@ class TestSetup:
 
 
 class TestBorrowInitSession:
+    """Session bootstrap from the linked instance (read-only)."""
+
     async def test_builds_session_from_linked_tokens(self) -> None:
+        """YandexSession gets the borrowed tokens; nothing is persisted."""
         provider = _borrow_provider(_ym_owner("test-music-ym", "test-x-ym"))
         with (
             mock.patch(f"{_MOD}.ClientSession") as http_cls,
@@ -120,6 +129,7 @@ class TestBorrowInitSession:
         assert _updates(provider) == []
 
     async def test_ym_not_loaded_is_transient(self) -> None:
+        """A not-yet-loaded linked instance is a retryable condition."""
         provider = _borrow_provider(None)
         with pytest.raises(ResourceTemporarilyUnavailable, match="not loaded"):
             await provider._init_session()
@@ -127,7 +137,10 @@ class TestBorrowInitSession:
 
 
 class TestBorrowSilentReauth:
+    """401 recovery re-derives cookies without rotation."""
+
     async def test_rereads_linked_tokens_and_refreshes_cookies(self) -> None:
+        """Reauth re-reads owner tokens and refreshes cookies, never rotates."""
         provider = _borrow_provider(_ym_owner("test-music-ym", "test-x-ym"))
         provider._session = mock.MagicMock()
         provider._session.login_token = mock.AsyncMock(return_value=True)
