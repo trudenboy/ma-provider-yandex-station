@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-07-13
+
+### Changed
+
+- The shared authentication texts (login buttons, "Remember session", the device-code login page) now reference Music Assistant's common translation catalog instead of carrying local copies — translations arrive once for all yandex providers. The page title keeps its provider-specific wording; visible English texts are unchanged.
+
 ## [1.4.26] - 2026-07-09
 
 ### Added
