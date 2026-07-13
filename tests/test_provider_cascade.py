@@ -61,6 +61,7 @@ class _StubCoreConfig:
 
     def __init__(self) -> None:
         self.updates: list[tuple[str, str, Any, bool]] = []
+        self._raw: dict[tuple[str, str], Any] = {}
 
     def set_raw_provider_config_value(
         self,
@@ -72,6 +73,11 @@ class _StubCoreConfig:
     ) -> None:
         _ = immediate  # accepted for signature parity with MA core
         self.updates.append((instance_id, key, value, encrypted))
+        self._raw[(instance_id, key)] = value
+
+    def get_raw_provider_config_value(self, instance_id: str, key: str) -> Any:
+        """Read-back used by Provider._update_config_value on current MA core."""
+        return self._raw.get((instance_id, key))
 
 
 class _StubMass:
