@@ -51,7 +51,7 @@ if [ -n "$WORKSPACE" ]; then
   if [ -f "$REPO_ROOT/provider/manifest.json" ]; then
     REQS=$(python3 -c "import json; m=json.load(open('$REPO_ROOT/provider/manifest.json')); print(' '.join(m.get('requirements',[])))")
     if [ -n "$REQS" ]; then
-      VIRTUAL_ENV="$WORKSPACE/.venv" uv pip install $REQS
+      VIRTUAL_ENV="$WORKSPACE/.venv" uv pip install --index-strategy unsafe-best-match $REQS
     fi
   fi
 
@@ -77,8 +77,9 @@ else
   rm -rf "$PROVIDER_TARGET"
   ln -s "$REPO_ROOT/provider/" "$PROVIDER_TARGET"
   cd "$REPO_ROOT/ma-server"
-  uv pip install -e "." -e ".[test]"
-  uv pip install -r requirements_all.txt
+  # --index-strategy: see note above — required for the PyTorch extra-index.
+  uv pip install --index-strategy unsafe-best-match -e "." -e ".[test]"
+  uv pip install --index-strategy unsafe-best-match -r requirements_all.txt
 
 
   # Set up pre-commit hooks if available
