@@ -22,7 +22,7 @@ from music_assistant.providers.yandex_station.constants import (
     CONF_X_TOKEN,
     CONF_YM_INSTANCE,
 )
-from tests.test_provider_cascade import _make_provider, _updates
+from .test_provider_cascade import _make_provider, _updates
 
 _MOD = "music_assistant.providers.yandex_station.provider"
 
@@ -52,7 +52,9 @@ def _borrow_provider(owner: mock.MagicMock | None) -> Any:
             CONF_X_TOKEN: None,
         }
     )
-    provider.mass.get_provider = mock.MagicMock(return_value=owner)
+    provider.mass.get_provider = mock.MagicMock(  # type: ignore[method-assign]
+        return_value=owner
+    )
     return provider
 
 
