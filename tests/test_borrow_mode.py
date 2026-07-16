@@ -1,4 +1,5 @@
-"""Borrow mode: the Station uses a linked Yandex Music instance's account.
+"""
+Borrow mode: the Station uses a linked Yandex Music instance's account.
 
 Covers spec 0001 — account-source dropdown, borrow-mode session
 bootstrap (read-only against the linked instance) and the 401 re-derive

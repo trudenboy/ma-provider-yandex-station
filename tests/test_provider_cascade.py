@@ -515,7 +515,8 @@ async def test_silent_reauth_reads_tokens_inside_lock(
 async def test_rotation_persists_creds_even_when_cookie_refresh_fails(
     fake_session_cls: Any,  # noqa: ARG001
 ) -> None:
-    """New creds are stored even when session cookies won't refresh.
+    """
+    New creds are stored even when session cookies won't refresh.
 
     The rotation itself succeeded server-side (the old refresh_token is
     burned), so the fresh triple must be persisted before the cookie
