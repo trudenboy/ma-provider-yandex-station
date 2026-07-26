@@ -625,3 +625,4 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 - `YandexStationProvider(PlayerProvider)` with mDNS discovery
 - `YandexStationPlayer(Player)` with play/pause/stop/seek/volume/next/prev
 - Protobuf utility for `externalCommandBypass` encoding
+- Reverse-synced upstream PR #5049 (WIP)
