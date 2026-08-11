@@ -231,7 +231,14 @@ except (ImportError, AttributeError):
             self, key: str, value: object, immediate: bool = True
         ) -> None:
             """Mirror Provider._update_setup_data for the lightweight test harness."""
-            _ = immediate
+            if self.mass is not None:
+                self.mass.config.set_raw_provider_config_value(
+                    getattr(self, "instance_id", "stub_instance"),
+                    key,
+                    value,
+                    True,
+                    immediate,
+                )
             self.config.setup_data[key] = value
 
     class _Player:  # type: ignore[no-redef]
