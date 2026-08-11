@@ -17,6 +17,7 @@ from typing import Any, cast
 from unittest import mock
 
 import pytest
+from music_assistant_models.enums import ConfigEntryType
 from music_assistant_models.errors import LoginFailed, ResourceTemporarilyUnavailable
 from ya_passport_auth import SecretStr
 
@@ -36,6 +37,8 @@ _MOD = "music_assistant.providers.yandex_station.provider"
 
 class _StubConfigValue:
     """Minimal stand-in for a ``ConfigValue`` so ``.value = ...`` works."""
+
+    type = ConfigEntryType.STRING
 
     def __init__(self, value: Any) -> None:
         self.value = value
