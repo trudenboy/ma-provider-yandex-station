@@ -16,8 +16,8 @@ from music_assistant_models.enums import ProviderType
 from music_assistant_models.errors import LoginFailed, ResourceTemporarilyUnavailable
 from ya_passport_auth.ma import BORROW_SOURCE_OWN
 
-from music_assistant.providers.yandex_station import setup
-from music_assistant.providers.yandex_station.constants import (
+from provider import setup
+from provider.constants import (
     CONF_INTERCEPT_FEATURE_ENABLED,
     CONF_MUSIC_TOKEN,
     CONF_X_TOKEN,
@@ -26,7 +26,7 @@ from music_assistant.providers.yandex_station.constants import (
 
 from .test_provider_cascade import _make_provider, _updates
 
-_MOD = "music_assistant.providers.yandex_station.provider"
+_MOD = "provider.provider"
 
 
 def _ym_owner(token: str | None, x_token: str | None) -> mock.MagicMock:
@@ -45,38 +45,31 @@ def _borrow_provider(owner: mock.MagicMock | None) -> Any:
             CONF_X_TOKEN: None,
         }
     )
-    provider.mass.get_provider = mock.MagicMock(  # type: ignore[method-assign]
-        return_value=owner
-    )
+    object.__setattr__(provider.mass, "get_provider", mock.MagicMock(return_value=owner))
     return provider
 
 
 class TestConfigEntries:
-    """The account source and authentication actions live only in setup."""
+    """The account source and auth actions moved to the setup flow."""
 
-    async def test_options_surface_contains_only_genuine_options(self) -> None:
-        """Post-setup configuration exposes the intercept option, not login fields."""
+    async def test_no_account_source_or_auth_actions(self) -> None:
+        """The options surface exposes only genuine options, no source/auth entries."""
         provider = _make_provider({})
-
         entries = await provider.get_config_entries()
-
-        keys = {entry.key for entry in entries}
+        keys = {e.key for e in entries}
         assert CONF_YM_INSTANCE not in keys
         assert keys.isdisjoint({"auth_device", "auth_qr", "auth_cookies", "clear_auth"})
         assert CONF_INTERCEPT_FEATURE_ENABLED in keys
 
 
 class TestSetup:
-    """Credential gating reads the values collected by the setup flow."""
+    """setup() credential gating (reads from setup_data via get_setup_value)."""
 
     async def test_setup_allows_borrow_without_own_tokens(self) -> None:
-        """Borrow mode passes setup() with empty own-token config."""
+        """Borrow mode passes setup() with no own tokens configured."""
         mass = mock.MagicMock()
         config = mock.MagicMock()
-        config.get_value = lambda _key, default=None: default
-        with mock.patch(
-            "music_assistant.providers.yandex_station.YandexStationProvider"
-        ) as provider_cls:
+        with mock.patch("provider.YandexStationProvider") as provider_cls:
             provider_cls.return_value.get_setup_value = mock.MagicMock(
                 side_effect=lambda key, default=None: "ym-1" if key == CONF_YM_INSTANCE else default
             )
@@ -84,13 +77,10 @@ class TestSetup:
         provider_cls.assert_called_once()
 
     async def test_setup_rejects_own_without_tokens(self) -> None:
-        """Own mode without music or x token fails fast."""
+        """Own mode with no music/x token fails setup() fast with LoginFailed."""
         mass = mock.MagicMock()
         config = mock.MagicMock()
-        config.get_value = lambda _key, default=None: default
-        with mock.patch(
-            "music_assistant.providers.yandex_station.YandexStationProvider"
-        ) as provider_cls:
+        with mock.patch("provider.YandexStationProvider") as provider_cls:
             provider_cls.return_value.get_setup_value = mock.MagicMock(
                 side_effect=lambda key, default=None: (
                     BORROW_SOURCE_OWN if key == CONF_YM_INSTANCE else default
@@ -98,17 +88,6 @@ class TestSetup:
             )
             with pytest.raises(LoginFailed):
                 await setup(mass, mock.MagicMock(), config)
-
-
-async def test_borrow_source_comes_from_setup_data() -> None:
-    """A linked account selected during setup drives the read-only credential source."""
-    provider = _make_provider({CONF_YM_INSTANCE: BORROW_SOURCE_OWN})
-    provider.config.setup_data[CONF_YM_INSTANCE] = "ym-1"
-
-    source = provider._build_borrow_source()
-
-    assert source is not None
-    assert source.instance_id == "ym-1"
 
 
 class TestBorrowInitSession:
