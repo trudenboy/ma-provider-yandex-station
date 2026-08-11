@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Announcements now use the duration of the generated audio stream, so they start promptly and are not cut off when the incoming media metadata has no reliable duration.
+
 ## [1.5.1] - 2026-07-13
 
 ### Changed
