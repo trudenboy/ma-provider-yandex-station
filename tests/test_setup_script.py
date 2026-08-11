@@ -21,11 +21,7 @@ def _prepare_fake_repo(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     fake_bin.mkdir()
     uv = fake_bin / "uv"
     uv.write_text(
-        "#!/bin/sh\n"
-        'if [ "$1" = venv ]; then\n'
-        '  mkdir -p "$2/bin"\n'
-        '  : > "$2/bin/activate"\n'
-        "fi\n",
+        '#!/bin/sh\nif [ "$1" = venv ]; then\n  mkdir -p "$2/bin"\n  : > "$2/bin/activate"\nfi\n',
         encoding="utf-8",
     )
     git = fake_bin / "git"

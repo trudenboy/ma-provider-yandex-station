@@ -147,9 +147,34 @@ class TestBorrowInitSession:
     async def test_ym_not_loaded_is_transient(self) -> None:
         """A not-yet-loaded linked instance is a retryable condition."""
         provider = _borrow_provider(None)
-        with pytest.raises(ResourceTemporarilyUnavailable, match="not loaded"):
+        with (
+            mock.patch(f"{_MOD}._BORROW_SOURCE_LOAD_ATTEMPTS", 1),
+            pytest.raises(ResourceTemporarilyUnavailable, match="not loaded"),
+        ):
             await provider._init_session()
         assert _updates(provider) == []
+
+    async def test_waits_for_linked_instance_during_startup(self) -> None:
+        """Station waits briefly when Yandex Music is still loading."""
+        owner = _ym_owner_setup_data("test-music-ym", "test-x-ym")
+        provider = _borrow_provider(None)
+        provider.mass.get_provider.side_effect = [None, owner, owner, owner, owner]
+        with (
+            mock.patch(f"{_MOD}.asyncio.sleep", new=mock.AsyncMock()) as sleep,
+            mock.patch(f"{_MOD}.ClientSession") as http_cls,
+            mock.patch(f"{_MOD}.PassportClient"),
+            mock.patch(f"{_MOD}.YandexSession") as session_cls,
+        ):
+            http_cls.return_value = mock.MagicMock(closed=False, close=mock.AsyncMock())
+            session_instance = mock.MagicMock()
+            session_instance.login_token = mock.AsyncMock(return_value=True)
+            session_cls.return_value = session_instance
+
+            assert await provider._init_session() is True
+
+        sleep.assert_awaited_once()
+        kwargs = session_cls.call_args.kwargs
+        assert kwargs["music_token"].get_secret() == "test-music-ym"
 
 
 class TestBorrowSilentReauth:

@@ -25,9 +25,7 @@ def test_runtime_requirements_match_manifest() -> None:
     assert set(project["project"]["dependencies"]) == EXPECTED_RUNTIME_REQUIREMENTS
     assert set(manifest["requirements"]) == EXPECTED_RUNTIME_REQUIREMENTS
     locked_versions = {
-        package["name"]: package["version"]
-        for package in lock["package"]
-        if "version" in package
+        package["name"]: package["version"] for package in lock["package"] if "version" in package
     }
     assert locked_versions["segno"] == "1.6.6"
     assert locked_versions["ya-passport-auth"] == "1.8.0"

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, cast
 from aiohttp import ClientSession, CookieJar
 from music_assistant_models.config_entries import ConfigEntry
 from music_assistant_models.enums import ConfigEntryType
+from music_assistant_models.errors import ResourceTemporarilyUnavailable
 from ya_passport_auth import PassportClient, SecretStr
 from ya_passport_auth.ma import (
     BORROW_SOURCE_OWN,
@@ -46,6 +47,8 @@ if TYPE_CHECKING:
     from music_assistant.mass import MusicAssistant
 
 _LOGGER = logging.getLogger(__name__)
+_BORROW_SOURCE_LOAD_ATTEMPTS = 40
+_BORROW_SOURCE_LOAD_DELAY = 0.25
 
 
 class YandexStationProvider(PlayerProvider):
@@ -440,8 +443,7 @@ class YandexStationProvider(PlayerProvider):
         if self._http_session is not None:
             await self._cleanup_session()
 
-        music_token = await self._borrow_source.resolve_music_token()
-        _, x_token = self._borrow_source.read_tokens()
+        music_token, x_token = await self._resolve_borrowed_tokens()
 
         self._http_session = ClientSession(cookie_jar=CookieJar(quote_cookie=False))
         self._passport_client = PassportClient(session=self._http_session)
@@ -456,6 +458,20 @@ class YandexStationProvider(PlayerProvider):
             return True
         await self._cleanup_session()
         return False
+
+    async def _resolve_borrowed_tokens(self) -> tuple[SecretStr, SecretStr | None]:
+        """Wait briefly for the linked Yandex Music provider during startup."""
+        assert self._borrow_source is not None
+        for attempt in range(_BORROW_SOURCE_LOAD_ATTEMPTS):
+            try:
+                music_token = await self._borrow_source.resolve_music_token()
+                _, x_token = self._borrow_source.read_tokens()
+                return music_token, x_token
+            except ResourceTemporarilyUnavailable:
+                if attempt == _BORROW_SOURCE_LOAD_ATTEMPTS - 1:
+                    raise
+                await asyncio.sleep(_BORROW_SOURCE_LOAD_DELAY)
+        raise RuntimeError("Borrowed credential wait exhausted unexpectedly")
 
     async def _silent_reauth_borrowed(self) -> bool:
         """
