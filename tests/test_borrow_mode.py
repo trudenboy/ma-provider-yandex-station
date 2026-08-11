@@ -45,9 +45,7 @@ def _borrow_provider(owner: mock.MagicMock | None) -> Any:
             CONF_X_TOKEN: None,
         }
     )
-    provider.mass.get_provider = mock.MagicMock(  # type: ignore[method-assign]
-        return_value=owner
-    )
+    object.__setattr__(provider.mass, "get_provider", mock.MagicMock(return_value=owner))
     return provider
 
 

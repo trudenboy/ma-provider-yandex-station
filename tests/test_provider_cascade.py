@@ -129,8 +129,8 @@ def _updates(provider: YandexStationProvider) -> list[tuple[str, str, Any, bool]
 def _make_provider(config_values: dict[str, Any]) -> YandexStationProvider:
     """Instantiate a provider with a stub mass and config for cascade tests."""
     provider = YandexStationProvider.__new__(YandexStationProvider)
-    provider.mass = _StubMass()  # type: ignore[assignment]
-    provider.config = _StubConfig(config_values)  # type: ignore[assignment]
+    object.__setattr__(provider, "mass", _StubMass())
+    object.__setattr__(provider, "config", _StubConfig(config_values))
     # NB: ``instance_id`` is a read-only @property on the real Provider that
     # delegates to ``config.instance_id`` — we set it on the stub config above.
     provider.logger = logging.getLogger("test_provider")
