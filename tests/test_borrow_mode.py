@@ -37,6 +37,15 @@ def _ym_owner(token: str | None, x_token: str | None) -> mock.MagicMock:
     return owner
 
 
+def _ym_owner_setup_data(token: str | None, x_token: str | None) -> mock.MagicMock:
+    owner = _ym_owner(None, None)
+    owner.get_setup_value = lambda key, default=None: {
+        "token": token,
+        "x_token": x_token,
+    }.get(key, default)
+    return owner
+
+
 def _borrow_provider(owner: mock.MagicMock | None) -> Any:
     provider = _make_provider(
         {
@@ -113,6 +122,26 @@ class TestBorrowInitSession:
         assert kwargs["music_token"].get_secret() == "test-music-ym"
         assert kwargs["refresh_token"] is None
         # Read-only: nothing persisted on either side.
+        assert _updates(provider) == []
+
+    async def test_builds_session_from_linked_setup_data_tokens(self) -> None:
+        """Guided-flow setup data supplies borrowed credentials."""
+        provider = _borrow_provider(_ym_owner_setup_data("test-music-ym", "test-x-ym"))
+        with (
+            mock.patch(f"{_MOD}.ClientSession") as http_cls,
+            mock.patch(f"{_MOD}.PassportClient"),
+            mock.patch(f"{_MOD}.YandexSession") as session_cls,
+        ):
+            http_cls.return_value = mock.MagicMock(closed=False, close=mock.AsyncMock())
+            session_instance = mock.MagicMock()
+            session_instance.login_token = mock.AsyncMock(return_value=True)
+            session_cls.return_value = session_instance
+
+            assert await provider._init_session() is True
+
+        kwargs = session_cls.call_args.kwargs
+        assert kwargs["x_token"].get_secret() == "test-x-ym"
+        assert kwargs["music_token"].get_secret() == "test-music-ym"
         assert _updates(provider) == []
 
     async def test_ym_not_loaded_is_transient(self) -> None:

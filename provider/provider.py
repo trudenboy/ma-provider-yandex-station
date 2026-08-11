@@ -13,7 +13,6 @@ from music_assistant_models.enums import ConfigEntryType
 from ya_passport_auth import PassportClient, SecretStr
 from ya_passport_auth.ma import (
     BORROW_SOURCE_OWN,
-    BorrowedCredentialSource,
     CascadeHooks,
     CredentialCascade,
     KeySpec,
@@ -21,6 +20,7 @@ from ya_passport_auth.ma import (
 
 from music_assistant.models.player_provider import PlayerProvider
 
+from .borrow import YandexMusicCredentialSource
 from .constants import (
     CONF_INTERCEPT_FEATURE_ENABLED,
     CONF_MUSIC_TOKEN,
@@ -289,7 +289,7 @@ class YandexStationProvider(PlayerProvider):
 
     # ── Credential cascade ────────────────────────────────────────────
 
-    def _build_borrow_source(self) -> BorrowedCredentialSource | None:
+    def _build_borrow_source(self) -> YandexMusicCredentialSource | None:
         """
         Build the borrowed-credentials source when an account source is set.
 
@@ -300,7 +300,7 @@ class YandexStationProvider(PlayerProvider):
         ym_instance = cast("str | None", self.get_setup_value(CONF_YM_INSTANCE))
         if not ym_instance or ym_instance == BORROW_SOURCE_OWN:
             return None
-        return BorrowedCredentialSource(self.mass, ym_instance)
+        return YandexMusicCredentialSource(self.mass, ym_instance)
 
     def _build_cascade(self) -> CredentialCascade:
         """

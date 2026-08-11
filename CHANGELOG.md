@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Yandex Station can again borrow authentication from Yandex Music instances created by
+  the guided setup flow. Borrowed credentials are read from encrypted setup data while
+  retaining compatibility with legacy config storage.
+- Development metadata now consistently installs `ya-passport-auth[ma]==1.8.0` and
+  `segno==1.6.6`; standalone setup safely recovers an empty invalid MA checkout, and the
+  Docker test environment uses host networking for LAN discovery and stream access.
+
 ## [1.5.4] - 2026-08-11
 
 ### Fixed
