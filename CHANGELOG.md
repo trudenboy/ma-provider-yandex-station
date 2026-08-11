@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Initial setup now uses Music Assistant's guided flow for choosing a linked Yandex Music account or signing in with a device code, QR code, or browser cookies.
+
 ## [1.5.2] - 2026-08-11
 
 ### Fixed

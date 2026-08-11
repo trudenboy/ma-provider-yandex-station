@@ -115,8 +115,10 @@ async def test_refresh_credentials_returns_rotated_triple() -> None:
             SecretStr("old_x"), SecretStr("old_refresh")
         )
     assert result.x_token.get_secret() == "new_x"
-    assert result.music_token and result.music_token.get_secret() == "new_music"
-    assert result.refresh_token and result.refresh_token.get_secret() == "new_refresh"
+    assert result.music_token is not None
+    assert result.music_token.get_secret() == "new_music"
+    assert result.refresh_token is not None
+    assert result.refresh_token.get_secret() == "new_refresh"
 
 
 async def test_refresh_credentials_rejection_raises_login_failed() -> None:

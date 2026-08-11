@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Self
 from unittest import mock
 
 import pytest
@@ -30,7 +30,7 @@ class _FakeClient:
     def __init__(self, credentials: Credentials) -> None:
         self._credentials = credentials
 
-    async def __aenter__(self) -> _FakeClient:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_args: object) -> None:
@@ -234,7 +234,8 @@ async def test_missing_music_token_redisplays_method_error() -> None:
         await station_flow.run_setup(session)  # type: ignore[arg-type]
 
     assert session.steps[2] == ("method", {"base": "no_music_token"})
-    assert session.finished and session.finished[CONF_MUSIC_TOKEN] == "MT2"
+    assert session.finished is not None
+    assert session.finished[CONF_MUSIC_TOKEN] == "MT2"
 
 
 async def test_cookie_error_redisplays_cookie_form() -> None:
@@ -261,7 +262,8 @@ async def test_cookie_error_redisplays_cookie_form() -> None:
         await station_flow.run_setup(session)  # type: ignore[arg-type]
 
     assert session.steps[3] == ("cookies", {"base": "invalid_data"})
-    assert session.finished and session.finished[CONF_MUSIC_TOKEN] == "MT"
+    assert session.finished is not None
+    assert session.finished[CONF_MUSIC_TOKEN] == "MT"
 
 
 async def test_expired_qr_step_mints_a_fresh_session() -> None:
