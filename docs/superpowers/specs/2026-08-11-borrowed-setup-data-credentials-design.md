@@ -1,4 +1,4 @@
-# Borrowed setup-data credentials compatibility
+# Borrowed credentials and development runtime consistency
 
 ## Problem
 
@@ -20,6 +20,25 @@ The adapter remains read-only: Yandex Music continues to be the only component
 that persists or rotates its credentials. If neither storage mechanism has
 credentials, existing error handling remains unchanged.
 
+The repository dependency declarations will be aligned on
+`ya-passport-auth[ma]==1.8.0` and `segno==1.6.6`. Both packages are runtime
+dependencies because the provider imports them in production. `pyproject.toml`,
+`provider/manifest.json`, and `uv.lock` must describe the same set and versions.
+
+The guided setup flow will retain its runtime behavior while replacing
+untyped third-party return propagation with explicit, checked types so strict
+mypy passes.
+
+The standalone setup script will distinguish a valid Music Assistant checkout
+from a merely existing directory. An empty invalid `ma-server/` directory may
+be removed and cloned automatically; a non-empty invalid directory must be
+preserved and reported with an actionable error.
+
+The Linux development Compose environment will use host networking. Published
+port mappings will be removed because they are incompatible and redundant with
+`network_mode: host`. This lets Music Assistant participate directly in LAN
+mDNS and advertise a host-reachable stream-server address.
+
 ## Compatibility
 
 - Current Music Assistant: credentials are read from encrypted `setup_data`.
@@ -34,12 +53,17 @@ credentials, existing error handling remains unchanged.
    through `get_setup_value()` and verify borrowed session initialization.
 2. Keep the existing legacy-config borrow test to protect backward
    compatibility.
-3. Run the targeted borrow tests, full pytest suite, Ruff, mypy and pre-commit.
-4. Recreate the Docker container and verify Yandex Station passes credential
-   bootstrap and proceeds into discovery.
+3. Verify dependency declarations and lock data agree on
+   `ya-passport-auth[ma]==1.8.0` and `segno==1.6.6`.
+4. Exercise the setup script's valid, empty-invalid, and non-empty-invalid
+   checkout decisions without deleting user content.
+5. Run the targeted borrow tests, full pytest suite, Ruff, mypy and pre-commit.
+6. Validate the Compose model, recreate the Docker container, and verify Yandex
+   Station passes credential bootstrap and proceeds into discovery on the host
+   network.
 
 ## Out of scope
 
-This change does not alter Docker networking. LAN mDNS discovery and the
-stream-server publish address will be evaluated separately after authentication
-bootstrap succeeds.
+This change does not alter production Music Assistant networking or Yandex
+Station discovery logic. Host networking applies only to the repository's
+Linux development Compose environment.
