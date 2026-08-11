@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Announcements now use the duration of the generated audio stream, so they start promptly and are not cut off when the incoming media metadata has no reliable duration.
+
 ## [1.5.1] - 2026-07-13
 
 ### Changed
@@ -625,4 +629,3 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 - `YandexStationProvider(PlayerProvider)` with mDNS discovery
 - `YandexStationPlayer(Player)` with play/pause/stop/seek/volume/next/prev
 - Protobuf utility for `externalCommandBypass` encoding
-- Reverse-synced upstream PR #5115 (WIP)
