@@ -220,6 +220,20 @@ except (ImportError, AttributeError):
             if values is not None and key in values:
                 values[key].value = value
 
+        def get_setup_value(self, key: str, default: object = None) -> object:
+            """Mirror Provider.get_setup_value for the lightweight test harness."""
+            setup_data = getattr(self.config, "setup_data", {})
+            if key in setup_data:
+                return setup_data[key]
+            return self.config.get_value(key, default)
+
+        def _update_setup_data(
+            self, key: str, value: object, immediate: bool = True
+        ) -> None:
+            """Mirror Provider._update_setup_data for the lightweight test harness."""
+            _ = immediate
+            self.config.setup_data[key] = value
+
     class _Player:  # type: ignore[no-redef]
         def __init__(self, *a: object, **kw: object) -> None:
             pass
@@ -255,6 +269,29 @@ except (ImportError, AttributeError):
         {
             "CONF_ENTRY_HTTP_PROFILE_DEFAULT_3": object(),
             "CONF_ENTRY_OUTPUT_CODEC": object(),
+        },
+    )
+
+    class _SetupFlowError(Exception):
+        def __init__(self, message: str, translation_key: str | None = None) -> None:
+            super().__init__(message)
+            self.translation_key = translation_key
+
+    class _StepExpiredError(Exception):
+        pass
+
+    class _AbortFlow(Exception):
+        def __init__(self, reason: str = "aborted") -> None:
+            super().__init__(reason)
+            self.reason = reason
+
+    _ensure_stub(
+        "music_assistant.models.setup_flow",
+        {
+            "AbortFlow": _AbortFlow,
+            "SetupFlowError": _SetupFlowError,
+            "SetupSession": object,
+            "StepExpiredError": _StepExpiredError,
         },
     )
 

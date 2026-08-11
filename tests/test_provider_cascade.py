@@ -53,6 +53,7 @@ class _StubConfig:
         self.values: dict[str, _StubConfigValue] = {
             k: _StubConfigValue(v) for k, v in values.items()
         }
+        self.setup_data: dict[str, Any] = {}
 
     def get_value(self, key: str, default: Any = None) -> Any:
         entry = self.values.get(key)

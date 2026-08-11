@@ -13,11 +13,12 @@ from unittest import mock
 
 import pytest
 from music_assistant_models.enums import ProviderType
-from music_assistant_models.errors import ResourceTemporarilyUnavailable
+from music_assistant_models.errors import LoginFailed, ResourceTemporarilyUnavailable
 from ya_passport_auth.ma import BORROW_SOURCE_OWN
 
-from music_assistant.providers.yandex_station import get_config_entries, setup
+from music_assistant.providers.yandex_station import setup
 from music_assistant.providers.yandex_station.constants import (
+    CONF_INTERCEPT_FEATURE_ENABLED,
     CONF_MUSIC_TOKEN,
     CONF_X_TOKEN,
     CONF_YM_INSTANCE,
@@ -26,15 +27,6 @@ from music_assistant.providers.yandex_station.constants import (
 from .test_provider_cascade import _make_provider, _updates
 
 _MOD = "music_assistant.providers.yandex_station.provider"
-
-
-def _make_mass_with_ym(instances: dict[str, str]) -> mock.MagicMock:
-    """Mass stub whose raw config lists yandex_music *instances*."""
-    mass = mock.MagicMock()
-    mass.config.get.return_value = {
-        inst_id: {"domain": "yandex_music", "name": name} for inst_id, name in instances.items()
-    }
-    return mass
 
 
 def _ym_owner(token: str | None, x_token: str | None) -> mock.MagicMock:
@@ -60,51 +52,63 @@ def _borrow_provider(owner: mock.MagicMock | None) -> Any:
 
 
 class TestConfigEntries:
-    """Account-source dropdown rendering and normalization."""
+    """The account source and authentication actions live only in setup."""
 
-    async def test_account_source_dropdown(self) -> None:
-        """Dropdown lists every YM instance plus the own-credentials sentinel."""
-        mass = _make_mass_with_ym({"ym-a": "Main", "ym-b": "Second"})
-        entries = await get_config_entries(mass, values={})
-        source = next(e for e in entries if e.key == CONF_YM_INSTANCE)
-        values = [opt.value for opt in source.options]
-        assert BORROW_SOURCE_OWN in values
-        assert "ym-a" in values
-        assert "ym-b" in values
+    async def test_options_surface_contains_only_genuine_options(self) -> None:
+        """Post-setup configuration exposes the intercept option, not login fields."""
+        provider = _make_provider({})
 
-    async def test_login_actions_hidden_while_borrowing(self) -> None:
-        """Login actions disappear while a source instance is selected."""
-        mass = _make_mass_with_ym({"ym-a": "Main"})
-        entries = await get_config_entries(mass, values={CONF_YM_INSTANCE: "ym-a"})
-        by_key = {e.key: e for e in entries}
-        assert by_key["auth_device"].hidden is True
-        assert by_key["auth_qr"].hidden is True
+        entries = await provider.get_config_entries()
 
-    async def test_stale_selection_normalizes_to_own(self) -> None:
-        """A removed instance selection falls back to own credentials."""
-        mass = _make_mass_with_ym({"ym-a": "Main"})
-        values: dict[str, Any] = {CONF_YM_INSTANCE: "removed-instance"}
-        entries = await get_config_entries(mass, values=values)
-        assert values[CONF_YM_INSTANCE] == BORROW_SOURCE_OWN
-        by_key = {e.key: e for e in entries}
-        assert by_key["auth_device"].hidden is False
+        keys = {entry.key for entry in entries}
+        assert CONF_YM_INSTANCE not in keys
+        assert keys.isdisjoint({"auth_device", "auth_qr", "auth_cookies", "clear_auth"})
+        assert CONF_INTERCEPT_FEATURE_ENABLED in keys
 
 
 class TestSetup:
-    """setup() gating in borrow mode."""
+    """Credential gating reads the values collected by the setup flow."""
 
     async def test_setup_allows_borrow_without_own_tokens(self) -> None:
         """Borrow mode passes setup() with empty own-token config."""
         mass = mock.MagicMock()
         config = mock.MagicMock()
-        config.get_value = lambda key, default=None: {
-            CONF_YM_INSTANCE: "ym-1",
-        }.get(key, default)
+        config.get_value = lambda _key, default=None: default
         with mock.patch(
             "music_assistant.providers.yandex_station.YandexStationProvider"
         ) as provider_cls:
+            provider_cls.return_value.get_setup_value = mock.MagicMock(
+                side_effect=lambda key, default=None: "ym-1" if key == CONF_YM_INSTANCE else default
+            )
             await setup(mass, mock.MagicMock(), config)
         provider_cls.assert_called_once()
+
+    async def test_setup_rejects_own_without_tokens(self) -> None:
+        """Own mode without music or x token fails fast."""
+        mass = mock.MagicMock()
+        config = mock.MagicMock()
+        config.get_value = lambda _key, default=None: default
+        with mock.patch(
+            "music_assistant.providers.yandex_station.YandexStationProvider"
+        ) as provider_cls:
+            provider_cls.return_value.get_setup_value = mock.MagicMock(
+                side_effect=lambda key, default=None: (
+                    BORROW_SOURCE_OWN if key == CONF_YM_INSTANCE else default
+                )
+            )
+            with pytest.raises(LoginFailed):
+                await setup(mass, mock.MagicMock(), config)
+
+
+async def test_borrow_source_comes_from_setup_data() -> None:
+    """A linked account selected during setup drives the read-only credential source."""
+    provider = _make_provider({CONF_YM_INSTANCE: BORROW_SOURCE_OWN})
+    provider.config.setup_data[CONF_YM_INSTANCE] = "ym-1"  # type: ignore[attr-defined]
+
+    source = provider._build_borrow_source()
+
+    assert source is not None
+    assert source.instance_id == "ym-1"
 
 
 class TestBorrowInitSession:
