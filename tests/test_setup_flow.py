@@ -278,7 +278,7 @@ async def test_expired_qr_step_mints_a_fresh_session() -> None:
         result = await station_flow._qr_login(session)  # type: ignore[arg-type]
 
     assert result is credentials
-    assert client.start_qr_login.await_count == 2  # type: ignore[attr-defined]
+    assert client.start_qr_login.await_count == 2
 
 
 async def test_denied_device_login_aborts_flow() -> None:
