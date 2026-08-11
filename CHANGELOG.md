@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Upstream synchronization now recognizes the guided setup-flow port while preserving compatibility with Music Assistant versions that do not expose the announcement-duration resolver.
+
 ## [1.5.3] - 2026-08-11
 
 ### Changed

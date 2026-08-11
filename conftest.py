@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import importlib.util
 import sys
 import types
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 
@@ -292,12 +295,72 @@ except (ImportError, AttributeError):
             super().__init__(reason)
             self.reason = reason
 
+    @dataclass(kw_only=True)
+    class _SetupFlowContext:
+        kind: str
+        reason: str
+        domain: str
+        instance_id: str | None = None
+        player_id: str | None = None
+        setup_data: dict[str, Any] = field(default_factory=dict)
+        values: dict[str, Any] = field(default_factory=dict)
+
+    class _SetupSession:
+        """Minimal coroutine-driven setup session used by provider unit tests."""
+
+        def __init__(
+            self,
+            mass: Any,
+            flow_id: str,
+            context: _SetupFlowContext,
+            finish_handler: Any,
+        ) -> None:
+            self.mass = mass
+            self.flow_id = flow_id
+            self.context = context
+            self.current_step: Any = None
+            self.finished = False
+            self._finish_handler = finish_handler
+            self._input_future: asyncio.Future[dict[str, Any]] | None = None
+
+        async def form(
+            self,
+            entries: list[Any],
+            *,
+            step_id: str = "user",
+            errors: dict[str, str] | None = None,
+            **_kwargs: Any,
+        ) -> dict[str, Any]:
+            from music_assistant_models.enums import FlowStepType
+
+            self.current_step = types.SimpleNamespace(
+                type=FlowStepType.FORM,
+                step_id=step_id,
+                entries=entries,
+                errors=errors or {},
+            )
+            self._input_future = asyncio.get_running_loop().create_future()
+            return await self._input_future
+
+        def handle_submit(self, values: dict[str, Any]) -> None:
+            if self._input_future is None or self._input_future.done():
+                raise RuntimeError("No setup form is awaiting input")
+            self._input_future.set_result(values)
+
+        async def progress_until(self, awaitable: Any, **_kwargs: Any) -> Any:
+            return await awaitable
+
+        async def finish(self, values: dict[str, Any]) -> None:
+            await self._finish_handler(self, values)
+            self.finished = True
+
     _ensure_stub(
         "music_assistant.models.setup_flow",
         {
             "AbortFlow": _AbortFlow,
             "SetupFlowError": _SetupFlowError,
-            "SetupSession": object,
+            "SetupFlowContext": _SetupFlowContext,
+            "SetupSession": _SetupSession,
             "StepExpiredError": _StepExpiredError,
         },
     )
