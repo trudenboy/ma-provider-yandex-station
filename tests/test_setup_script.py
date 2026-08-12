@@ -7,7 +7,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).parent.parent
+if not (PROJECT_ROOT / "scripts" / "setup.sh").is_file():
+    pytest.skip("standalone setup script is not synced upstream", allow_module_level=True)
 
 
 def _prepare_fake_repo(tmp_path: Path) -> tuple[Path, dict[str, str]]:

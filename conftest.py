@@ -249,6 +249,11 @@ except (ImportError, AttributeError):
             pass
 
         @property
+        def provider(self) -> object:
+            """Return the owning provider, matching the read-only core property."""
+            return self._provider
+
+        @property
         def player_id(self) -> str:
             return getattr(self, "_player_id", "")
 

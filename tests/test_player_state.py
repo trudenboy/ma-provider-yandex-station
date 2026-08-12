@@ -83,16 +83,14 @@ def _make_play_media_player(
         return "http://192.168.10.229:8097/single/session/queue/item/test_player.flac"
 
     player = _make_player()
-    object.__setattr__(
-        player,
-        "provider",
-        cast(
-            "PlayerProvider",
-            SimpleNamespace(
-                mass=SimpleNamespace(streams=SimpleNamespace(resolve_stream_url=resolve_stream_url))
-            ),
+    provider = cast(
+        "PlayerProvider",
+        SimpleNamespace(
+            mass=SimpleNamespace(streams=SimpleNamespace(resolve_stream_url=resolve_stream_url))
         ),
     )
+    player._provider = provider
+    player.mass = provider.mass
     player.glagol = cast("YandexGlagol", SimpleNamespace(send=send))
     return player, commands
 
