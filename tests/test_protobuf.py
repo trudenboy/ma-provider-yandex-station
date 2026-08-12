@@ -3,13 +3,31 @@
 from __future__ import annotations
 
 import base64
+import importlib
 import json
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, Protocol, cast
 
-from music_assistant.providers.yandex_station.player import (  # type: ignore[attr-defined]
-    _stream_command,
-)
 from music_assistant.providers.yandex_station.protobuf import dumps, loads
+
+if TYPE_CHECKING:
+    from music_assistant.models.player import PlayerMedia
+
+
+class _StreamCommand(Protocol):
+    """Typed contract for the private stream-command test target."""
+
+    def __call__(
+        self,
+        url: str,
+        media: PlayerMedia | None,
+        *,
+        audio_client: bool,
+    ) -> dict[str, object]: ...
+
+
+_player_module = importlib.import_module("music_assistant.providers.yandex_station.player")
+_stream_command = cast("_StreamCommand", _player_module._stream_command)
 
 
 def _decode_external(command: dict[str, object]) -> tuple[str, dict[str, object]]:
@@ -45,10 +63,13 @@ def test_dumps_produces_bytes() -> None:
 
 def test_audio_play_track_payload() -> None:
     """Current firmware must receive the required audio_client stream fields."""
-    media = SimpleNamespace(
-        title="Track title",
-        artist="Track artist",
-        image_url="https://images.example/cover.jpg",
+    media = cast(
+        "PlayerMedia",
+        SimpleNamespace(
+            title="Track title",
+            artist="Track artist",
+            image_url="https://images.example/cover.jpg",
+        ),
     )
 
     name, payload = _decode_external(
@@ -96,7 +117,10 @@ def test_audio_play_hls_uses_url_path_extension() -> None:
 
 def test_audio_play_keeps_non_https_artwork_unchanged() -> None:
     """Only the HTTPS scheme is removed from artwork returned as coverURI."""
-    media = SimpleNamespace(title="Track", artist="", image_url="http://images.example/a.jpg")
+    media = cast(
+        "PlayerMedia",
+        SimpleNamespace(title="Track", artist="", image_url="http://images.example/a.jpg"),
+    )
 
     _, payload = _decode_external(
         _stream_command("http://192.168.1.10/item.mp3", media, audio_client=True)
