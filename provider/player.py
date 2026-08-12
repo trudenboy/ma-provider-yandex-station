@@ -101,6 +101,19 @@ def _parse_yandex_track_id(raw: str) -> str:
     return raw.split(":", 1)[0].strip()
 
 
+def _external_media_title_matches(
+    media: PlayerMedia | None, player_state: dict[str, Any]
+) -> bool | None:
+    """Compare requested and reported titles, or return unknown if either is absent."""
+    if media is None:
+        return None
+    expected_title = (media.title or "").strip()
+    reported_title = (player_state.get("title") or "").strip()
+    if not expected_title or not reported_title:
+        return None
+    return expected_title == reported_title
+
+
 def _raise_if_failed(result: dict[str, Any] | None, command: str) -> None:
     """
     Raise PlayerCommandFailed if a Glagol send result indicates failure.
@@ -1057,17 +1070,31 @@ class YandexStationPlayer(Player):
         self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.PAUSED
 
-    def _update_playback_state(self, playing: bool, alice_state: str) -> None:
+    def _update_playback_state(
+        self,
+        playing: bool,
+        alice_state: str,
+        external_media_matches: bool | None = None,
+    ) -> None:
         """Update playback state from Glagol data."""
         if self._external_playing:
             if self._voice_control_enabled and alice_state not in ("IDLE", ""):
                 self._handle_voice_interrupt(alice_state)
             elif playing:
-                if self._external_audio_client or self._external_stop_observed:
+                if self._external_audio_client:
+                    if external_media_matches is True or (
+                        external_media_matches is None and self._external_stop_observed
+                    ):
+                        self._external_play_confirmed = True
+                elif self._external_stop_observed:
                     self._external_play_confirmed = True
                 self._attr_playback_state = PlaybackState.PLAYING
                 self._attr_powered = True
-            elif self._external_play_confirmed and alice_state in ("IDLE", ""):
+            elif (
+                self._external_play_confirmed
+                and alice_state in ("IDLE", "")
+                and external_media_matches is not False
+            ):
                 # Stream was playing, now stopped without voice trigger →
                 # user pressed physical pause/stop on the speaker.
                 self._handle_physical_pause()
@@ -1075,7 +1102,8 @@ class YandexStationPlayer(Player):
                 # Startup window: radio_play sent but station not yet fetching.
                 # Record the native stop and stay optimistic until a later
                 # playing=True can be attributed to the new external session.
-                self._external_stop_observed = True
+                if not self._external_audio_client or external_media_matches is not False:
+                    self._external_stop_observed = True
                 self._attr_playback_state = PlaybackState.PLAYING
                 self._attr_powered = True
         elif playing:
@@ -1132,6 +1160,12 @@ class YandexStationPlayer(Player):
         playing = state.get("playing", False)
         extra = player_state.get("extra", {})
 
+        external_media_matches = (
+            _external_media_title_matches(self._external_media, player_state)
+            if self._external_playing and self._external_audio_client
+            else None
+        )
+
         _LOGGER.debug(
             "[%s] playing=%s vol=%s prog=%s dur=%s title=%s extra=%s alice=%s",
             self.player_id,
@@ -1155,7 +1189,7 @@ class YandexStationPlayer(Player):
         # inside the task would always observe the post-assignment value.
         prev_alice_state_snapshot = self._prev_alice_state
 
-        self._update_playback_state(playing, alice_state)
+        self._update_playback_state(playing, alice_state, external_media_matches)
 
         self._prev_alice_state = alice_state
 

@@ -239,16 +239,49 @@ def test_external_playing_confirms_after_native_stop_is_observed() -> None:
     assert player._external_play_confirmed is True
 
 
-def test_audio_play_state_confirms_without_legacy_stop_guard() -> None:
-    """audio_play state belongs to the requested stream and confirms immediately."""
+def test_audio_play_ignores_stale_state_during_track_handoff() -> None:
+    """Old-track state must not turn new-track startup into a physical pause."""
     player = _make_player()
     _disable_voice_control(player)
+    player._provider = cast("PlayerProvider", SimpleNamespace(config=_StubConfig()))
     player._external_playing = True
     vars(player)["_external_audio_client"] = True
+    requested_media = cast(
+        "PlayerMedia",
+        SimpleNamespace(
+            uri="yandex_music://track/2",
+            title="New Track",
+            artist="Artist",
+            duration=180,
+            image_url=None,
+        ),
+    )
+    player._external_media = requested_media
 
-    player._update_playback_state(playing=True, alice_state="IDLE")
+    def update(*, title: str, playing: bool) -> None:
+        player._on_glagol_update(
+            {
+                "supported_features": ["audio_client"],
+                "state": {
+                    "playing": playing,
+                    "aliceState": "IDLE",
+                    "playerState": {"progress": 0, "duration": 180, "title": title},
+                },
+            }
+        )
+
+    update(title="Old Track", playing=True)
+    assert vars(player)["_external_play_confirmed"] is False
+
+    update(title="New Track", playing=False)
+    assert player._external_playing is True
+    assert player._external_media is requested_media
+    assert player._needs_replay is False
+
+    update(title="New Track", playing=True)
 
     assert player._external_play_confirmed is True
+    assert player._attr_playback_state == PlaybackState.PLAYING
 
 
 def test_audio_play_uses_reported_progress() -> None:
