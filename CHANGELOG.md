@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.6] - 2026-08-12
+
+### Fixed
+
+- Provider releases now pass upstream Music Assistant validation when standalone-only
+  development files are not included in the synchronized package.
+
 ## [1.5.5] - 2026-08-12
 
 ### Fixed
