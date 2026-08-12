@@ -69,11 +69,19 @@ else
 
 
   # Clone fork MA server (player provider)
-  if [ ! -d "$REPO_ROOT/ma-server" ]; then
-    git clone --depth=1 -b dev https://github.com/trudenboy/ma-server.git "$REPO_ROOT/ma-server"
+  MA_SERVER_DIR="$REPO_ROOT/ma-server"
+  if [ ! -d "$MA_SERVER_DIR/.git" ] || [ ! -d "$MA_SERVER_DIR/music_assistant" ]; then
+    if [ -d "$MA_SERVER_DIR" ] && [ -z "$(ls -A "$MA_SERVER_DIR")" ]; then
+      rmdir "$MA_SERVER_DIR"
+    elif [ -e "$MA_SERVER_DIR" ]; then
+      echo "ERROR: $MA_SERVER_DIR exists but is not a valid Music Assistant checkout."
+      echo "Move or repair that directory, then run setup again. No files were removed."
+      exit 1
+    fi
+    git clone --depth=1 -b dev https://github.com/trudenboy/ma-server.git "$MA_SERVER_DIR"
   fi
   # Symlink provider into server
-  PROVIDER_TARGET="$REPO_ROOT/ma-server/music_assistant/providers/yandex_station"
+  PROVIDER_TARGET="$MA_SERVER_DIR/music_assistant/providers/yandex_station"
   rm -rf "$PROVIDER_TARGET"
   ln -s "$REPO_ROOT/provider/" "$PROVIDER_TARGET"
   cd "$REPO_ROOT/ma-server"
