@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.5.5] - 2026-08-12
 
 ### Fixed
 
@@ -10,6 +10,12 @@
 - Development metadata now consistently installs `ya-passport-auth[ma]==1.8.0` and
   `segno==1.6.6`; standalone setup safely recovers an empty invalid MA checkout, and the
   Docker test environment uses host networking for LAN discovery and stream access.
+- Current Yandex Station firmware now receives Music Assistant streams through the
+  advertised `audio_play` client instead of ignoring the legacy URL and starting Yandex
+  Radio; older firmware retains the `radio_play` fallback.
+- Track handoffs no longer treat a stale `playing=True` update from the previous source
+  as confirmation of the new stream, preventing startup from being reported as a
+  physical pause.
 
 ## [1.5.4] - 2026-08-11
 
