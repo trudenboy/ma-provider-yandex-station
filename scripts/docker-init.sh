@@ -45,41 +45,5 @@ if [ -n "$DEPS" ]; then
     fi
 fi
 
-# The nightly image can bundle other Yandex providers that still pin an older
-# ya-passport-auth release. Music Assistant installs manifest requirements at
-# startup, so those stale pins would downgrade the version installed above.
-# Align only the container's bundled Yandex manifests with this provider's
-# declared pin; the bind-mounted provider remains read-only and unchanged.
-PASSPORT_REQ=$(/app/venv/bin/python3 - <<'PYEOF'
-import tomllib
-
-with open("/tmp/pyproject.toml", "rb") as f:
-    dependencies = tomllib.load(f).get("project", {}).get("dependencies", [])
-print(next((dep for dep in dependencies if dep.lower().startswith("ya-passport-auth")), ""))
-PYEOF
-)
-if [ -n "$PASSPORT_REQ" ]; then
-    /app/venv/bin/python3 - "$PROVIDERS_DIR" "$PASSPORT_REQ" <<'PYEOF'
-import json
-import sys
-from pathlib import Path
-
-providers_dir = Path(sys.argv[1])
-passport_requirement = sys.argv[2]
-for manifest_path in providers_dir.glob("yandex_*/manifest.json"):
-    if manifest_path.parent.is_symlink():
-        continue
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    requirements = manifest.get("requirements", [])
-    aligned = [
-        passport_requirement if req.lower().startswith("ya-passport-auth") else req
-        for req in requirements
-    ]
-    if aligned != requirements:
-        manifest["requirements"] = aligned
-        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-PYEOF
-fi
-
 echo "==> Starting Music Assistant..."
 exec /usr/local/bin/entrypoint.sh --data-dir /data --cache-dir /data/.cache
