@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.9] - 2026-08-28
+
+### Fixed
+
+- Borrowed Yandex Music setup credentials now remain bound to the selected account when it is temporarily unavailable.
+
 ## [1.5.8] - 2026-08-28
 
 ### Fixed
