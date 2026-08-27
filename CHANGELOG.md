@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.8] - 2026-08-28
+
+### Fixed
+
+- Intercept target selection remains compatible with current Music Assistant player-type definitions.
+
 ## [1.5.7] - 2026-08-28
 
 ### Fixed

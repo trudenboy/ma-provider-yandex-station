@@ -27,7 +27,8 @@ for _pkg in ("music_assistant", "music_assistant.providers"):
 
 # ── Stub MA modules that aren't installed in the test venv ───────────
 def _ensure_stub(name: str, attrs: dict | None = None) -> types.ModuleType:
-    """Register a stub module if the real one isn't importable.
+    """
+    Register a stub module if the real one isn't importable.
 
     If the module already exists, merge any provided attrs into it.
     """
@@ -95,6 +96,8 @@ except ImportError:
 
     class _PlayerType:
         PLAYER = "player"
+        STEREO_PAIR = "stereo_pair"
+        GROUP = "group"
 
     class _IdentifierType:
         MAC_ADDRESS = "mac_address"
@@ -170,27 +173,26 @@ except ImportError:
     )
     _ensure_stub("music_assistant_models.provider", {"ProviderManifest": _ProviderManifest})
 
+_playback_target_player_type = getattr(
+    importlib.import_module("music_assistant_models.enums"), "PlayerType"
+)
+
 # music_assistant stubs (helpers, models)
 try:
-    from music_assistant.helpers.auth import AuthenticationHelper  # noqa: F401
+    import music_assistant.helpers  # noqa: F401
 except (ImportError, AttributeError):
-
-    class _AuthenticationHelper:  # type: ignore[no-redef]
-        def __init__(self, *a: object, **kw: object) -> None:
-            pass
-
-        async def __aenter__(self) -> _AuthenticationHelper:
-            return self
-
-        async def __aexit__(self, *a: object) -> None:
-            pass
-
-        def send_url(self, url: str) -> None:
-            pass
-
     _helpers = _ensure_stub("music_assistant.helpers")
     _helpers.__path__ = []  # type: ignore[attr-defined]
-    _ensure_stub("music_assistant.helpers.auth", {"AuthenticationHelper": _AuthenticationHelper})
+    _ensure_stub(
+        "music_assistant.helpers.config_entries",
+        {
+            "PLAYBACK_TARGET_TYPES": {
+                _playback_target_player_type.PLAYER,
+                _playback_target_player_type.STEREO_PAIR,
+                _playback_target_player_type.GROUP,
+            }
+        },
+    )
 
     def _create_clientsession(_mass: object, **kwargs: object) -> object:
         return aiohttp.ClientSession(**kwargs)  # type: ignore[arg-type]

@@ -69,8 +69,17 @@ else
 
 
   # Clone fork MA server (player provider)
-  if [ ! -d "$REPO_ROOT/ma-server" ]; then
-    git clone --depth=1 -b dev https://github.com/trudenboy/ma-server.git "$REPO_ROOT/ma-server"
+  MA_SERVER="$REPO_ROOT/ma-server"
+  if [ ! -d "$MA_SERVER/.git" ]; then
+    if [ -e "$MA_SERVER" ] || [ -L "$MA_SERVER" ]; then
+      if [ -d "$MA_SERVER" ] && [ -z "$(ls -A "$MA_SERVER")" ]; then
+        rmdir "$MA_SERVER"
+      else
+        echo "ERROR: $MA_SERVER is not a valid Music Assistant checkout. No files were removed."
+        exit 1
+      fi
+    fi
+    git clone --depth=1 -b dev https://github.com/trudenboy/ma-server.git "$MA_SERVER"
   fi
   # Symlink provider into server
   PROVIDER_TARGET="$REPO_ROOT/ma-server/music_assistant/providers/yandex_station"
