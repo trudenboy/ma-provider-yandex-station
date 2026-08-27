@@ -282,6 +282,59 @@ def test_audio_play_ignores_stale_state_during_track_handoff() -> None:
     assert player._attr_playback_state == PlaybackState.PLAYING
 
 
+def test_audio_play_requires_a_state_boundary_before_title_confirmation() -> None:
+    """A same-title old track cannot confirm the new audio_play session."""
+    player = _make_player()
+    _disable_voice_control(player)
+    player._external_playing = True
+    vars(player)["_external_audio_client"] = True
+    update_playback_state = cast("Any", player._update_playback_state)
+
+    update_playback_state(
+        playing=True,
+        alice_state="IDLE",
+        external_media_matches=True,
+    )
+
+    assert player._external_play_confirmed is False
+
+    update_playback_state(
+        playing=False,
+        alice_state="IDLE",
+        external_media_matches=True,
+    )
+    update_playback_state(
+        playing=True,
+        alice_state="IDLE",
+        external_media_matches=True,
+    )
+
+    assert player._external_play_confirmed is True
+
+
+def test_audio_play_end_of_track_sets_idle_without_replay() -> None:
+    """A confirmed stream ending at its duration must let MA advance the queue."""
+    player = _make_player()
+    _disable_voice_control(player)
+    player._external_playing = True
+    player._external_play_confirmed = True
+    vars(player)["_external_audio_client"] = True
+    player._attr_playback_state = PlaybackState.PLAYING
+    update_playback_state = cast("Any", player._update_playback_state)
+
+    update_playback_state(
+        playing=False,
+        alice_state="IDLE",
+        external_media_matches=True,
+        progress=180,
+        duration=180,
+    )
+
+    assert player._attr_playback_state == PlaybackState.IDLE
+    assert player._external_playing is False
+    assert player._needs_replay is False
+
+
 def test_audio_play_uses_reported_progress() -> None:
     """Current firmware progress replaces the legacy optimistic clock."""
     player = _make_player()
