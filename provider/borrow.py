@@ -29,7 +29,7 @@ class YandexMusicCredentialSource(BorrowedCredentialSource):
         if music_token is not None or x_token is not None:
             return music_token, x_token
 
-        owner = self._station_mass.get_provider(self.instance_id)
+        owner = self._station_mass.get_provider(self.instance_id, return_unavailable=True)
         get_setup_value = getattr(owner, "get_setup_value", None)
         if not callable(get_setup_value):
             return None, None
