@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.7] - 2026-08-28
+
+### Fixed
+
+- Audio-client playback now distinguishes a completed stream from a physical pause, allowing
+  Music Assistant queues to advance normally at the end of a track.
+- Audio-client playback now waits for the previous source to stop before accepting a matching
+  title as confirmation, preventing same-titled consecutive tracks from being misidentified.
+- Borrowed Yandex Music credentials now retry only while the linked provider is still loading;
+  transient Yandex Passport failures are returned for normal Music Assistant retry handling.
+
 ## [1.5.6] - 2026-08-12
 
 ### Fixed

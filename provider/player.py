@@ -1070,11 +1070,24 @@ class YandexStationPlayer(Player):
         self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.PAUSED
 
+    def _handle_external_completion(self) -> None:
+        """Handle a completed external stream so MA can advance its queue."""
+        self._external_playing = False
+        self._external_audio_client = False
+        self._external_media = None
+        self._external_play_confirmed = False
+        self._external_stop_observed = False
+        self._needs_replay = False
+        self._cancel_voice_resume()
+        self._attr_playback_state = PlaybackState.IDLE
+
     def _update_playback_state(
         self,
         playing: bool,
         alice_state: str,
         external_media_matches: bool | None = None,
+        progress: float = 0,
+        duration: float = 0,
     ) -> None:
         """Update playback state from Glagol data."""
         if self._external_playing:
@@ -1082,9 +1095,7 @@ class YandexStationPlayer(Player):
                 self._handle_voice_interrupt(alice_state)
             elif playing:
                 if self._external_audio_client:
-                    if external_media_matches is True or (
-                        external_media_matches is None and self._external_stop_observed
-                    ):
+                    if self._external_stop_observed and external_media_matches is not False:
                         self._external_play_confirmed = True
                 elif self._external_stop_observed:
                     self._external_play_confirmed = True
@@ -1097,7 +1108,10 @@ class YandexStationPlayer(Player):
             ):
                 # Stream was playing, now stopped without voice trigger →
                 # user pressed physical pause/stop on the speaker.
-                self._handle_physical_pause()
+                if self._external_audio_client and duration and progress >= duration:
+                    self._handle_external_completion()
+                else:
+                    self._handle_physical_pause()
             else:
                 # Startup window: radio_play sent but station not yet fetching.
                 # Record the native stop and stay optimistic until a later
@@ -1189,7 +1203,13 @@ class YandexStationPlayer(Player):
         # inside the task would always observe the post-assignment value.
         prev_alice_state_snapshot = self._prev_alice_state
 
-        self._update_playback_state(playing, alice_state, external_media_matches)
+        self._update_playback_state(
+            playing,
+            alice_state,
+            external_media_matches,
+            player_state.get("progress", 0),
+            player_state.get("duration", 0),
+        )
 
         self._prev_alice_state = alice_state
 
@@ -1207,7 +1227,7 @@ class YandexStationPlayer(Player):
         if self._external_playing and self._external_media:
             # Keep requested MA metadata. audio_play reports reliable progress,
             # while legacy radio_play can still expose stale native state.
-            if self._external_audio_client:
+            if self._external_audio_client and external_media_matches is not False:
                 self._attr_elapsed_time = progress
                 self._attr_elapsed_time_last_updated = time.time()
             self.set_current_media(

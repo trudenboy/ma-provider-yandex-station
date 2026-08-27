@@ -464,14 +464,15 @@ class YandexStationProvider(PlayerProvider):
         assert self._borrow_source is not None
         for attempt in range(_BORROW_SOURCE_LOAD_ATTEMPTS):
             try:
-                music_token = await self._borrow_source.resolve_music_token()
                 _, x_token = self._borrow_source.read_tokens()
-                return music_token, x_token
             except ResourceTemporarilyUnavailable:
                 if attempt == _BORROW_SOURCE_LOAD_ATTEMPTS - 1:
                     raise
                 await asyncio.sleep(_BORROW_SOURCE_LOAD_DELAY)
-        raise RuntimeError("Borrowed credential wait exhausted unexpectedly")
+            else:
+                music_token = await self._borrow_source.resolve_music_token()
+                return music_token, x_token
+        raise RuntimeError("Borrowed credential source wait exhausted unexpectedly")
 
     async def _silent_reauth_borrowed(self) -> bool:
         """

@@ -14,6 +14,7 @@ from unittest import mock
 import pytest
 from music_assistant_models.enums import ProviderType
 from music_assistant_models.errors import LoginFailed, ResourceTemporarilyUnavailable
+from ya_passport_auth import SecretStr
 from ya_passport_auth.ma import BORROW_SOURCE_OWN
 
 from provider import setup
@@ -175,6 +176,28 @@ class TestBorrowInitSession:
         sleep.assert_awaited_once()
         kwargs = session_cls.call_args.kwargs
         assert kwargs["music_token"].get_secret() == "test-music-ym"
+
+    async def test_passport_failure_is_not_retried_as_provider_startup(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A transient token refresh failure must reach MA's normal retry handling."""
+        provider = _borrow_provider(_ym_owner("test-music-ym", "test-x-ym"))
+        source = provider._borrow_source
+        assert source is not None
+        read_tokens = mock.MagicMock(
+            return_value=(SecretStr("test-music-ym"), SecretStr("test-x-ym"))
+        )
+        resolve_music_token = mock.AsyncMock(
+            side_effect=ResourceTemporarilyUnavailable("Passport unavailable")
+        )
+        monkeypatch.setattr(source, "read_tokens", read_tokens)
+        monkeypatch.setattr(source, "resolve_music_token", resolve_music_token)
+
+        with pytest.raises(ResourceTemporarilyUnavailable, match="Passport unavailable"):
+            await provider._resolve_borrowed_tokens()
+
+        read_tokens.assert_called_once()
+        resolve_music_token.assert_awaited_once()
 
 
 class TestBorrowSilentReauth:
