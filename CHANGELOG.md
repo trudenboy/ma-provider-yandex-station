@@ -10,6 +10,8 @@
   title as confirmation, preventing same-titled consecutive tracks from being misidentified.
 - Borrowed Yandex Music credentials now retry only while the linked provider is still loading;
   transient Yandex Passport failures are returned for normal Music Assistant retry handling.
+- Capture-only audio inputs are excluded from the intercept target selector, preventing selection
+  of devices that cannot play a redirected track.
 
 ## [1.5.6] - 2026-08-12
 
@@ -676,4 +678,3 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 - `YandexStationProvider(PlayerProvider)` with mDNS discovery
 - `YandexStationPlayer(Player)` with play/pause/stop/seek/volume/next/prev
 - Protobuf utility for `externalCommandBypass` encoding
-- Reverse-synced upstream PR #6035 (WIP)
