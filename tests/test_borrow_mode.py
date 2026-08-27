@@ -15,9 +15,10 @@ import pytest
 from music_assistant_models.enums import ProviderType
 from music_assistant_models.errors import LoginFailed, ResourceTemporarilyUnavailable
 from ya_passport_auth import SecretStr
-from ya_passport_auth.ma import BORROW_SOURCE_OWN
+from ya_passport_auth.ma import BORROW_SOURCE_OWN, BorrowedCredentialSource
 
 from provider import setup
+from provider.borrow import YandexMusicCredentialSource
 from provider.constants import (
     CONF_INTERCEPT_FEATURE_ENABLED,
     CONF_MUSIC_TOKEN,
@@ -144,6 +145,29 @@ class TestBorrowInitSession:
         assert kwargs["x_token"].get_secret() == "test-x-ym"
         assert kwargs["music_token"].get_secret() == "test-music-ym"
         assert _updates(provider) == []
+
+    def test_setup_data_uses_unavailable_linked_instance(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Guided-flow credentials never fall back to a different Yandex Music account."""
+        linked_owner = _ym_owner_setup_data("test-music-linked", "test-x-linked")
+        fallback_owner = _ym_owner_setup_data("test-music-fallback", "test-x-fallback")
+
+        def get_provider(_instance_id: str, *, return_unavailable: bool = False) -> mock.MagicMock:
+            return linked_owner if return_unavailable else fallback_owner
+
+        mass = mock.MagicMock()
+        mass.get_provider.side_effect = get_provider
+        source = YandexMusicCredentialSource(mass, "ym-1")
+        monkeypatch.setattr(BorrowedCredentialSource, "read_tokens", lambda _source: (None, None))
+
+        music_token, x_token = source.read_tokens()
+
+        assert music_token is not None
+        assert x_token is not None
+        assert music_token.get_secret() == "test-music-linked"
+        assert x_token.get_secret() == "test-x-linked"
+        mass.get_provider.assert_called_once_with("ym-1", return_unavailable=True)
 
     async def test_ym_not_loaded_is_transient(self) -> None:
         """A not-yet-loaded linked instance is a retryable condition."""
