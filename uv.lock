@@ -871,7 +871,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'test'", specifier = ">=0.15,<0.16" },
     { name = "segno", specifier = "==1.6.6" },
     { name = "syrupy", marker = "extra == 'test'", specifier = ">=5.0" },
-    { name = "ya-passport-auth", extras = ["ma"], specifier = "==1.8.0" },
+    { name = "ya-passport-auth", extras = ["ma"], specifier = "==2.0.1" },
 ]
 provides-extras = ["test"]
 
@@ -1910,13 +1910,13 @@ resolution-markers = [
     "sys_platform == 'darwin'",
 ]
 dependencies = [
-    { name = "filelock", marker = "sys_platform == 'darwin'" },
-    { name = "fsspec", marker = "sys_platform == 'darwin'" },
-    { name = "jinja2", marker = "sys_platform == 'darwin'" },
-    { name = "networkx", marker = "sys_platform == 'darwin'" },
-    { name = "setuptools", marker = "sys_platform == 'darwin'" },
-    { name = "sympy", marker = "sys_platform == 'darwin'" },
-    { name = "typing-extensions", marker = "sys_platform == 'darwin'" },
+    { name = "filelock" },
+    { name = "fsspec" },
+    { name = "jinja2" },
+    { name = "networkx" },
+    { name = "setuptools" },
+    { name = "sympy" },
+    { name = "typing-extensions" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:d849b390e07d8d333ce8ecaf91b273c656c598379a19c9acf1318a883f6b391c", upload-time = "2026-07-08T12:26:28Z" },
@@ -1931,13 +1931,13 @@ resolution-markers = [
     "sys_platform != 'darwin'",
 ]
 dependencies = [
-    { name = "filelock", marker = "sys_platform != 'darwin'" },
-    { name = "fsspec", marker = "sys_platform != 'darwin'" },
-    { name = "jinja2", marker = "sys_platform != 'darwin'" },
-    { name = "networkx", marker = "sys_platform != 'darwin'" },
-    { name = "setuptools", marker = "sys_platform != 'darwin'" },
-    { name = "sympy", marker = "sys_platform != 'darwin'" },
-    { name = "typing-extensions", marker = "sys_platform != 'darwin'" },
+    { name = "filelock" },
+    { name = "fsspec" },
+    { name = "jinja2" },
+    { name = "networkx" },
+    { name = "setuptools" },
+    { name = "sympy" },
+    { name = "typing-extensions" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp314-cp314-linux_s390x.whl", hash = "sha256:dec241fef3984c0d1edadd1f58708e218d4eae881ceef7bc10cf9964d41b68b9", upload-time = "2026-07-08T19:30:20Z" },
@@ -2070,15 +2070,15 @@ wheels = [
 
 [[package]]
 name = "ya-passport-auth"
-version = "1.8.0"
+version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/49/4a/754473b084524820c5e76bf576235d078b29c15f0f9646191d8d4b177233/ya_passport_auth-1.8.0.tar.gz", hash = "sha256:2271e4cbccea440d917b02e39720327a828dc0a7d70b6420c0216c98a1ebc0cb", size = 105608, upload-time = "2026-07-22T19:59:50.591Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/f1/02634d33db370b5aad012b3529d9d655fcd604f3d498d1add520f9043159/ya_passport_auth-2.0.1.tar.gz", hash = "sha256:582a5ab4561724cf2f4708d5e0a338aa0446e3ae4e8e69cdf3186d24f1fe90e4", size = 85538, upload-time = "2026-08-28T05:54:05.439Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/f6/23b7d8559bdf841f171f94008113e88fc286d3965fdb925c6692c7701655/ya_passport_auth-1.8.0-py3-none-any.whl", hash = "sha256:1fb62ad7a01194b74013138d2c73be5342ac3875bbed862041fa1da7c29ed301", size = 74384, upload-time = "2026-07-22T19:59:49.169Z" },
+    { url = "https://files.pythonhosted.org/packages/20/cf/c333cd069f5f3b3d2236804d0c714d61aefeed4d2ea46d458b65cb73a120/ya_passport_auth-2.0.1-py3-none-any.whl", hash = "sha256:34ae8956afef3df9619487e74ee2c8956415ba57037b7d796b3fdd04b457373a", size = 57965, upload-time = "2026-08-28T05:54:04.222Z" },
 ]
 
 [package.optional-dependencies]

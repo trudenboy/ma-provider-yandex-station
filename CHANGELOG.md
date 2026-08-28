@@ -2,6 +2,10 @@
 
 ## [1.5.10] - 2026-08-28
 
+### Changed
+
+- Updated `ya-passport-auth[ma]` to 2.0.1 for exact linked-account credential lookup.
+
 ### Fixed
 
 - Audio-client playback now starts reliably when a Yandex Station is already idle.

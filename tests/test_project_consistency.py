@@ -14,7 +14,7 @@ if not (PROJECT_ROOT / "pyproject.toml").is_file():
 
 EXPECTED_RUNTIME_REQUIREMENTS = {
     "segno==1.6.6",
-    "ya-passport-auth[ma]==1.8.0",
+    "ya-passport-auth[ma]==2.0.1",
 }
 
 
@@ -33,4 +33,4 @@ def test_runtime_requirements_match_manifest() -> None:
         package["name"]: package["version"] for package in lock["package"] if "version" in package
     }
     assert locked_versions["segno"] == "1.6.6"
-    assert locked_versions["ya-passport-auth"] == "1.8.0"
+    assert locked_versions["ya-passport-auth"] == "2.0.1"
