@@ -183,7 +183,7 @@ class YandexStationPlayer(Player):
         # a user-initiated physical pause on the speaker.
         self._external_play_confirmed = False
         # A playing=True update can belong to the native source that radio_play
-        # is replacing. Only accept it after observing that native source stop.
+        # is replacing. Only accept it after a non-playing state boundary.
         self._external_stop_observed = False
         # Set after pause of external playback — play() must re-trigger queue
         self._needs_replay = False
@@ -447,7 +447,8 @@ class YandexStationPlayer(Player):
         self._external_audio_client = self._audio_client
         self._external_media = None
         self._external_play_confirmed = False
-        self._external_stop_observed = False
+        # An already-idle Station has crossed the boundary before this command.
+        self._external_stop_observed = self._attr_playback_state != PlaybackState.PLAYING
         directive = "audio_play" if self._external_audio_client else "radio_play"
         try:
             result = await self.glagol.send(

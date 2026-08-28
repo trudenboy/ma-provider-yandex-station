@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.10] - 2026-08-28
+
+### Fixed
+
+- Audio-client playback now starts reliably when a Yandex Station is already idle.
+
 ## [1.5.9] - 2026-08-28
 
 ### Fixed

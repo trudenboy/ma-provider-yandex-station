@@ -148,6 +148,33 @@ async def test_play_media_uses_audio_play_without_preliminary_stop() -> None:
     assert vars(player)["_external_audio_client"] is True
 
 
+async def test_audio_play_from_idle_confirms_on_first_playing_state() -> None:
+    """An idle Station has already crossed the native playback boundary."""
+    player, _ = _make_play_media_player([{"status": "SUCCESS"}])
+    _disable_voice_control(player)
+    vars(player)["_audio_client"] = True
+    media = cast(
+        "PlayerMedia",
+        SimpleNamespace(
+            uri="yandex_music://track/1",
+            title="Track",
+            artist="Artist",
+            duration=180,
+            image_url=None,
+        ),
+    )
+
+    await player.play_media(media)
+    update_playback_state = cast("Any", player._update_playback_state)
+    update_playback_state(
+        playing=True,
+        alice_state="IDLE",
+        external_media_matches=True,
+    )
+
+    assert player._external_play_confirmed is True
+
+
 async def test_play_media_falls_back_to_legacy_radio_play() -> None:
     """Old firmware keeps the legacy payload and does not receive a native stop."""
     player, commands = _make_play_media_player([{"status": "ERROR"}])
