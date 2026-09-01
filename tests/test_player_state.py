@@ -175,6 +175,49 @@ async def test_audio_play_from_idle_confirms_on_first_playing_state() -> None:
     assert player._external_play_confirmed is True
 
 
+async def test_audio_play_attributes_state_while_command_is_pending() -> None:
+    """State updates received before the command response belong to the requested media."""
+    player, _ = _make_play_media_player([{"status": "SUCCESS"}])
+    _disable_voice_control(player)
+    object.__setattr__(player._provider, "config", _StubConfig())
+    vars(player)["_audio_client"] = True
+    player._attr_playback_state = PlaybackState.PLAYING
+    media = cast(
+        "PlayerMedia",
+        SimpleNamespace(
+            uri="yandex_music://track/2",
+            title="New Track",
+            artist="Artist",
+            duration=180,
+            image_url=None,
+        ),
+    )
+
+    async def send_with_stale_updates(_payload: dict[str, Any]) -> dict[str, Any]:
+        for playing in (False, True):
+            player._on_glagol_update(
+                {
+                    "supported_features": ["audio_client"],
+                    "state": {
+                        "playing": playing,
+                        "aliceState": "IDLE",
+                        "playerState": {
+                            "progress": 120,
+                            "duration": 180,
+                            "title": "Old Track",
+                        },
+                    },
+                }
+            )
+        return {"status": "SUCCESS"}
+
+    player.glagol = cast("YandexGlagol", SimpleNamespace(send=send_with_stale_updates))
+
+    await player.play_media(media)
+
+    assert player._external_play_confirmed is False
+
+
 async def test_play_media_falls_back_to_legacy_radio_play() -> None:
     """Old firmware keeps the legacy payload and does not receive a native stop."""
     player, commands = _make_play_media_player([{"status": "ERROR"}])

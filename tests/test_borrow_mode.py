@@ -172,8 +172,14 @@ class TestBorrowInitSession:
     async def test_ym_not_loaded_is_transient(self) -> None:
         """A not-yet-loaded linked instance is a retryable condition."""
         provider = _borrow_provider(None)
+        ready_event = mock.MagicMock()
+        ready_event.wait = mock.AsyncMock(side_effect=TimeoutError)
+        object.__setattr__(
+            provider.mass,
+            "get_provider_ready_event",
+            mock.MagicMock(return_value=ready_event),
+        )
         with (
-            mock.patch(f"{_MOD}._BORROW_SOURCE_LOAD_ATTEMPTS", 1),
             pytest.raises(ResourceTemporarilyUnavailable, match="not loaded"),
         ):
             await provider._init_session()
@@ -184,8 +190,14 @@ class TestBorrowInitSession:
         owner = _ym_owner_setup_data("test-music-ym", "test-x-ym")
         provider = _borrow_provider(None)
         provider.mass.get_provider.side_effect = [None, owner, owner, owner, owner]
+        ready_event = mock.MagicMock()
+        ready_event.wait = mock.AsyncMock(return_value=True)
+        object.__setattr__(
+            provider.mass,
+            "get_provider_ready_event",
+            mock.MagicMock(return_value=ready_event),
+        )
         with (
-            mock.patch(f"{_MOD}.asyncio.sleep", new=mock.AsyncMock()) as sleep,
             mock.patch(f"{_MOD}.ClientSession") as http_cls,
             mock.patch(f"{_MOD}.PassportClient"),
             mock.patch(f"{_MOD}.YandexSession") as session_cls,
@@ -197,9 +209,29 @@ class TestBorrowInitSession:
 
             assert await provider._init_session() is True
 
-        sleep.assert_awaited_once()
+        ready_event.wait.assert_awaited_once()
         kwargs = session_cls.call_args.kwargs
         assert kwargs["music_token"].get_secret() == "test-music-ym"
+
+    async def test_waits_for_provider_ready_event_without_polling(self) -> None:
+        """Startup waits on MA's readiness event before retrying the exact instance."""
+        owner = _ym_owner_setup_data("test-music-ym", "test-x-ym")
+        provider = _borrow_provider(None)
+        provider.mass.get_provider.side_effect = [None, *([owner] * 10)]
+        ready_event = mock.MagicMock()
+        ready_event.wait = mock.AsyncMock(return_value=True)
+        get_provider_ready_event = mock.MagicMock(return_value=ready_event)
+        object.__setattr__(provider.mass, "get_provider_ready_event", get_provider_ready_event)
+        source = provider._borrow_source
+        assert source is not None
+
+        music_token, x_token = await provider._resolve_borrowed_tokens()
+
+        ready_event.wait.assert_awaited_once()
+        get_provider_ready_event.assert_called_once_with("yandex_music")
+        assert music_token.get_secret() == "test-music-ym"
+        assert x_token is not None
+        assert x_token.get_secret() == "test-x-ym"
 
     async def test_passport_failure_is_not_retried_as_provider_startup(
         self, monkeypatch: pytest.MonkeyPatch

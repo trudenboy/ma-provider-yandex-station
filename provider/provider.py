@@ -47,8 +47,7 @@ if TYPE_CHECKING:
     from music_assistant.mass import MusicAssistant
 
 _LOGGER = logging.getLogger(__name__)
-_BORROW_SOURCE_LOAD_ATTEMPTS = 40
-_BORROW_SOURCE_LOAD_DELAY = 0.25
+_BORROW_SOURCE_LOAD_TIMEOUT = 10
 
 
 class YandexStationProvider(PlayerProvider):
@@ -462,17 +461,17 @@ class YandexStationProvider(PlayerProvider):
     async def _resolve_borrowed_tokens(self) -> tuple[SecretStr, SecretStr | None]:
         """Wait briefly for the linked Yandex Music provider during startup."""
         assert self._borrow_source is not None
-        for attempt in range(_BORROW_SOURCE_LOAD_ATTEMPTS):
+        try:
+            _, x_token = self._borrow_source.read_tokens()
+        except ResourceTemporarilyUnavailable as err:
+            ready_event = self.mass.get_provider_ready_event("yandex_music")
             try:
-                _, x_token = self._borrow_source.read_tokens()
-            except ResourceTemporarilyUnavailable:
-                if attempt == _BORROW_SOURCE_LOAD_ATTEMPTS - 1:
-                    raise
-                await asyncio.sleep(_BORROW_SOURCE_LOAD_DELAY)
-            else:
-                music_token = await self._borrow_source.resolve_music_token()
-                return music_token, x_token
-        raise RuntimeError("Borrowed credential source wait exhausted unexpectedly")
+                await asyncio.wait_for(ready_event.wait(), _BORROW_SOURCE_LOAD_TIMEOUT)
+            except TimeoutError:
+                raise err
+            _, x_token = self._borrow_source.read_tokens()
+        music_token = await self._borrow_source.resolve_music_token()
+        return music_token, x_token
 
     async def _silent_reauth_borrowed(self) -> bool:
         """

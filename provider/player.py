@@ -445,7 +445,7 @@ class YandexStationPlayer(Player):
 
         self._external_playing = True
         self._external_audio_client = self._audio_client
-        self._external_media = None
+        self._external_media = media
         self._external_play_confirmed = False
         # An already-idle Station has crossed the boundary before this command.
         self._external_stop_observed = self._attr_playback_state != PlaybackState.PLAYING
@@ -466,7 +466,6 @@ class YandexStationPlayer(Player):
 
         # Legacy bypass playback is optimistic; audio_play is later confirmed
         # by the station's playerState updates.
-        self._external_media = media
         self._attr_playback_state = PlaybackState.PLAYING
         self._attr_powered = True
         self._attr_elapsed_time = 0
