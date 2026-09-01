@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.11] - 2026-09-01
+
+### Fixed
+
+- Audio-client playback now rejects stale state updates received while the new stream command is still pending.
+- Linked Yandex Music startup now waits for Music Assistant's provider-ready signal instead of polling at fixed intervals.
+
 ## [1.5.10] - 2026-08-28
 
 ### Changed
