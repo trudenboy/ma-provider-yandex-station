@@ -2,6 +2,10 @@
 
 ## [1.5.13] - 2026-09-29
 
+### Removed
+
+- Removed unused CSRF handling from Yandex Station requests.
+
 ### Fixed
 
 - Setup errors retain their translated messages and placeholders when a failed setup is retried.
