@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.12] - 2026-09-29
+
+### Fixed
+
+- Late playback-command responses no longer restore a paused or completed stream or replace a newer playback request.
+- Player setup remains compatible with current Music Assistant versions when selecting an intercept target.
+
 ## [1.5.11] - 2026-09-01
 
 ### Fixed
