@@ -173,26 +173,12 @@ except ImportError:
     )
     _ensure_stub("music_assistant_models.provider", {"ProviderManifest": _ProviderManifest})
 
-_playback_target_player_type = getattr(
-    importlib.import_module("music_assistant_models.enums"), "PlayerType"
-)
-
 # music_assistant stubs (helpers, models)
 try:
     import music_assistant.helpers  # noqa: F401
 except (ImportError, AttributeError):
     _helpers = _ensure_stub("music_assistant.helpers")
     _helpers.__path__ = []  # type: ignore[attr-defined]
-    _ensure_stub(
-        "music_assistant.helpers.config_entries",
-        {
-            "PLAYBACK_TARGET_TYPES": {
-                _playback_target_player_type.PLAYER,
-                _playback_target_player_type.STEREO_PAIR,
-                _playback_target_player_type.GROUP,
-            }
-        },
-    )
 
     def _create_clientsession(_mass: object, **kwargs: object) -> object:
         return aiohttp.ClientSession(**kwargs)  # type: ignore[arg-type]
