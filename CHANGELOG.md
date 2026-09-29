@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.13] - 2026-09-29
+
+### Removed
+
+- Removed unused CSRF handling from Yandex Station requests.
+
 ## [1.5.12] - 2026-09-29
 
 ### Fixed
