@@ -124,7 +124,9 @@ async def test_borrow_finish_retries_with_original_translated_error() -> None:
 
     await station_flow.run_setup(session)  # type: ignore[arg-type]
 
-    assert session.steps[1][1]["base"] is error
+    form_errors = session.steps[1][1]
+    assert form_errors is not None
+    assert form_errors["base"] is error
     assert session.finish.await_count == 2
 
 
@@ -230,7 +232,9 @@ async def test_own_finish_retries_with_original_translated_error() -> None:
     ):
         await station_flow.run_setup(session)  # type: ignore[arg-type]
 
-    assert session.steps[3][1]["base"] is error
+    form_errors = session.steps[3][1]
+    assert form_errors is not None
+    assert form_errors["base"] is error
     assert session.finish.await_count == 2
 
 
