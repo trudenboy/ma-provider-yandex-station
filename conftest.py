@@ -276,9 +276,17 @@ except (ImportError, AttributeError):
     )
 
     class _SetupFlowError(Exception):
-        def __init__(self, message: str, translation_key: str | None = None) -> None:
+        def __init__(
+            self,
+            message: str,
+            translation_key: str | None = None,
+            translation_args: list[Any] | None = None,
+            translation_owner: str | None = None,
+        ) -> None:
             super().__init__(message)
             self.translation_key = translation_key
+            self.translation_args = translation_args or []
+            self.translation_owner = translation_owner
 
     class _StepExpiredError(Exception):
         pass
