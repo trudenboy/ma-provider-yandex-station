@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.13] - 2026-09-29
+
+### Removed
+
+- Removed unused CSRF handling from Yandex Station requests.
+
 ## [1.5.12] - 2026-09-29
 
 ### Fixed
@@ -714,4 +720,3 @@ Aligned the auth surface with `ma-provider-yandex-music`: Device Flow is now the
 - `YandexStationProvider(PlayerProvider)` with mDNS discovery
 - `YandexStationPlayer(Player)` with play/pause/stop/seek/volume/next/prev
 - Protobuf utility for `externalCommandBypass` encoding
-- Reverse-synced upstream PR #6125 (WIP)
