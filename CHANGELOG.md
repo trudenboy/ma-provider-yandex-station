@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.14] - 2026-09-30
+
+### Fixed
+
+- Linked Yandex Music accounts now wait for the selected account to load during startup, even when another account is already ready.
+
 ## [1.5.13] - 2026-09-29
 
 ### Removed
