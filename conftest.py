@@ -177,6 +177,8 @@ except ImportError:
 try:
     import music_assistant.helpers  # noqa: F401
 except (ImportError, AttributeError):
+    from music_assistant_models.enums import PlayerType
+
     _helpers = _ensure_stub("music_assistant.helpers")
     _helpers.__path__ = []  # type: ignore[attr-defined]
 
@@ -186,6 +188,10 @@ except (ImportError, AttributeError):
     _ensure_stub(
         "music_assistant.helpers.aiohttp_client",
         {"create_clientsession": _create_clientsession},
+    )
+    _ensure_stub(
+        "music_assistant.helpers.config_entries",
+        {"PLAYBACK_TARGET_TYPES": {PlayerType.PLAYER, PlayerType.STEREO_PAIR, PlayerType.GROUP}},
     )
 
 try:

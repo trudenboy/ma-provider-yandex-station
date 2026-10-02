@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.15] - 2026-10-02
+
+### Changed
+
+- Intercept target selection now follows Music Assistant's shared list of audio-capable player types.
+
 ## [1.5.14] - 2026-09-30
 
 ### Fixed
