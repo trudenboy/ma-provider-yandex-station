@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.16] - 2026-10-03
+
+### Fixed
+
+- Reduced default playback startup delay by using lossless WAV for Station queues and live sources such as Ynison. Explicitly saved codec preferences remain unchanged.
+
 ## [1.5.15] - 2026-10-02
 
 ### Changed

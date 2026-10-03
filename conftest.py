@@ -7,6 +7,7 @@ import contextlib
 import importlib.util
 import sys
 import types
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -273,11 +274,45 @@ except (ImportError, AttributeError):
         {"Player": _Player, "PlayerMedia": _PlayerMedia, "DeviceInfo": _DeviceInfo},
     )
     _ensure_stub("music_assistant.models", {"ProviderInstanceType": object})
+    from music_assistant_models.config_entries import ConfigEntry, ConfigValueOption
+    from music_assistant_models.enums import ConfigEntryType
+
+    _output_codec_entry = ConfigEntry(
+        key="output_codec",
+        type=ConfigEntryType.STRING,
+        default_value="flac",
+        options=[ConfigValueOption(value) for value in ("flac", "mp3", "aac", "wav")],
+        advanced=True,
+        requires_reload=True,
+    )
+
+    def _create_output_codec_config_entry(
+        hidden: bool = False, default_value: str = "flac"
+    ) -> ConfigEntry:
+        entry = deepcopy(_output_codec_entry)
+        entry.hidden = hidden
+        entry.default_value = default_value
+        return entry
+
     _ensure_stub(
         "music_assistant.constants",
         {
-            "CONF_ENTRY_HTTP_PROFILE_DEFAULT_3": object(),
-            "CONF_ENTRY_OUTPUT_CODEC": object(),
+            "CONF_ENTRY_HTTP_PROFILE_DEFAULT_3": ConfigEntry(
+                key="http_profile",
+                type=ConfigEntryType.STRING,
+                default_value="forced_content_length",
+                advanced=True,
+                requires_reload=True,
+            ),
+            "CONF_ENTRY_OUTPUT_CODEC": _output_codec_entry,
+            "CONF_ENTRY_PREFER_WAV_FOR_LIVE_SOURCES_DEFAULT_ENABLED": ConfigEntry(
+                key="prefer_wav_for_live_sources",
+                type=ConfigEntryType.BOOLEAN,
+                default_value=True,
+                advanced=True,
+                requires_reload=True,
+            ),
+            "create_output_codec_config_entry": _create_output_codec_config_entry,
         },
     )
 
