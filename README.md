@@ -20,7 +20,7 @@ Play music on Yandex Station smart speakers via the local Glagol WebSocket proto
 - 🔊 **Local playback** via Glagol protocol (low latency, no cloud dependency for audio)
 - 🔍 **Auto-discovery** via mDNS (`_yandexio._tcp.local.`)
 - 📡 **Real-time state** updates via WebSocket
-- 🎵 **Lossless audio** — FLAC streaming with proper Content-Length
+- 🎵 **Lossless audio** — low-latency WAV streaming with proper Content-Length; FLAC, MP3 and AAC remain selectable
 - 🎛️ **Full transport control** — play, pause, stop, seek, next/previous, volume
 - 📢 **TTS announcements** — Alice speaks notification text natively
 - ⚡ **Power control** — on/off via Yandex scenarios
@@ -37,6 +37,21 @@ Play music on Yandex Station smart speakers via the local Glagol WebSocket proto
 1. Install the provider in Music Assistant
 2. Authenticate via QR code (scan with Yandex app) or paste cookies
 3. Yandex Station devices will be auto-discovered on the local network
+
+## Streaming and Startup Delay
+
+WAV is the default output codec, and live sources such as Ynison prefer WAV.
+This avoids the long startup delay observed with FLAC on Mini 2. WAV carries
+uncompressed, lossless PCM and uses more network bandwidth than FLAC.
+
+Existing saved codec preferences are preserved when updating. To apply the
+low-latency profile, open the Station's advanced player settings, select **WAV**
+as the output codec, and enable **Prefer low-latency WAV for live sources**.
+Keep the default **forced content length** HTTP profile. Other codecs remain
+available for devices or firmware that need them.
+
+See the [measurements and test limitations](docs/reviews/2026-10-03-wav-latency-test.md)
+for the queue and Ynison comparisons.
 
 ## Authentication
 

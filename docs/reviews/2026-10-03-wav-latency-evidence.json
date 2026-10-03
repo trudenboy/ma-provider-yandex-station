@@ -1,0 +1,1230 @@
+{
+  "run_logs_1": {
+    "lines": [
+      {
+        "timestamp": "2026-10-03T14:43:45.058000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=232.02 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:48.963000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=232.02 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:50.058000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=232.02 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:50.093000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=232.02 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:50.099000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Yandex Music Connect (Ynison)"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:50.109000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=232.02 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:50.111000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:50.179000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:50.396000+03:00",
+        "level": "INFO",
+        "component": "music_assistant.Yandex Music Connect (Ynison)",
+        "message": "Streaming track 51359562 → s24le/44100Hz/24bit: input=flac 44100/16 2 channels seek=0ms"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:51.059000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.621 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:53.570000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:56.580000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:43:59.672000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:01.198000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=1.226 dur=51424.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:02.260000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=2.2889999999999997 dur=51424.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:03.325000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=3.35 dur=47359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:04.391000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=4.418 dur=47359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:05.453000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=5.478 dur=47359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:06.511000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=6.538 dur=47359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:07.555000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=7.5809999999999995 dur=47359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:08.604000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=8.629999999999999 dur=47359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:09.646000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=9.67 dur=45475.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:10.695000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=10.712 dur=45475.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:11.734000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=11.761999999999999 dur=45475.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:12.798000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=12.821 dur=45475.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:13.855000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=13.881 dur=44395.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:14.912000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=14.939 dur=44395.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:15.959000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=15.987 dur=44395.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:17.009000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=17.037000000000003 dur=44395.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:18.062000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=18.085 dur=43692.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:19.120000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=19.128 dur=43692.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:20.147000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=20.153000000000002 dur=43692.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:21.205000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=21.234 dur=43692.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:22.248000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=22.275000000000002 dur=43692.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:23.290000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=23.316 dur=43095.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:24.359000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=24.360000000000003 dur=43095.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:25.370000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=25.398 dur=43095.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:26.438000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=26.45 dur=43095.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:27.463000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=27.49 dur=42477.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:28.527000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=28.556 dur=42477.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:29.592000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=29.615000000000002 dur=42477.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:30.645000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=30.668 dur=42477.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:31.701000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=31.727999999999998 dur=41993.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:32.731000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=32.76 dur=41993.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:44:33.796000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=33.815 dur=41993.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      }
+    ]
+  },
+  "flac2_log": {
+    "lines": [
+      {
+        "timestamp": "2026-10-03T14:45:58.022000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=44.65 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:59.092000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=45.703 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:00.138000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=46.764 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:01.199000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=47.827999999999996 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:01.533000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=48.169 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:03.153000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=47.824 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:03.299000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Yandex Music Connect (Ynison)"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:03.310000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=47.824 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:03.312000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:03.375000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:03.383000+03:00",
+        "level": "INFO",
+        "component": "music_assistant.Yandex Music Connect (Ynison)",
+        "message": "Streaming track 51359562 → s24le/44100Hz/24bit: input=flac 44100/16 2 channels seek=0ms"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:04.153000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:06.623000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:09.745000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:12.883000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:14.046000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=1.049 dur=50788.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:15.094000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=2.098 dur=50788.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:16.168000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=3.163 dur=50788.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:17.221000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=4.223 dur=46990.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:18.276000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=5.281 dur=46990.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:19.326000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=6.33 dur=46990.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:20.391000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=7.368 dur=46990.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:21.437000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=8.438 dur=45227.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:22.485000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=9.488 dur=45227.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      }
+    ]
+  },
+  "wav1_log": {
+    "lines": [
+      {
+        "timestamp": "2026-10-03T14:45:07.111000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=47.445 dur=41288.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:12.114000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=47.445 dur=41288.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:12.946000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Yandex Music Connect (Ynison)"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:12.955000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=47.445 dur=41288.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:12.956000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:13.021000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:13.032000+03:00",
+        "level": "INFO",
+        "component": "music_assistant.Yandex Music Connect (Ynison)",
+        "message": "Streaming track 51359562 → s24le/44100Hz/24bit: input=flac 44100/16 2 channels seek=0ms"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:13.129000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:14.116000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.761 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:15.117000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=1.748 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:16.114000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=2.748 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:17.116000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=3.749 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:18.117000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=4.749 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:19.120000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=5.7509999999999994 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:20.119000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=6.751 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:21.122000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=7.751 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:22.118000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=8.751999999999999 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:23.122000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=9.754 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:24.128000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=10.755 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:25.122000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=11.754000000000001 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:26.123000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=12.754 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:27.174000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=13.803 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:28.260000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=14.892 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:29.328000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=15.959000000000001 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:30.396000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=17.029 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:31.463000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=18.087 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:32.527000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=19.15 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:33.584000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=20.214000000000002 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:45:34.644000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=21.275 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      }
+    ]
+  },
+  "wav2_log": {
+    "lines": [
+      {
+        "timestamp": "2026-10-03T14:46:40.379000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=27.38 dur=42359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:41.410000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=28.412000000000003 dur=42359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:42.468000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=29.470000000000002 dur=42359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:43.539000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=30.543 dur=42359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:44.238000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=31.246 dur=42359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:45.196000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=30.534 dur=42359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:46.082000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Yandex Music Connect (Ynison)"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:46.091000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=30.534 dur=42359.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:46.094000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:46.153000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:46.168000+03:00",
+        "level": "INFO",
+        "component": "music_assistant.Yandex Music Connect (Ynison)",
+        "message": "Streaming track 51359562 → s24le/44100Hz/24bit: input=flac 44100/16 2 channels seek=0ms"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:46.215000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:47.199000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.803 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:48.204000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=1.794 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:49.201000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=2.797 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:50.197000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=3.796 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:51.201000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=4.795999999999999 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:52.201000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=5.797 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:53.210000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=6.799 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:54.380000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=7.799 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:55.203000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=8.798 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:56.206000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=9.803 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:57.213000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=10.803 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:58.209000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=11.804 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:46:59.209000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=12.804 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:00.208000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=13.804 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:01.212000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=14.803999999999998 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:02.215000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=15.813 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:03.283000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=16.878999999999998 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      }
+    ]
+  },
+  "queue_flac_log": {
+    "lines": [
+      {
+        "timestamp": "2026-10-03T14:47:14.985000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=28.581 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:16.034000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=29.63 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:17.092000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=30.688000000000002 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:17.690000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=31.283 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:18.225000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Кроме любви"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:18.240000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=30.684 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:18.252000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=30.684 dur=12173.0 title=Yandex Music Connect (Ynison) extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:18.257000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:18.328000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:19.228000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:21.697000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:26.189000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=0.0 dur=0.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:27.222000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.964 dur=66819.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:28.240000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=1.959 dur=66819.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:29.225000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=2.96 dur=66819.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:30.234000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=3.963 dur=65707.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:31.231000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=4.962 dur=65707.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:32.235000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=5.963 dur=65707.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:33.230000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=6.962999999999999 dur=65707.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:34.229000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=7.9639999999999995 dur=65707.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      }
+    ]
+  },
+  "queue_wav1_log": {
+    "lines": [
+      {
+        "timestamp": "2026-10-03T14:47:44.239000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=17.974 dur=63581.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:45.291000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=19.028 dur=59372.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:46.353000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=20.087000000000003 dur=59372.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:47.212000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=20.951 dur=59372.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:47.353000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=20.074 dur=59372.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:48.237000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=20.074 dur=59372.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:48.744000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Кроме любви"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:48.760000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=20.074 dur=59372.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:48.766000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:48.824000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:49.210000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Кроме любви"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:49.231000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.21 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:49.236000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:49.270000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.219 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:49.330000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:50.253000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.688 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:51.242000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=1.673 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:52.242000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=2.673 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:53.249000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=3.673 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:54.253000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=4.673 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:55.247000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=5.6739999999999995 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:56.246000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=6.675 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:57.249000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=7.675 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:58.250000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=8.657 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:47:59.247000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=9.677 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:00.247000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=10.677 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:01.269000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=11.696 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:02.341000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=12.761000000000001 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:03.431000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=13.823 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      }
+    ]
+  },
+  "queue_wav2_log": {
+    "lines": [
+      {
+        "timestamp": "2026-10-03T14:48:19.344000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=29.753 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:20.380000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=30.811 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:21.062000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=31.496000000000002 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:22.308000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=30.806 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:22.703000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] play_media called: Кроме любви"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:22.716000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=False vol=0.65 prog=30.806 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:22.718000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] audio_play result: {'status': 'SUCCESS'}"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:22.778000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.streams",
+        "message": "Got GET request to /<STREAM> from <STATION_IP> (HTTP/1.1, connection: Keep-Alive)"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:23.292000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=0.326 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:24.287000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=1.326 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:25.296000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=2.313 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:26.301000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=3.335 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:27.295000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=4.334 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:28.304000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=5.34 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:29.305000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=6.34 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:30.304000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=7.34 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:31.308000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=8.341 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:32.305000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=9.343 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:33.305000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=10.343 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:34.306000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=11.343 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:35.325000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=12.344000000000001 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:36.306000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=13.344 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:37.304000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=14.344000000000001 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      },
+      {
+        "timestamp": "2026-10-03T14:48:38.307000+03:00",
+        "level": "DEBUG",
+        "component": "music_assistant.Yandex Station.player",
+        "message": "[<STATION>] playing=True vol=0.65 prog=15.345 dur=12173.0 title=Кроме любви extra=['coverURI', 'requestID', 'stateType'] alice=IDLE"
+      }
+    ]
+  }
+}
