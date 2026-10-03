@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.17] - 2026-10-03
+
+### Fixed
+
+- Cancelled playback commands now clear their active media state without disturbing a newer playback request, while cancellation still propagates to Music Assistant.
+
 ## [1.5.16] - 2026-10-03
 
 ### Fixed
