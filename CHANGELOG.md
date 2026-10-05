@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.18] - 2026-10-05
+
+### Changed
+
+- Requires Music Assistant 2.10.0 or newer and `ya-passport-auth` 2.1.0.
+- While a linked Yandex Music account is still loading, Station waits once for Yandex Music to become ready. If the selected account is still missing after that, Music Assistant retries loading Station later; Station no longer keeps polling for up to 10 seconds.
+
+### Fixed
+
+- Linked Yandex Music accounts now use the tokens the account rotated most recently. Previously, older tokens left in the account's configuration could be used instead, causing repeated authorization failures after a token refresh.
+- Startup and re-authentication read the linked account's tokens once, so the music token and session token always come from the same state of the account.
+
 ## [1.5.17] - 2026-10-03
 
 ### Fixed
