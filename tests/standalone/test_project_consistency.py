@@ -6,11 +6,7 @@ import json
 import tomllib
 from pathlib import Path
 
-import pytest
-
-PROJECT_ROOT = Path(__file__).parent.parent
-if not (PROJECT_ROOT / "pyproject.toml").is_file():
-    pytest.skip("standalone provider metadata is not synced upstream", allow_module_level=True)
+PROJECT_ROOT = Path(__file__).parents[2]
 
 EXPECTED_RUNTIME_REQUIREMENTS = {
     "segno==1.6.6",
