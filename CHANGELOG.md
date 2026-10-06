@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.20] - 2026-10-06
+
+### Fixed
+
+- Pressing pause on the speaker or talking to Alice while Music Assistant is still preparing the next stream no longer lets that pending track start playing over the interruption. Resuming afterwards plays the requested track as before.
+
 ## [1.5.19] - 2026-10-06
 
 ### Fixed
