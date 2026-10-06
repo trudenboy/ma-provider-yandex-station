@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.21] - 2026-10-06
+
+### Changed
+
+- Requires `ya-passport-auth` 2.2.0. Account selection no longer offers disabled Yandex Music instances.
+
 ## [1.5.20] - 2026-10-06
 
 ### Fixed
