@@ -2,7 +2,7 @@
 id: "0001"
 title: "Borrow the Yandex account from a linked Yandex Music provider"
 size: M
-status: inprogress
+status: done
 priority: P1
 effort_minutes: 20
 feature_id:
@@ -19,9 +19,8 @@ other if the user ever seeds them from the same login.
 
 ## Solution Summary
 
-A new "Yandex account source" dropdown in the provider settings (same
-option the Ynison plugin already offers): pick a configured Yandex Music
-instance to borrow its credentials, or keep "Use own credentials". When
+A "Yandex account source" dropdown in guided setup lets users pick a configured
+Yandex Music instance to borrow its credentials, or keep "Use own credentials". When
 borrowing, the provider's own login buttons and token storage are hidden
 and unused; Quasar cookies and Glagol device tokens are derived from the
 linked instance's x_token / music token, read-only — Yandex Music remains
@@ -29,9 +28,11 @@ the only writer and rotator of persisted credentials.
 
 ## Acceptance Criteria
 
-1. The settings dialog shows a "Yandex account source" dropdown listing
+1. Guided setup shows a "Yandex account source" dropdown listing
    every configured Yandex Music instance plus "Use own credentials
-   (default)"; a stale selection (instance removed) falls back to own.
+   (default)"; a stale selection defaults to own when setup is reopened.
+   Runtime borrowing remains bound to the selected account and never silently
+   switches to another account.
 2. With a linked instance selected, the provider starts and discovers
    speakers without any provider-local login (setup succeeds with empty
    own-token config).
@@ -44,23 +45,26 @@ the only writer and rotator of persisted credentials.
    linked instance's current x_token instead of running the own-token
    rotation cascade; when Yandex rejects that x_token the user is told to
    re-authenticate the Yandex Music provider.
-6. With "Use own credentials" selected (or nothing configured), behavior
-   is byte-identical to today: own login buttons, own cascade, own
-   storage.
+6. With "Use own credentials" selected, guided setup offers device-code,
+   QR and cookie login; runtime uses the own cascade and own storage.
+7. Startup and re-authentication resolve the current owner tokens once through
+   `resolve_credentials()`. If the selected owner is missing, startup waits once
+   on the domain-ready event and leaves further retries to MA.
 
 ## Test Plan
 
-- `test_config_entries_account_source_dropdown` — dropdown lists YM
-  instances + own sentinel; login actions hidden while borrowing.
+- `tests/test_setup_flow.py` and `tests/test_setup_flow_unit.py` — guided
+  account selection, borrowing without local login, and own login methods.
+- `TestConfigEntries.test_no_account_source_or_auth_actions` — source selection
+  and auth actions live in setup, rather than the provider options surface.
 - `test_setup_allows_borrow_without_own_tokens` — `setup()` succeeds with
   empty own tokens when a source instance is selected.
-- `test_init_session_borrow_builds_session_from_linked_tokens` — session
+- `TestBorrowInitSession.test_builds_session_from_linked_tokens` — session
   gets the linked x_token/music token; own cascade not invoked; no
   `_update_config_value` calls.
-- `test_init_session_borrow_ym_not_loaded_is_transient` —
-  `ResourceTemporarilyUnavailable` propagates, own tokens untouched.
-- `test_silent_reauth_borrow_rereads_linked_tokens` — 401 path refreshes
-  cookies from the linked x_token, never calls rotation.
+- The remaining `tests/test_borrow_mode.py` cases cover rotated setup-data
+  tokens, retryable owner readiness, single token reads, and the read-only
+  re-authentication path. `tests/test_provider_cascade.py` covers own mode.
 - Manual: live MA with yandex_music configured — select it as source in
   the Station provider, verify discovery + playback with no Station-side
   login.
@@ -73,14 +77,13 @@ User        MA config        StationProvider      BorrowedCredentialSource     Y
  |------------------->|            |                        |                     |
  |                    | setup()    |                        |                     |
  |                    |----------->| borrow mode            |                     |
- |                    |            |--read_tokens()-------->|--config.get_value-->|
+ |                    |            |--resolve_credentials->|--get_setup_value-->|
  |                    |            |<-(music,x)-------------|                     |
- |                    |            | resolve_music_token()  |                     |
  |                    |            |  (mint+cache if only x)|                     |
  |                    |            | YandexSession(x, music)|                     |
  |                    |            | login_token() → cookies|                     |
  |                    |            | discover_players()     |                     |
  |     Quasar 401     |            |                        |                     |
- |                    |            |--read_tokens()-------->|  (fresh x_token)    |
+ |                    |            |--resolve_credentials->| (current token pair)|
  |                    |            | re-login_token()       |                     |
 ```

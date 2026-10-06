@@ -30,12 +30,12 @@ Play music on Yandex Station smart speakers via the local Glagol WebSocket proto
 
 - Yandex Station smart speaker (any model with Alice)
 - Yandex account
-- Music Assistant server (2.9+)
+- Music Assistant server (2.10.0+)
 
 ## Setup
 
 1. Install the provider in Music Assistant
-2. Authenticate via QR code (scan with Yandex app) or paste cookies
+2. Select a linked Yandex Music account, or sign in with a device code, QR code, or cookies
 3. Yandex Station devices will be auto-discovered on the local network
 
 ## Streaming and Startup Delay
