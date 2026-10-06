@@ -4,22 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Music Assistant (MA) Player Provider for Yandex Station smart speakers. Streams music to Yandex Station via the local Glagol WebSocket protocol. Adapted from AlexxIT/YandexStation.
+Music Assistant (MA) Player Provider for Yandex Station smart speakers, requiring MA 2.10.0 or newer. Glagol WebSocket controls playback; the Station fetches audio from MA over HTTP. Adapted from AlexxIT/YandexStation.
 
 ## Architecture
 
 ```
-MA Core --play_media()--> YandexStationPlayer --radio_play--> Glagol WS --> Yandex Station
+MA Core --play_media()--> YandexStationPlayer --audio_play/radio_play--> Glagol WS --> Yandex Station
                                                                         <-- state updates
 ```
 
 **Provider** (`provider/`): MA Player Provider with Glagol WebSocket client.
-- `__init__.py` — `setup()`, `get_config_entries()` (x_token, music_token)
+- `__init__.py` — `setup()` and credential gating
+- `setup_flow.py` — guided account selection, device-code/QR/cookie login
+- `auth.py` — wrappers over shared `ya_passport_auth.ma` login and token maintenance
 - `provider.py` — `YandexStationProvider(PlayerProvider)`: mDNS discovery, Quasar API fallback, player lifecycle
-- `player.py` — `YandexStationPlayer(Player)`: transport controls (play/pause/stop/seek/volume/next/prev), state updates from Glagol WS, `play_media()` via `radio_play` command
+- `player.py` — `YandexStationPlayer(Player)`: transport controls, announcements, Glagol state updates, experimental voice control and intercept handoff
 - `glagol.py` — `YandexGlagol`: persistent WebSocket client with auto-reconnect, command send/receive, device token management
 - `quasar.py` — `YandexQuasar`: cloud API for device list, device config, fallback commands
-- `session.py` — `YandexSession`: Yandex Passport auth (x_token → music_token → cookies → CSRF), HTTP client with retry/auth refresh
+- `session.py` — `YandexSession`: HTTP requests and cookies, with Passport authentication delegated to the shared client
 - `protobuf.py` — minimal protobuf encoder/decoder for `externalCommandBypass` payload
 - `constants.py` — API URLs, config keys, protocol constants
 - `manifest.json` — provider metadata for MA
@@ -34,30 +36,41 @@ MA Core --play_media()--> YandexStationPlayer --radio_play--> Glagol WS --> Yand
 
 **Playback:**
 1. MA Queue Controller → `player.play_media(media)`
-2. `resolve_stream_url()` → `http://192.168.x.x:8097/streams/{id}.flac`
-3. Build `radio_play` payload: `{streamUrl, title, imageUrl, force_restart_player}`
+2. Claim the playback generation before awaiting `resolve_stream_url()`; discard the resolved URL if a newer play, pause, or stop has superseded the request
+3. Build `audio_play` when the Station advertises `audio_client`; otherwise use legacy `radio_play`
 4. Encode via `externalCommandBypass` (protobuf) → send via Glagol WS
-5. Station fetches stream URL and plays audio
+5. Station fetches the HTTP stream URL and plays audio; WAV is the default, with explicit saved codec preferences preserved
+6. Publish the command result only while the same generation still owns an active external session
+
+**Authentication:**
+1. Guided setup selects a linked Yandex Music instance or the provider's own credentials
+2. Own mode uses the shared credential cascade; borrowed mode uses `BorrowedCredentialSource.resolve_credentials()` for a consistent pair of current owner tokens
+3. The linked Yandex Music instance owns persisted token rotation; Station never writes its borrowed credentials
+4. If the selected instance is missing, wait once on the domain-ready event, then resolve once and let MA retry a transient failure
 
 **State Updates:**
 1. Glagol WS sends state every 1-5 seconds
-2. `_on_glagol_update()` parses `playerState` (progress, duration, title, playing)
+2. `_on_glagol_update()` learns firmware capabilities and parses `playerState` (progress, duration, title, playing)
 3. Updates MA player attributes, calls `update_state()`
+4. Audio-client sessions distinguish track completion from physical pause and reject stale source state during startup
 
 ## Development Setup
 
 ```bash
-# Clone MA server fork alongside this project
-cd /tmp && git clone https://github.com/trudenboy/ma-server.git
-
-# Setup venv, install deps, symlink provider
-./scripts/link-to-ma.sh  # (when available, after wrapper distribution)
-
-# Or manual setup:
-cd /tmp/ma-server && python -m venv .venv && source .venv/bin/activate
-pip install -e ".[test]"
-ln -s /path/to/ma-provider-yandex-station/provider .venv/lib/python3.12/site-packages/music_assistant/providers/yandex_station
+# From this provider repository; Python requirements are in pyproject.toml
+rtk proxy ./scripts/setup.sh
 ```
+
+The root `conftest.py` supplies MA stubs for standalone tests. To validate the real
+installed MA classes as well, preload them before pytest:
+
+```bash
+rtk proxy .venv/bin/python -c 'import music_assistant.models.player; import music_assistant.models.player_provider; import music_assistant.helpers.config_entries; import pytest; raise SystemExit(pytest.main(["-q", "tests/test_player_state.py"]))'
+```
+
+If imports fail because a core path imports another provider's dependency, use
+the version from `requirements_all.txt` at the MA revision pinned in `uv.lock`.
+The standalone project's dependency set does not include every MA provider.
 
 ## Code Standards
 
@@ -83,4 +96,5 @@ ln -s /path/to/ma-provider-yandex-station/provider .venv/lib/python3.12/site-pac
 - **IP, not hostname**: Station prefers IP addresses over DNS names
 - **Infinite loop**: Station replays URL endlessly. MA stream endpoint closes after track ends, solving this naturally.
 - **Volume scale**: Glagol uses 0.0-1.0, MA uses 0-100. Convert in player.
-- **`stop` command**: Glagol's "stop" is actually "pause". Use it for both pause() and stop().
+- **Pause/stop**: Audio-client sessions use Glagol `stop`; legacy external sessions need an invalid `radio_play` URL to replace the stream.
+- **Request ordering**: MA can proceed without its player lock after a 30-second timeout. Playback generation guards must cover URL resolution as well as command acknowledgements; stale cleanup must preserve a newer request.

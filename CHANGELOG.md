@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.19] - 2026-10-06
+
+### Fixed
+
+- A slow playback request can no longer replace a newer track after its stream URL becomes available. Pausing or stopping while a stream URL is being prepared also prevents that request from restarting playback later.
+
 ## [1.5.18] - 2026-10-05
 
 ### Changed
