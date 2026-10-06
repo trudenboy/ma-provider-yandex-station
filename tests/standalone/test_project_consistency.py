@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).parents[2]
 
 EXPECTED_RUNTIME_REQUIREMENTS = {
     "segno==1.6.6",
-    "ya-passport-auth[ma]==2.1.0",
+    "ya-passport-auth[ma]==2.2.0",
 }
 
 
@@ -29,4 +29,4 @@ def test_runtime_requirements_match_manifest() -> None:
         package["name"]: package["version"] for package in lock["package"] if "version" in package
     }
     assert locked_versions["segno"] == "1.6.6"
-    assert locked_versions["ya-passport-auth"] == "2.1.0"
+    assert locked_versions["ya-passport-auth"] == "2.2.0"
