@@ -2,15 +2,13 @@
 
 ## [1.5.21] - 2026-10-07
 
-### Fixed
-
-- Talking to Alice while Music Assistant is preparing the first stream for an idle station, or for a station playing Yandex's own music, no longer lets that pending track start over the voice interaction. With voice control enabled, the request resumes once Alice finishes, as it already does during Music Assistant playback.
-
-## [1.5.21] - 2026-10-06
-
 ### Changed
 
 - Requires `ya-passport-auth` 2.2.0. Account selection no longer offers disabled Yandex Music instances.
+
+### Fixed
+
+- Talking to Alice while Music Assistant is preparing the first stream for an idle station, or for a station playing Yandex's own music, no longer lets that pending track start over the voice interaction. With voice control enabled, the request resumes once Alice finishes, as it already does during Music Assistant playback.
 
 ## [1.5.20] - 2026-10-06
 
