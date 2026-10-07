@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.22] - 2026-10-07
+
+### Fixed
+
+- When Alice is activated while Music Assistant is starting playback on a station that is playing Yandex's own music, the requested track now resumes after Alice finishes. Previously the Yandex music that kept playing quietly during the conversation was treated as a new choice and the request was dropped. If you ask Alice for different music, that music keeps playing as before.
+
 ## [1.5.21] - 2026-10-07
 
 ### Changed
