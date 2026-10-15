@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.23] - 2026-10-15
+
+### Fixed
+
+- Cloud features (device list, device configuration and cloud fallback commands) keep working after the Yandex session cookies expire. Yandex retired the page used to check the cookies, so the check failed with "Server disconnected" instead of logging in again.
+
 ## [1.5.22] - 2026-10-07
 
 ### Fixed
