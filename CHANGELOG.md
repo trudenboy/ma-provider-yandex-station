@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.23] - 2026-10-15
+
+### Fixed
+
+- While voice control hands playback to another player, volume and seek changes made on the station are no longer reported as errors when that player goes offline. They are skipped quietly, as they already are for players that do not support volume or seek.
+
 ## [1.5.22] - 2026-10-07
 
 ### Fixed

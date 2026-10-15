@@ -115,6 +115,9 @@ except ImportError:
     class _UnsupportedFeaturedException(Exception):
         pass
 
+    class _PlayerUnavailableError(Exception):
+        pass
+
     class _ConfigValueType:
         pass
 
@@ -148,6 +151,7 @@ except ImportError:
             "ProviderUnavailableError": _ProviderUnavailableError,
             "PlayerCommandFailed": _PlayerCommandFailed,
             "UnsupportedFeaturedException": _UnsupportedFeaturedException,
+            "PlayerUnavailableError": _PlayerUnavailableError,
         },
     )
     _ensure_stub(
