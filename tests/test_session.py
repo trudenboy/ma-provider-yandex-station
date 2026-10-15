@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 
 from provider.session import YandexSession
+
+if TYPE_CHECKING:
+    from aiohttp import ClientSession
 
 
 class _FakeResponse:
@@ -39,11 +42,20 @@ class _FakeHttp:
         return self.result
 
 
+class _Session(YandexSession):
+    """YandexSession whose x-token login is recorded instead of performed."""
+
+    def __init__(self, http: _FakeHttp) -> None:
+        super().__init__(cast("ClientSession", http), MagicMock(), x_token=MagicMock())
+        self.login = AsyncMock(return_value=True)
+
+    async def login_token(self) -> bool:
+        return bool(await self.login())
+
+
 def _make_session(http: _FakeHttp) -> tuple[YandexSession, AsyncMock]:
-    session = YandexSession(http, MagicMock(), x_token=MagicMock())  # type: ignore[arg-type]
-    login = AsyncMock(return_value=True)
-    session.login_token = login  # type: ignore[method-assign]
-    return session, login
+    session = _Session(http)
+    return session, session.login
 
 
 async def test_refresh_cookies_uses_iot_storage_endpoint() -> None:
