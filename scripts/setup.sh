@@ -64,11 +64,11 @@ if [ -n "$WORKSPACE" ]; then
   echo "Provider yandex_station linked to workspace. Activate: source $WORKSPACE/.venv/bin/activate"
 else
   # ── Standalone mode (original behavior) ──
-  uv venv "$REPO_ROOT/$ENV_NAME"
+  uv venv "$REPO_ROOT/$ENV_NAME" --python "3.14"
   source "$REPO_ROOT/$ENV_NAME/bin/activate"
 
 
-  # Clone fork MA server (player provider)
+  # Clone official MA dev, matching the compatibility gate.
   MA_SERVER="$REPO_ROOT/ma-server"
   if [ ! -d "$MA_SERVER/.git" ]; then
     if [ -e "$MA_SERVER" ] || [ -L "$MA_SERVER" ]; then
@@ -79,7 +79,7 @@ else
         exit 1
       fi
     fi
-    git clone --depth=1 -b dev https://github.com/trudenboy/ma-server.git "$MA_SERVER"
+    git clone --depth=1 -b dev https://github.com/music-assistant/server.git "$MA_SERVER"
   fi
   # Symlink provider into server
   PROVIDER_TARGET="$REPO_ROOT/ma-server/music_assistant/providers/yandex_station"
