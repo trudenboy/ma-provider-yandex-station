@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Self
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
@@ -18,7 +18,7 @@ class _FakeResponse:
     async def json(self, content_type: str | None = None) -> Any:
         return self._payload
 
-    async def __aenter__(self) -> _FakeResponse:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
