@@ -34,9 +34,24 @@ Play music on Yandex Station smart speakers via the local Glagol WebSocket proto
 
 ## Setup
 
-1. Install the provider in Music Assistant
-2. Select a linked Yandex Music account, or sign in with a device code, QR code, or cookies
-3. Yandex Station devices will be auto-discovered on the local network
+Yandex Station ships with Music Assistant itself — there is nothing to install
+from this repository. It is included in every Music Assistant release since
+**2.10.0**, including the Home Assistant app (add-on) and the Docker image.
+Newer provider versions reach the beta channel first.
+
+1. Update Music Assistant to 2.10.0 or newer.
+2. Open **Settings → Providers**, click **Add provider** and choose **Yandex Station**.
+3. Pick the Yandex account: borrow it from a configured Yandex Music provider,
+   or sign in with this provider's own credentials (see [Authentication](#authentication)).
+4. Stations on the same local network as Music Assistant are discovered
+   automatically via mDNS and appear under **Settings → Players**.
+
+> **По-русски.** Провайдер входит в состав Music Assistant начиная с версии
+> 2.10.0 (в том числе в приложении/дополнении для Home Assistant) — отдельно
+> ничего устанавливать не нужно. Обновите Music Assistant, затем откройте
+> **Настройки → Провайдеры → Добавить провайдер → Yandex Station** и войдите
+> в аккаунт Яндекса одним из способов ниже. Колонки в той же локальной сети
+> появятся в **Настройки → Плееры** автоматически.
 
 ## Streaming and Startup Delay
 
@@ -55,11 +70,23 @@ for the queue and Ynison comparisons.
 
 ## Authentication
 
-### QR Code (recommended)
-During setup, a QR code is displayed. Scan it with the Yandex app or camera to log in.
+If a Yandex Music provider is already configured, choose it as the account
+source and skip the login: the Station borrows that account, and token renewal
+is handled there. Otherwise pick one of the login methods:
 
-### Cookies (advanced fallback)
-Paste Yandex session cookies as a JSON array from browser dev tools. See [detailed guide](docs/cookies-auth.md).
+### Device code (recommended)
+Open the verification URL that setup shows (on any device) and enter the short
+code. A fresh code appears automatically if the old one expires.
+
+### QR code
+Scan the QR code with the Yandex app and confirm the login.
+
+### Browser cookies (fallback)
+1. Log in at [passport.yandex.ru/profile](https://passport.yandex.ru/profile) in a desktop browser.
+2. Export the cookies for that page with a "Copy Cookies" style browser extension.
+3. Paste the result into the setup dialog. A JSON array and a raw `name=value; …` cookie string both work.
+
+Keep **Remember session** enabled so tokens are refreshed automatically.
 
 ## Voice Control (Experimental)
 
