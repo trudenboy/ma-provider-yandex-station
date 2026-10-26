@@ -206,6 +206,9 @@ class YandexStationPlayer(Player):
         self._external_stop_observed = False
         # Set after pause of external playback — play() must re-trigger queue
         self._needs_replay = False
+        # Set after pausing external playback until the Station reports it stopped.
+        # A playing=True update in between was sent before stop took effect.
+        self._pause_stop_pending = False
         # Track previous alice state to detect LISTENING→IDLE transitions
         self._prev_alice_state: str = ""
         # Timer for auto-resume after voice command
@@ -365,6 +368,7 @@ class YandexStationPlayer(Player):
 
     async def play(self) -> None:
         """Resume playback, including a Music Assistant stream that was paused."""
+        self._pause_stop_pending = False
         # After external playback was paused, native "play" has nothing to
         # resume, so the MA queue is resumed instead.
         if self._needs_replay:
@@ -391,6 +395,7 @@ class YandexStationPlayer(Player):
         _raise_if_failed(result, "pause")
         if was_external:
             self._needs_replay = True
+            self._pause_stop_pending = True
         self._reset_external_session()
         self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.PAUSED
@@ -408,6 +413,7 @@ class YandexStationPlayer(Player):
         _raise_if_failed(result, "stop")
         self._reset_external_session()
         self._needs_replay = False
+        self._pause_stop_pending = False
         self._cancel_voice_resume()
         self._attr_playback_state = PlaybackState.IDLE
         self.update_state()
@@ -449,6 +455,7 @@ class YandexStationPlayer(Player):
         self._external_play_generation += 1
         generation = self._external_play_generation
         self._needs_replay = False
+        self._pause_stop_pending = False
         self._voice_pending_track_id = None
         _LOGGER.debug("[%s] play_media called: %s", self.player_id, media.title or media.uri)
         self._pending_play_generation = generation
@@ -1161,6 +1168,10 @@ class YandexStationPlayer(Player):
         native_track_id: str = "",
     ) -> None:
         """Update playback state from Glagol data."""
+        if self._pause_stop_pending:
+            if playing:
+                return
+            self._pause_stop_pending = False
         if (
             not self._external_playing
             and self._voice_control_enabled
