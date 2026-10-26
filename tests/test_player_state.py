@@ -1050,6 +1050,49 @@ def test_physical_pause_cancels_pending_voice_resume_task() -> None:
     assert player._attr_playback_state == PlaybackState.PAUSED
 
 
+def test_wake_word_less_stop_with_voice_control_pauses_without_auto_resume() -> None:
+    """
+    "Стоп" without the wake word is a pause, not a voice interaction.
+
+    The Station handles about 25 commands locally without "Алиса", so aliceState stays
+    IDLE throughout. Voice control must not schedule its auto-resume for them.
+    """
+    player = _make_player()
+    player._config = _VoiceControlConfig()  # type: ignore[assignment]
+    player._external_playing = True
+    player._external_play_confirmed = True
+    player._attr_playback_state = PlaybackState.PLAYING
+    player._prev_alice_state = "IDLE"
+
+    player._update_playback_state(playing=False, alice_state="IDLE")
+    player._prev_alice_state = "IDLE"
+    player._update_playback_state(playing=False, alice_state="IDLE")
+
+    assert player._attr_playback_state == PlaybackState.PAUSED
+    assert player._external_playing is False
+    assert player._needs_replay is True
+    assert player._voice_resume_task is None
+
+
+def test_wake_word_less_volume_command_with_voice_control_keeps_playing() -> None:
+    """A volume command without the wake word changes volume only; the MA stream keeps playing."""
+    player = _make_player()
+    player._config = _VoiceControlConfig()  # type: ignore[assignment]
+    player._external_playing = True
+    player._external_play_confirmed = True
+    player._attr_playback_state = PlaybackState.PLAYING
+    player._prev_alice_state = "IDLE"
+    player._attr_volume_level = 40
+
+    player._attr_volume_level = 50
+    player._update_playback_state(playing=True, alice_state="IDLE")
+
+    assert player._attr_playback_state == PlaybackState.PLAYING
+    assert player._external_playing is True
+    assert player._needs_replay is False
+    assert player._voice_resume_task is None
+
+
 def test_physical_pause_ignored_during_voice_interaction() -> None:
     """
     Alice speaking/listening must not be treated as a physical pause.

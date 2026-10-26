@@ -92,7 +92,8 @@ The standalone project's dependency set does not include every MA provider.
 ## Gotchas
 
 - **URL format**: Yandex Station requires file extension in stream URL (`.flac`, `.mp3`). MA's `resolve_stream_url()` already provides this.
-- **HTTP only for local**: Station may reject HTTPS for local network URLs
+- **HTTP for local streams**: the firmware's libcurl client picks HTTP or HTTPS from the URL scheme and has no certificate pinning, but it verifies certificates normally, so an HTTPS URL with a self-signed or LAN-only certificate fails. Use plain HTTP for LAN stream URLs
+- **Commands without the wake word**: the Station recognizes about 25 commands locally without "Алиса" ("стоп", "громче", …). They never move `aliceState` off `IDLE`, so voice-control and intercept logic must not rely on `LISTENING`/`SPEAKING` to see them; they show up only as `playing`/`volume` changes
 - **IP, not hostname**: Station prefers IP addresses over DNS names
 - **Infinite loop**: Station replays URL endlessly. MA stream endpoint closes after track ends, solving this naturally.
 - **Volume scale**: Glagol uses 0.0-1.0, MA uses 0-100. Convert in player.
