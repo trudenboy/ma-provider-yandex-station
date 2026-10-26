@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.24] - 2026-10-26
+
+### Added
+
+- New per-station setting "Mirror Station volume to intercept target". Turn it off to keep the intercept target's volume under Music Assistant's control: the Station's volume is no longer copied to the target, while the track, pause and seek still follow the Station ([#202](https://github.com/trudenboy/ma-provider-yandex-station/issues/202)). It is on by default, so existing setups behave as before.
+
 ## [1.5.23] - 2026-10-15
 
 ### Fixed
