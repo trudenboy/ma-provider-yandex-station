@@ -2,7 +2,7 @@
 id: "0002"
 title: "Per-player toggle to stop mirroring Station volume to the intercept target"
 size: S
-status: inprogress
+status: done
 priority: P2
 effort_minutes: 10
 feature_id:
