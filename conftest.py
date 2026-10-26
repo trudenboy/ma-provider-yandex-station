@@ -211,6 +211,9 @@ except (ImportError, AttributeError):
             self.mass = a[0] if a else None
             self.config = a[2] if len(a) > 2 else None
 
+        async def loaded_in_mass(self) -> None:
+            """Mirror Provider.loaded_in_mass (a no-op hook)."""
+
         def _update_config_value(self, key: str, value: object, encrypted: bool = False) -> None:
             """Mirror Provider._update_config_value so tests can assert behaviour."""
             if self.mass is not None:
@@ -415,6 +418,22 @@ try:
     from music_assistant.mass import MusicAssistant  # noqa: F401
 except (ImportError, AttributeError):
     _ensure_stub("music_assistant.mass", {"MusicAssistant": object})
+
+try:
+    from music_assistant.controllers.webserver.helpers.auth_middleware import (  # noqa: F401
+        get_current_user,
+    )
+except (ImportError, AttributeError):
+    for _pkg in (
+        "music_assistant.controllers",
+        "music_assistant.controllers.webserver",
+        "music_assistant.controllers.webserver.helpers",
+    ):
+        _ensure_stub(_pkg)
+    _ensure_stub(
+        "music_assistant.controllers.webserver.helpers.auth_middleware",
+        {"get_current_user": lambda: None},
+    )
 
 # ── End stubs ────────────────────────────────────────────────────────
 
