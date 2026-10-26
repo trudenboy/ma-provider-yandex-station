@@ -1093,6 +1093,31 @@ def test_wake_word_less_volume_command_with_voice_control_keeps_playing() -> Non
     assert player._voice_resume_task is None
 
 
+def test_server_action_speech_with_voice_control_keeps_external_session() -> None:
+    """
+    A phrase spoken through a server action (repeat_phrase) keeps the MA stream.
+
+    The Station reports aliceState NONE while it speaks and only ducks the music, so
+    playing stays True. Voice control must not treat this as a voice interaction: the
+    stream would otherwise be handed over to native playback and MA would lose it.
+    """
+    player = _make_player()
+    player._config = _VoiceControlConfig()  # type: ignore[assignment]
+    player._external_playing = True
+    player._external_play_confirmed = True
+    player._attr_playback_state = PlaybackState.PLAYING
+    player._prev_alice_state = "IDLE"
+
+    for alice_state in ("NONE", "NONE", "IDLE"):
+        player._update_playback_state(playing=True, alice_state=alice_state)
+        player._prev_alice_state = alice_state
+
+    assert player._attr_playback_state == PlaybackState.PLAYING
+    assert player._external_playing is True
+    assert player._needs_replay is False
+    assert player._voice_resume_task is None
+
+
 def test_physical_pause_ignored_during_voice_interaction() -> None:
     """
     Alice speaking/listening must not be treated as a physical pause.

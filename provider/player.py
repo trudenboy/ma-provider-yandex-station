@@ -58,6 +58,10 @@ if TYPE_CHECKING:
 PROV_LOGGER_BASE = "music_assistant.Yandex Station"
 _LOGGER = logging.getLogger(f"{PROV_LOGGER_BASE}.player")
 
+# aliceState values outside a voice interaction. NONE is reported while the Station
+# speaks a server-action phrase (repeat_phrase): the music is only ducked.
+ALICE_IDLE_STATES = frozenset({"IDLE", "NONE", ""})
+
 
 def _external_command(name: str, payload: dict[str, Any] | str | None = None) -> dict[str, Any]:
     """Build an externalCommandBypass command for Glagol."""
@@ -674,7 +678,7 @@ class YandexStationPlayer(Player):
         if self._external_playing or not self._needs_replay:
             self._voice_pending_track_id = None
             return False
-        if alice_state not in ("IDLE", ""):
+        if alice_state not in ALICE_IDLE_STATES:
             # The source that was playing before Alice keeps reporting
             # playing=True while ducked; it is not a replacement.
             if alice_state == "SPEAKING":
@@ -1160,7 +1164,7 @@ class YandexStationPlayer(Player):
         if (
             not self._external_playing
             and self._voice_control_enabled
-            and alice_state not in ("IDLE", "")
+            and alice_state not in ALICE_IDLE_STATES
             and self._pending_play_generation == self._external_play_generation
         ):
             self._handle_voice_interrupt(alice_state)
@@ -1171,7 +1175,7 @@ class YandexStationPlayer(Player):
         ):
             return
         if self._external_playing:
-            if self._voice_control_enabled and alice_state not in ("IDLE", ""):
+            if self._voice_control_enabled and alice_state not in ALICE_IDLE_STATES:
                 self._handle_voice_interrupt(alice_state)
             elif playing:
                 if self._external_audio_client:
@@ -1183,7 +1187,7 @@ class YandexStationPlayer(Player):
                 self._attr_powered = True
             elif (
                 self._external_play_confirmed
-                and alice_state in ("IDLE", "")
+                and alice_state in ALICE_IDLE_STATES
                 and external_media_matches is not False
             ):
                 # Stream was playing, now stopped without voice trigger →
