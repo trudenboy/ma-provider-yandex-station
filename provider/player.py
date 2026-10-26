@@ -534,6 +534,22 @@ class YandexStationPlayer(Player):
             if saved_volume is not None:
                 await self.volume_set(saved_volume)
 
+    async def say(self, text: str) -> None:
+        """
+        Make the Station say a phrase in Alice's voice.
+
+        :param text: The phrase to say.
+        """
+        _raise_if_failed(await self.glagol.send_tts(text), "say")
+
+    async def send_command(self, text: str) -> None:
+        """
+        Hand a text request to Alice as if the user had spoken it.
+
+        :param text: The request, e.g. "включи свет на кухне".
+        """
+        _raise_if_failed(await self.glagol.send_text(text), "send_command")
+
     async def on_unload(self) -> None:
         """Clean up on player unload."""
         if self._voice_resume_task:

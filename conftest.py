@@ -211,6 +211,9 @@ except (ImportError, AttributeError):
             self.mass = a[0] if a else None
             self.config = a[2] if len(a) > 2 else None
 
+        async def loaded_in_mass(self) -> None:
+            """Mirror Provider.loaded_in_mass (a no-op hook)."""
+
         def _update_config_value(self, key: str, value: object, encrypted: bool = False) -> None:
             """Mirror Provider._update_config_value so tests can assert behaviour."""
             if self.mass is not None:
