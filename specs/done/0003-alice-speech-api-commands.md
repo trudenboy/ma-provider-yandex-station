@@ -2,7 +2,7 @@
 id: "0003"
 title: "API commands to make a Station speak or handle a text request in Alice's voice"
 size: M
-status: inprogress
+status: done
 priority: P2
 effort_minutes: 20
 feature_id:
