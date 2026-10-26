@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.26] - 2026-10-26
+
+### Fixed
+
+- With experimental voice control on, a phrase spoken through `yandex_station/say` or `yandex_station/command` during Music Assistant playback no longer makes the provider lose track of the stream. Afterwards, pause and play from Music Assistant could start the Station's own Yandex Music playback instead of the Music Assistant queue.
+
 ## [1.5.25] - 2026-10-26
 
 ### Added

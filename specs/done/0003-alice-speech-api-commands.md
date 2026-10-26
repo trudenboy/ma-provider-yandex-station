@@ -108,7 +108,7 @@ sequenceDiagram
     Prov->>Player: say(text)
     Player->>Station: serverAction repeat_phrase(text)
     Station-->>Player: {status: SUCCESS}
-    Station-->>Player: state aliceState=SPEAKING … IDLE
+    Station-->>Player: state aliceState=NONE … IDLE (music ducked)
     Player-->>MA: None
 ```
 
@@ -117,7 +117,10 @@ sequenceDiagram
 - The per-user check reads `player_filter` directly. Music Assistant `dev` wraps the same
   rule in `has_player_access`, which does not exist in 2.10, this provider's minimum.
 
-- While Alice speaks, the Station reports `aliceState=SPEAKING`. With voice control on,
-  a running Music Assistant stream is paused and resumed afterwards, as for a spoken
-  request. With an intercept session active, the target player is paused while Alice
-  speaks. Both are existing behaviours and need a manual check on a real Station.
+- Verified on a real Station: while it speaks a `repeat_phrase` phrase, it reports
+  `aliceState=NONE`, not `SPEAKING`, and only ducks the music (`playing` stays true).
+  Voice control therefore treats `NONE` as outside a voice interaction, so a running
+  Music Assistant stream keeps playing and stays owned by Music Assistant. Before that
+  fix (1.5.26), `say` with voice control on handed the stream over to native playback.
+  For the same reason an active intercept session does not pause its target player
+  while the Station speaks such a phrase.
