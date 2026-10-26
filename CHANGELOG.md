@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.28] - 2026-10-26
+
+### Fixed
+
+- With voice control enabled, asking Alice something during Music Assistant playback (for example "Алиса, сколько времени?") no longer drops the Music Assistant session. The Station only ducks the music while Alice answers, so the stream now keeps playing and later pause and play from Music Assistant keep controlling the queue.
+
 ## [1.5.27] - 2026-10-26
 
 ### Fixed

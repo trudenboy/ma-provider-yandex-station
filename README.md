@@ -93,8 +93,8 @@ Keep **Remember session** enabled so tokens are refreshed automatically.
 When enabled in player advanced settings, the provider detects when you talk to Alice during playback:
 
 - **"Алиса, стоп"** — pauses MA queue (resume via UI)
-- **"Алиса, какая погода?"** — pauses, Alice answers, then auto-resumes playback
-- **"Алиса, громче/тише"** — adjusts volume and auto-resumes
+- **"Алиса, какая погода?"** — Alice answers over the ducked music and the MA stream keeps playing; if the Station stops the stream to answer, playback auto-resumes afterwards
+- **"Алиса, громче/тише"** — adjusts volume; the MA stream keeps playing
 
 > ⚠️ Disabled by default. Enable in **Settings → Players → [Your Station] → Show advanced → Voice control integration**.
 

@@ -1162,6 +1162,31 @@ def test_server_action_speech_with_voice_control_keeps_external_session() -> Non
     assert player._voice_resume_task is None
 
 
+def test_voice_request_over_ducked_stream_keeps_external_session() -> None:
+    """
+    A voice request answered over the MA stream keeps the stream.
+
+    For a request such as "Алиса, сколько времени?" the Station only ducks the music
+    and keeps reporting playing=True through LISTENING, BUSY and the spoken answer.
+    Voice control must not pause the queue or hand the stream to native playback.
+    """
+    player = _make_player()
+    player._config = _VoiceControlConfig()  # type: ignore[assignment]
+    player._external_playing = True
+    player._external_play_confirmed = True
+    player._attr_playback_state = PlaybackState.PLAYING
+    player._prev_alice_state = "IDLE"
+
+    for alice_state in ("LISTENING", "BUSY", "NONE", "LISTENING", "IDLE"):
+        player._update_playback_state(playing=True, alice_state=alice_state)
+        player._prev_alice_state = alice_state
+        assert player._attr_playback_state == PlaybackState.PLAYING
+
+    assert player._external_playing is True
+    assert player._needs_replay is False
+    assert player._voice_resume_task is None
+
+
 def test_physical_pause_ignored_during_voice_interaction() -> None:
     """
     Alice speaking/listening must not be treated as a physical pause.

@@ -1186,7 +1186,9 @@ class YandexStationPlayer(Player):
         ):
             return
         if self._external_playing:
-            if self._voice_control_enabled and alice_state not in ALICE_IDLE_STATES:
+            # While Alice handles a request the Station usually only ducks the
+            # stream; it is interrupted only once the Station reports it stopped.
+            if self._voice_control_enabled and alice_state not in ALICE_IDLE_STATES and not playing:
                 self._handle_voice_interrupt(alice_state)
             elif playing:
                 if self._external_audio_client:
