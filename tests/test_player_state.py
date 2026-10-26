@@ -19,7 +19,6 @@ import pytest
 from music_assistant_models.enums import PlaybackState
 from music_assistant_models.errors import PlayerCommandFailed
 
-from music_assistant.providers.yandex_station.constants import CONF_VOICE_CONTROL
 from music_assistant.providers.yandex_station.player import YandexStationPlayer
 from music_assistant.providers.yandex_station.protobuf import loads
 
@@ -1049,11 +1048,6 @@ def test_physical_pause_cancels_pending_voice_resume_task() -> None:
     assert cancelled is True
     assert player._voice_resume_task is None
     assert player._attr_playback_state == PlaybackState.PAUSED
-
-
-class _VoiceControlConfig:
-    def get_value(self, key: str, default: object = None) -> object:
-        return key == CONF_VOICE_CONTROL
 
 
 def test_wake_word_less_stop_with_voice_control_pauses_without_auto_resume() -> None:
