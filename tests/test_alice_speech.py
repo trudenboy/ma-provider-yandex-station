@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from music_assistant_models.auth import Scope
 from music_assistant_models.errors import (
+    InsufficientPermissions,
     InvalidDataError,
     PlayerCommandFailed,
     PlayerUnavailableError,
 )
 
+from provider.constants import CONF_ALICE_TEXT_COMMANDS
 from provider.glagol import YandexGlagol
 from provider.player import YandexStationPlayer
 from provider.provider import YandexStationProvider
@@ -28,9 +30,15 @@ def _make_player(send_result: dict[str, Any] | None = None) -> YandexStationPlay
     return player
 
 
-def _make_provider(players: dict[str, Any] | None = None) -> YandexStationProvider:
+def _make_provider(
+    players: dict[str, Any] | None = None, *, text_commands: bool = False
+) -> YandexStationProvider:
     """Build a bare provider with a mocked mass that records API registrations."""
     provider = YandexStationProvider.__new__(YandexStationProvider)
+    provider.config = MagicMock()
+    provider.config.get_value = MagicMock(
+        side_effect=lambda key, *_: text_commands if key == CONF_ALICE_TEXT_COMMANDS else None
+    )
     mass = MagicMock()
     mass.register_api_command = MagicMock(side_effect=lambda *_a, **_kw: MagicMock())
     mass.players.get_player = MagicMock(side_effect=lambda pid: (players or {}).get(pid))
@@ -47,9 +55,19 @@ def _sent(player: YandexStationPlayer) -> list[dict[str, Any]]:
     return [call.args[0] for call in _send_mock(player).await_args_list]
 
 
-async def test_loaded_in_mass_registers_alice_commands() -> None:
-    """Both commands are registered with the players.control scope."""
+async def test_loaded_in_mass_registers_only_say_by_default() -> None:
+    """Text requests to Alice stay unregistered until the provider opts in."""
     provider = _make_provider()
+
+    await provider.loaded_in_mass()
+
+    register = cast("MagicMock", provider.mass.register_api_command)
+    assert [call.args[0] for call in register.call_args_list] == ["yandex_station/say"]
+
+
+async def test_loaded_in_mass_registers_alice_commands() -> None:
+    """With the opt-in on, both commands are registered with the players.control scope."""
+    provider = _make_provider(text_commands=True)
 
     await provider.loaded_in_mass()
 
@@ -61,7 +79,7 @@ async def test_loaded_in_mass_registers_alice_commands() -> None:
 
 async def test_unload_unregisters_alice_commands() -> None:
     """Unloading calls every unregister handle so a reload can register again."""
-    provider = _make_provider()
+    provider = _make_provider(text_commands=True)
     provider._cleanup_session = AsyncMock()  # type: ignore[method-assign]
     await provider.loaded_in_mass()
     handles = [cast("MagicMock", handle) for handle in provider._unregister_api_commands]
@@ -154,3 +172,30 @@ async def test_api_say_rejects_blank_text() -> None:
         await provider.command("station_1", "")
 
     _send_mock(player).assert_not_awaited()
+
+
+async def test_api_say_rejects_player_outside_user_filter() -> None:
+    """A user limited to other players cannot address this Station."""
+    player = _make_player()
+    provider = _make_provider({"station_1": player})
+    user = MagicMock(username="guest", player_filter=["other_player"])
+
+    with (
+        patch("provider.provider.get_current_user", return_value=user),
+        pytest.raises(InsufficientPermissions),
+    ):
+        await provider.say("station_1", "Привет")
+
+    _send_mock(player).assert_not_awaited()
+
+
+async def test_api_say_allows_player_in_user_filter() -> None:
+    """A user whose filter includes the Station can use it."""
+    player = _make_player()
+    provider = _make_provider({"station_1": player})
+    user = MagicMock(username="member", player_filter=["station_1"])
+
+    with patch("provider.provider.get_current_user", return_value=user):
+        await provider.say("station_1", "Привет")
+
+    _send_mock(player).assert_awaited_once()

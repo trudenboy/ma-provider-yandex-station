@@ -12,7 +12,11 @@ from aiohttp import ClientSession, CookieJar
 from music_assistant_models.auth import Scope
 from music_assistant_models.config_entries import ConfigEntry
 from music_assistant_models.enums import ConfigEntryType
-from music_assistant_models.errors import InvalidDataError, PlayerUnavailableError
+from music_assistant_models.errors import (
+    InsufficientPermissions,
+    InvalidDataError,
+    PlayerUnavailableError,
+)
 from ya_passport_auth import PassportClient, SecretStr
 from ya_passport_auth.ma import (
     BORROW_SOURCE_OWN,
@@ -22,9 +26,11 @@ from ya_passport_auth.ma import (
     KeySpec,
 )
 
+from music_assistant.controllers.webserver.helpers.auth_middleware import get_current_user
 from music_assistant.models.player_provider import PlayerProvider
 
 from .constants import (
+    CONF_ALICE_TEXT_COMMANDS,
     CONF_INTERCEPT_FEATURE_ENABLED,
     CONF_MUSIC_TOKEN,
     CONF_REFRESH_TOKEN,
@@ -39,7 +45,7 @@ from .quasar import YandexQuasar
 from .session import YandexSession
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Coroutine
 
     from music_assistant_models.config_entries import ProviderConfig
     from music_assistant_models.enums import ProviderFeature
@@ -91,6 +97,14 @@ class YandexStationProvider(PlayerProvider):
             # When OFF, no per-player intercept setting takes effect.
             ConfigEntry(
                 key=CONF_INTERCEPT_FEATURE_ENABLED,
+                type=ConfigEntryType.BOOLEAN,
+                default_value=False,
+                required=False,
+            ),
+            # yandex_station/command can drive anything linked to the Yandex
+            # account (smart home, purchases), so it is opt-in.
+            ConfigEntry(
+                key=CONF_ALICE_TEXT_COMMANDS,
                 type=ConfigEntryType.BOOLEAN,
                 default_value=False,
                 required=False,
@@ -294,10 +308,12 @@ class YandexStationProvider(PlayerProvider):
     async def loaded_in_mass(self) -> None:
         """Register the provider's API commands once it is loaded."""
         await super().loaded_in_mass()
-        for command, handler in (
-            ("yandex_station/say", self.say),
-            ("yandex_station/command", self.command),
-        ):
+        commands: list[tuple[str, Callable[[str, str], Coroutine[Any, Any, None]]]] = [
+            ("yandex_station/say", self.say)
+        ]
+        if self.config.get_value(CONF_ALICE_TEXT_COMMANDS):
+            commands.append(("yandex_station/command", self.command))
+        for command, handler in commands:
             self._unregister_api_commands.append(
                 self.mass.register_api_command(
                     command, handler, required_scope=Scope.PLAYERS_CONTROL
@@ -338,6 +354,11 @@ class YandexStationProvider(PlayerProvider):
         if not isinstance(player, YandexStationPlayer):
             msg = f"{player_id} is not a Yandex Station player"
             raise PlayerUnavailableError(msg)
+        # Same per-user player restriction the core player commands enforce.
+        user = get_current_user()
+        if user and user.player_filter and player_id not in user.player_filter:
+            msg = f"{user.username} does not have access to player {player_id}"
+            raise InsufficientPermissions(msg)
         return player
 
     # ── Credential cascade ────────────────────────────────────────────

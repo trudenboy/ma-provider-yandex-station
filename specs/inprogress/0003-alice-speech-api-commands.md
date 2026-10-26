@@ -44,22 +44,28 @@ can only send announcements, and those use a generic TTS voice instead of Alice'
 
 ## Solution Summary
 
-The provider registers two API commands when it is loaded and removes them on unload,
-both requiring the `players.control` scope:
+The provider registers its API commands when it is loaded and removes them on unload.
+Both require the `players.control` scope and apply the same per-user player
+restriction (`player_filter`) as the core player commands:
 
 - `yandex_station/say` with `player_id` and `text`: the Station says the text in
   Alice's voice (the `repeat_phrase` scenario).
 - `yandex_station/command` with `player_id` and `text`: the Station handles the text as
-  a spoken request to Alice (Glagol `sendText`).
+  a spoken request to Alice (Glagol `sendText`). Alice can then act on everything linked
+  to the Yandex account (smart home devices, scenarios), which is far more than player
+  control, so this command is only registered when the provider-level option
+  `alice_text_commands` is turned on. It is off by default.
 
 Each player gains matching `say()` and `send_command()` methods that raise
 `PlayerCommandFailed` when the Station reports a failure. Unknown or non-Station player
-ids raise `PlayerUnavailableError`; empty text raises `InvalidDataError`.
+ids raise `PlayerUnavailableError`; a user whose `player_filter` excludes the Station gets
+`InsufficientPermissions`; empty text raises `InvalidDataError`.
 
 ## Acceptance Criteria
 
-1. After the provider is loaded, `yandex_station/say` and `yandex_station/command` are
-   registered with the `players.control` scope.
+1. After the provider is loaded, `yandex_station/say` is registered with the
+   `players.control` scope. `yandex_station/command` is registered as well only when the
+   `alice_text_commands` provider option is on (default off).
 2. Unloading the provider unregisters both commands, so reloading it does not fail with
    "already registered".
 3. `yandex_station/say` sends the `repeat_phrase` server action carrying the text to the
@@ -69,11 +75,16 @@ ids raise `PlayerUnavailableError`; empty text raises `InvalidDataError`.
 5. A Glagol transport error or a non-`SUCCESS` status raises `PlayerCommandFailed`.
 6. A `player_id` that is not a registered Yandex Station raises
    `PlayerUnavailableError`; blank text raises `InvalidDataError`, and nothing is sent.
+7. A user whose `player_filter` does not include the Station gets
+   `InsufficientPermissions`, and nothing is sent.
 
 ## Test Plan
 
-- `test_loaded_in_mass_registers_alice_commands`, `test_unload_unregisters_alice_commands`:
-  names, scope and unregister handles.
+- `test_loaded_in_mass_registers_only_say_by_default`,
+  `test_loaded_in_mass_registers_alice_commands`, `test_unload_unregisters_alice_commands`:
+  opt-in, names, scope and unregister handles.
+- `test_api_say_rejects_player_outside_user_filter`,
+  `test_api_say_allows_player_in_user_filter`: per-user player restriction.
 - `test_say_sends_repeat_phrase`, `test_send_command_sends_text`: real player methods
   produce the expected Glagol payloads.
 - `test_say_raises_on_glagol_error`, `test_send_command_raises_on_non_success_status`.
@@ -102,6 +113,9 @@ sequenceDiagram
 ```
 
 ## Notes
+
+- The per-user check reads `player_filter` directly. Music Assistant `dev` wraps the same
+  rule in `has_player_access`, which does not exist in 2.10, this provider's minimum.
 
 - While Alice speaks, the Station reports `aliceState=SPEAKING`. With voice control on,
   a running Music Assistant stream is paused and resumed afterwards, as for a spoken

@@ -419,6 +419,22 @@ try:
 except (ImportError, AttributeError):
     _ensure_stub("music_assistant.mass", {"MusicAssistant": object})
 
+try:
+    from music_assistant.controllers.webserver.helpers.auth_middleware import (  # noqa: F401
+        get_current_user,
+    )
+except (ImportError, AttributeError):
+    for _pkg in (
+        "music_assistant.controllers",
+        "music_assistant.controllers.webserver",
+        "music_assistant.controllers.webserver.helpers",
+    ):
+        _ensure_stub(_pkg)
+    _ensure_stub(
+        "music_assistant.controllers.webserver.helpers.auth_middleware",
+        {"get_current_user": lambda: None},
+    )
+
 # ── End stubs ────────────────────────────────────────────────────────
 
 # Insert provider/ into sys.path so its modules are importable

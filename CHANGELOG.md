@@ -4,7 +4,8 @@
 
 ### Added
 
-- Two API commands for automations and AI agents: `yandex_station/say` makes a Station say a phrase in Alice's own voice, and `yandex_station/command` hands a text request to Alice on a Station as if it had been spoken, for example "включи свет на кухне". Both take `player_id` and `text` and need the players control permission.
+- API command `yandex_station/say` for automations and AI agents: makes a Station say a phrase in Alice's own voice. It takes `player_id` and `text`, needs the players control permission and respects each user's allowed players.
+- API command `yandex_station/command`: hands a text request to Alice on a Station as if it had been spoken, for example "включи свет на кухне". Because Alice can then control everything linked to the Yandex account, it is available only after turning on the new provider option "Allow text requests to Alice through the API" (off by default).
 
 ## [1.5.24] - 2026-10-26
 
