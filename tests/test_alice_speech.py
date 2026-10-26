@@ -25,7 +25,7 @@ def _make_player(send_result: dict[str, Any] | None = None) -> YandexStationPlay
     player = YandexStationPlayer.__new__(YandexStationPlayer)
     player._player_id = "station_1"
     glagol = YandexGlagol.__new__(YandexGlagol)
-    glagol.send = AsyncMock(return_value=send_result or {"status": "SUCCESS"})  # type: ignore[method-assign]
+    object.__setattr__(glagol, "send", AsyncMock(return_value=send_result or {"status": "SUCCESS"}))
     player.glagol = glagol
     return player
 
@@ -80,7 +80,7 @@ async def test_loaded_in_mass_registers_alice_commands() -> None:
 async def test_unload_unregisters_alice_commands() -> None:
     """Unloading calls every unregister handle so a reload can register again."""
     provider = _make_provider(text_commands=True)
-    provider._cleanup_session = AsyncMock()  # type: ignore[method-assign]
+    object.__setattr__(provider, "_cleanup_session", AsyncMock())
     await provider.loaded_in_mass()
     handles = [cast("MagicMock", handle) for handle in provider._unregister_api_commands]
 
