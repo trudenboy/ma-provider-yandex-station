@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.27] - 2026-10-26
+
+### Fixed
+
+- Pausing Music Assistant playback on a Station and then pressing play could leave the Station silent, or start the Station's own Yandex Music playback instead of the Music Assistant queue. A state update the Station sends just before it applies the pause no longer cancels the pending resume.
+
 ## [1.5.26] - 2026-10-26
 
 ### Fixed

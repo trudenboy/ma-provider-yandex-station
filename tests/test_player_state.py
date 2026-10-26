@@ -14,6 +14,7 @@ import base64
 import json
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import AsyncMock
 
 import pytest
 from music_assistant_models.enums import PlaybackState
@@ -42,6 +43,7 @@ def _make_player() -> YandexStationPlayer:
     vars(player)["_audio_client"] = False
     vars(player)["_external_audio_client"] = False
     player._needs_replay = False
+    vars(player)["_pause_stop_pending"] = False
     player._prev_alice_state = ""
     player._voice_resume_task = None
     player._alice_spoke = False
@@ -1002,6 +1004,48 @@ async def test_stop_uses_native_stop_for_audio_play_session() -> None:
     assert commands == [{"command": "stop"}]
     assert vars(player)["_external_audio_client"] is False
     assert player._needs_replay is False
+
+
+async def test_pause_ignores_stale_playing_state_and_resumes_ma_queue() -> None:
+    """
+    A playing=True update sent just before the Station applies stop is stale.
+
+    It must not be taken for native playback: the player stays paused and play()
+    resumes the Music Assistant queue instead of the Station's own source.
+    """
+    player = _make_player()
+    _disable_voice_control(player)
+    commands: list[dict[str, Any]] = []
+
+    async def send(command: dict[str, Any]) -> dict[str, Any]:
+        commands.append(command)
+        return {"status": "SUCCESS"}
+
+    resume = AsyncMock()
+    player.glagol = cast("YandexGlagol", SimpleNamespace(send=send))
+    player.mass = cast(
+        "Any",
+        SimpleNamespace(
+            player_queues=SimpleNamespace(
+                get_active_queue=lambda _player_id: SimpleNamespace(queue_id="queue_1"),
+                resume=resume,
+            )
+        ),
+    )
+    player._external_playing = True
+    vars(player)["_external_audio_client"] = True
+    player._external_play_confirmed = True
+    player._attr_playback_state = PlaybackState.PLAYING
+
+    await player.pause()
+    player._update_playback_state(playing=True, alice_state="IDLE")
+    paused_state = player._attr_playback_state
+    player._update_playback_state(playing=False, alice_state="IDLE")
+    await player.play()
+
+    assert paused_state == PlaybackState.PAUSED
+    assert commands == [{"command": "stop"}]
+    resume.assert_awaited_once_with("queue_1")
 
 
 async def test_pause_retains_legacy_radio_play_stop_workaround() -> None:
