@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.3] - 2026-10-27
+
+### Fixed
+
+- After a Music Assistant stream is stopped, the Station's last reports of it no longer make the player show the Station's own playback as paused. The player stays idle on the Music Assistant queue, so play resumes the queue instead of the Station.
+
 ## [1.6.2] - 2026-10-27
 
 ### Fixed
