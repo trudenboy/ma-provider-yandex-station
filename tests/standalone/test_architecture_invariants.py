@@ -144,3 +144,61 @@ def test_stop_implementation_rolls_back_when_cancelled() -> None:
         if isinstance(node, ast.Await) and id(node) not in covered
     ]
     assert uncovered == []
+
+
+def test_rollback_snapshot_covers_the_stop_state() -> None:
+    """
+    Every player attribute the stop implementation changes before its await is in the snapshot.
+
+    A command that does not reach the Station restores that snapshot; an
+    attribute missing from it stays changed, as the voice-interaction state once did.
+    """
+    module = _parse("player.py")
+    classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
+    snapshot_fields = {
+        node.target.id
+        for node in classes["_SessionSnapshot"].body
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+    }
+    methods = {
+        node.name: node
+        for node in classes["YandexStationPlayer"].body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    # The generation is the command's own token; the resume task is captured as a flag.
+    not_session = {"_external_play_generation"}
+    renamed = {"_voice_resume_task": "voice_resume_scheduled"}
+
+    def assigned(method: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+        names: set[str] = set()
+        for statement in method.body:
+            for node in ast.walk(statement):
+                if isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+                    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                    names.update(
+                        target.attr
+                        for target in targets
+                        if isinstance(target, ast.Attribute)
+                        and isinstance(target.value, ast.Name)
+                        and target.value.id == "self"
+                    )
+                elif (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "self"
+                    and node.func.attr in methods
+                    and node.func.attr != STOP_IMPLEMENTATION
+                ):
+                    names |= assigned(methods[node.func.attr])
+            if any(isinstance(node, ast.Await) for node in ast.walk(statement)):
+                break
+        return names
+
+    changed = assigned(methods[STOP_IMPLEMENTATION]) - not_session
+    missing = sorted(
+        name
+        for name in changed
+        if renamed.get(name, name.removeprefix("_attr_").removeprefix("_")) not in snapshot_fields
+    )
+    assert missing == []
