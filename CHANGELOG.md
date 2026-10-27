@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1] - 2026-10-27
+
+### Fixed
+
+- Music the Station starts on its own while a Music Assistant stream plays, such as music Alice was asked for, now replaces the stream in Music Assistant: the player shows the Station's track and can pause it, and intercept hands it over to the target player. Previously Music Assistant kept showing the stream as playing.
+
 ## [1.6.0] - 2026-10-27
 
 ### Changed
