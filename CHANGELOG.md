@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.30] - 2026-10-27
+
+### Fixed
+
+- `yandex_station/say` and `yandex_station/command` now follow Music Assistant's own player access rules. A user with full access was refused a Station that was missing from their saved player list, although the core ignores that list for such users.
+- Pausing a Music Assistant stream could leave the Station ignoring its own playback started right afterwards when the Station reported the stop in its reply to the command. A pause or stop the Station rejects now also leaves the Music Assistant stream as it was.
+
 ## [1.5.29] - 2026-10-27
 
 ### Fixed

@@ -54,6 +54,14 @@ MA Core --play_media()--> YandexStationPlayer --audio_play/radio_play--> Glagol 
 3. Updates MA player attributes, calls `update_state()`
 4. Audio-client sessions distinguish track completion from physical pause and reject stale source state during startup
 
+## Invariants
+
+Rules that review found broken once. `tests/standalone/test_architecture_invariants.py` enforces them.
+
+- **State before the command.** Glagol hands the state carried by a command's response frame to the player before `send()` returns. A command that changes playback state records that state before it awaits the Station and restores the captured session if the Station rejects the command, unless a newer command or Station event replaced it meanwhile (`_capture_session()`, `_finish_transport_command()`). `pause()` and `stop()` assign no player state after their first await.
+- **Authorization belongs to the core.** Never read `user.player_filter` or re-implement access rules: full-access users ignore their filter and a client may use its own player. Ask the core with `self.mass.players.get_player_state(player_id)`, which raises `InsufficientPermissions` under the running core's rules (MA 2.10 and later).
+- **Provider API commands do not bump `API_SCHEMA_VERSION`.** They exist only while the provider is configured, so clients detect them through the provider, not the schema version. Upstream provider commands (FastMCP, AI Radio, Music Quiz, party) follow the same practice.
+
 ## Development Setup
 
 ```bash
