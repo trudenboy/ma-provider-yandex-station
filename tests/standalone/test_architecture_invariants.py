@@ -113,3 +113,34 @@ def test_station_reports_go_through_the_epoch_counter() -> None:
         if isinstance(node, ast.Attribute) and node.attr == "_apply_playback_report"
     ]
     assert len(callers) == 1
+
+
+def test_stop_implementation_rolls_back_when_cancelled() -> None:
+    """
+    Every await in the stop implementation is covered by a CancelledError handler.
+
+    The command's state is applied before the await; a cancelled send would
+    otherwise leave the Music Assistant session cleared and stale playing reports
+    ignored until the Station happens to report a stop.
+    """
+
+    def handles_cancellation(node: ast.Try) -> bool:
+        return any(
+            isinstance(handler.type, ast.Attribute) and handler.type.attr == "CancelledError"
+            for handler in node.handlers
+        )
+
+    method = _player_method(STOP_IMPLEMENTATION)
+    covered = {
+        id(inner)
+        for node in ast.walk(method)
+        if isinstance(node, ast.Try) and handles_cancellation(node)
+        for statement in node.body
+        for inner in ast.walk(statement)
+    }
+    uncovered = [
+        node.lineno
+        for node in ast.walk(method)
+        if isinstance(node, ast.Await) and id(node) not in covered
+    ]
+    assert uncovered == []
