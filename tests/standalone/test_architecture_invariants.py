@@ -7,17 +7,25 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parents[2]
 
-# Transport commands that stop playback share one implementation.
-STOP_COMMANDS = ("pause", "stop")
-STOP_IMPLEMENTATION = "_stop_playback"
+TRANSPORT_COMMANDS = ("play", "pause", "stop")
+# Queue operations the core owns; the player reports state and the core decides.
+QUEUE_CONTROL = frozenset({"resume", "pause", "stop", "play", "next", "previous", "play_index"})
+# The request token that drops a superseded play_media(); not player state.
+REQUEST_TOKEN = "_external_play_generation"
+# Helpers that change the reported session.
+SESSION_HELPERS = frozenset({"_start_external_session", "_end_external_session"})
+ALICE_STATE_VALUES = frozenset({"LISTENING", "BUSY", "SPEAKING", "NONE"})
 
 
-def _parse(name: str) -> ast.Module:
-    return ast.parse((PROJECT_ROOT / "provider" / name).read_text(encoding="utf-8"))
+def _modules() -> list[tuple[Path, ast.Module]]:
+    return [
+        (path, ast.parse(path.read_text(encoding="utf-8")))
+        for path in sorted((PROJECT_ROOT / "provider").glob("*.py"))
+    ]
 
 
 def _player_method(name: str) -> ast.AsyncFunctionDef:
-    module = _parse("player.py")
+    module = ast.parse((PROJECT_ROOT / "provider" / "player.py").read_text(encoding="utf-8"))
     player = next(
         node
         for node in module.body
@@ -26,6 +34,16 @@ def _player_method(name: str) -> ast.AsyncFunctionDef:
     return next(
         node for node in player.body if isinstance(node, ast.AsyncFunctionDef) and node.name == name
     )
+
+
+def _self_attribute(node: ast.AST) -> str | None:
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "self"
+    ):
+        return node.attr
+    return None
 
 
 def test_provider_leaves_player_authorization_to_the_core() -> None:
@@ -38,167 +56,94 @@ def test_provider_leaves_player_authorization_to_the_core() -> None:
     """
     offenders = [
         f"{path.name}:{node.lineno}"
-        for path in sorted((PROJECT_ROOT / "provider").glob("*.py"))
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        for path, module in _modules()
+        for node in ast.walk(module)
         if isinstance(node, ast.Attribute) and node.attr == "player_filter"
     ]
     assert offenders == []
 
 
-def test_pause_and_stop_share_one_implementation() -> None:
+def test_provider_leaves_queue_control_to_the_core() -> None:
     """
-    pause() and stop() only await _stop_playback.
+    The provider never resumes, pauses or steps a queue itself.
 
-    Both lead to the same Station state while the command is pending; separate
-    copies drifted once (only pause guarded against stale playing reports).
+    The core decides what play means for a player: it resumes the queue of a
+    player that is not paused, and stops a stream the player cannot pause. A
+    provider that drives the queue on its own races the core's decisions
+    (music-assistant/server#2283). Ask the player controller instead.
     """
-    for name in STOP_COMMANDS:
-        method = _player_method(name)
-        awaited = [
-            node.value.func
-            for node in ast.walk(method)
-            if isinstance(node, ast.Await) and isinstance(node.value, ast.Call)
-        ]
-        assert [func.attr for func in awaited if isinstance(func, ast.Attribute)] == [
-            STOP_IMPLEMENTATION
-        ], name
-        assert not any(
-            isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign))
-            for node in ast.walk(method)
-        ), name
-
-
-def test_transport_commands_set_state_before_awaiting_the_station() -> None:
-    """
-    The stop implementation assigns no player state after its first await.
-
-    Glagol dispatches the state carried by a command's response frame before send()
-    returns, so state assigned after the await misses that update.
-    """
-    offenders: list[str] = []
-    for name in (STOP_IMPLEMENTATION,):
-        awaited = False
-        for statement in _player_method(name).body:
-            if awaited:
-                offenders.extend(
-                    f"{name}:{node.lineno}"
-                    for node in ast.walk(statement)
-                    if isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign))
-                    and any(
-                        isinstance(target, ast.Attribute)
-                        and isinstance(target.value, ast.Name)
-                        and target.value.id == "self"
-                        for target in (
-                            node.targets if isinstance(node, ast.Assign) else [node.target]
-                        )
-                    )
-                )
-            if any(isinstance(node, ast.Await) for node in ast.walk(statement)):
-                awaited = True
+    offenders = [
+        f"{path.name}:{node.lineno}"
+        for path, module in _modules()
+        for node in ast.walk(module)
+        if isinstance(node, ast.Attribute)
+        and node.attr in QUEUE_CONTROL
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == "player_queues"
+    ]
     assert offenders == []
 
 
-def test_station_reports_go_through_the_epoch_counter() -> None:
+def test_transport_commands_change_no_state_before_the_station_accepts() -> None:
     """
-    Only _update_playback_state applies a Station report.
+    play(), pause() and stop() change no reported state before their first await.
 
-    It counts reports that change the session, which decides whether a failed
-    transport command may restore the session it replaced. Applying a report
-    elsewhere would skip that count.
+    The Station's reports decide the state; a command only records what the
+    Station confirmed. A command that is rejected or cancelled then leaves
+    nothing behind to roll back.
     """
-    callers = [
-        f"{path.name}:{node.lineno}"
-        for path in sorted((PROJECT_ROOT / "provider").glob("*.py"))
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
-        if isinstance(node, ast.Attribute) and node.attr == "_apply_playback_report"
-    ]
-    assert len(callers) == 1
-
-
-def test_stop_implementation_rolls_back_when_cancelled() -> None:
-    """
-    Every await in the stop implementation is covered by a CancelledError handler.
-
-    The command's state is applied before the await; a cancelled send would
-    otherwise leave the Music Assistant session cleared and stale playing reports
-    ignored until the Station happens to report a stop.
-    """
-
-    def handles_cancellation(node: ast.Try) -> bool:
-        return any(
-            isinstance(handler.type, ast.Attribute) and handler.type.attr == "CancelledError"
-            for handler in node.handlers
-        )
-
-    method = _player_method(STOP_IMPLEMENTATION)
-    covered = {
-        id(inner)
-        for node in ast.walk(method)
-        if isinstance(node, ast.Try) and handles_cancellation(node)
-        for statement in node.body
-        for inner in ast.walk(statement)
-    }
-    uncovered = [
-        node.lineno
-        for node in ast.walk(method)
-        if isinstance(node, ast.Await) and id(node) not in covered
-    ]
-    assert uncovered == []
-
-
-def test_rollback_snapshot_covers_the_stop_state() -> None:
-    """
-    Every player attribute the stop implementation changes before its await is in the snapshot.
-
-    A command that does not reach the Station restores that snapshot; an
-    attribute missing from it stays changed, as the voice-interaction state once did.
-    """
-    module = _parse("player.py")
-    classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
-    snapshot_fields = {
-        node.target.id
-        for node in classes["_SessionSnapshot"].body
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
-    }
-    methods = {
-        node.name: node
-        for node in classes["YandexStationPlayer"].body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
-    # The generation is the command's own token; the resume task is captured as a flag.
-    not_session = {"_external_play_generation"}
-    renamed = {"_voice_resume_task": "voice_resume_scheduled"}
-
-    def assigned(method: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
-        names: set[str] = set()
-        for statement in method.body:
-            for node in ast.walk(statement):
-                if isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
-                    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                    names.update(
-                        target.attr
-                        for target in targets
-                        if isinstance(target, ast.Attribute)
-                        and isinstance(target.value, ast.Name)
-                        and target.value.id == "self"
-                    )
-                elif (
-                    isinstance(node, ast.Call)
-                    and isinstance(node.func, ast.Attribute)
-                    and isinstance(node.func.value, ast.Name)
-                    and node.func.value.id == "self"
-                    and node.func.attr in methods
-                    and node.func.attr != STOP_IMPLEMENTATION
-                ):
-                    names |= assigned(methods[node.func.attr])
+    offenders: list[str] = []
+    for name in TRANSPORT_COMMANDS:
+        for statement in _player_method(name).body:
             if any(isinstance(node, ast.Await) for node in ast.walk(statement)):
                 break
-        return names
+            for node in ast.walk(statement):
+                targets: list[ast.expr] = []
+                if isinstance(node, ast.Assign):
+                    targets = node.targets
+                elif isinstance(node, (ast.AugAssign, ast.AnnAssign)):
+                    targets = [node.target]
+                for target in targets:
+                    attr = _self_attribute(target)
+                    if attr and attr != REQUEST_TOKEN and attr.startswith(("_attr_", "_external_")):
+                        offenders.append(f"{name}:{target.lineno}")
+                if isinstance(node, ast.Call) and _self_attribute(node.func) in SESSION_HELPERS:
+                    offenders.append(f"{name}:{node.func.lineno}")
+    assert offenders == []
 
-    changed = assigned(methods[STOP_IMPLEMENTATION]) - not_session
-    missing = sorted(
-        name
-        for name in changed
-        if renamed.get(name, name.removeprefix("_attr_").removeprefix("_")) not in snapshot_fields
-    )
-    assert missing == []
+
+def test_alice_states_are_interpreted_only_by_the_tracker() -> None:
+    """
+    Only alice.py reads aliceState values.
+
+    The same values mean different things in context (NONE is Alice's answer
+    inside a request but a server-action phrase on its own); separate readings
+    drifted apart several times. Consumers use AliceTracker's activity.
+    """
+    offenders = [
+        f"{path.name}:{node.lineno}"
+        for path, module in _modules()
+        if path.name != "alice.py"
+        for node in ast.walk(module)
+        if isinstance(node, ast.Constant) and node.value in ALICE_STATE_VALUES
+    ]
+    assert offenders == []
+
+
+def test_player_schedules_work_through_the_core() -> None:
+    """
+    The player starts no bare asyncio tasks.
+
+    The core's scheduler (mass.create_task, mass.call_later with a task_id)
+    keeps a reference, cancels on unload and logs failures.
+    """
+    module = ast.parse((PROJECT_ROOT / "provider" / "player.py").read_text(encoding="utf-8"))
+    offenders = [
+        node.lineno
+        for node in ast.walk(module)
+        if isinstance(node, ast.Attribute)
+        and node.attr == "create_task"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "asyncio"
+    ]
+    assert offenders == []

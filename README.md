@@ -92,7 +92,7 @@ Keep **Remember session** enabled so tokens are refreshed automatically.
 
 When enabled in player advanced settings, the provider detects when you talk to Alice during playback:
 
-- **"Алиса, стоп"** — pauses MA queue (resume via UI)
+- **"Алиса, стоп"** — stops the MA stream; play in Music Assistant resumes the queue where it stopped
 - **"Алиса, какая погода?"** — Alice answers over the ducked music and the MA stream keeps playing; if the Station stops the stream to answer, playback auto-resumes afterwards
 - **"Алиса, громче/тише"** — adjusts volume; the MA stream keeps playing
 
@@ -100,6 +100,7 @@ When enabled in player advanced settings, the provider detects when you talk to 
 
 ## Known Limitations
 
+- Music Assistant streams cannot be paused on the Station: pause stops the stream and play resumes the queue from the same position
 - Voice commands "дальше"/"назад" cannot advance the MA queue (Alice doesn't see bypass streams)
 - Seek via voice is not supported
 - Requires HTTP (not HTTPS) for local streaming — station rejects HTTPS on LAN
