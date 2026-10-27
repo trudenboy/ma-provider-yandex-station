@@ -100,7 +100,7 @@ class _StubConfig:
 
 
 def _disable_voice_control(player: YandexStationPlayer) -> None:
-    player._config = _StubConfig()  # type: ignore[assignment]
+    player._config = _StubConfig()
 
 
 def _make_play_media_player(
@@ -452,7 +452,7 @@ async def test_station_interruption_discards_pending_stream_resolution(
     """A URL resolved after a physical pause or Alice interruption must not start playback."""
     player, commands = _make_play_media_player([{"status": "SUCCESS"}])
     if voice_control:
-        player._config = _VoiceControlConfig()  # type: ignore[assignment]
+        player._config = _VoiceControlConfig()
     else:
         _disable_voice_control(player)
     player._external_playing = True
@@ -495,7 +495,7 @@ async def test_station_interruption_discards_pending_stream_resolution(
 async def test_voice_activation_without_pending_request_keeps_native_state() -> None:
     """Alice activation with no pending request leaves an idle station untouched."""
     player = _make_player()
-    player._config = _VoiceControlConfig()  # type: ignore[assignment]
+    player._config = _VoiceControlConfig()
 
     _report(player, playing=False, alice_state="LISTENING")
 
@@ -1009,7 +1009,7 @@ async def test_native_stop_sets_idle() -> None:
 
 
 def _enable_voice_control(player: YandexStationPlayer) -> None:
-    player._config = _VoiceControlConfig()  # type: ignore[assignment]
+    player._config = _VoiceControlConfig()
 
 
 def test_voice_request_over_ducked_stream_keeps_the_stream() -> None:
