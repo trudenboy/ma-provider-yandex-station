@@ -61,6 +61,8 @@ _LOGGER = logging.getLogger(f"{PROV_LOGGER_BASE}.player")
 # aliceState values outside a voice interaction. NONE is reported while the Station
 # speaks a server-action phrase (repeat_phrase): the music is only ducked.
 ALICE_IDLE_STATES = frozenset({"IDLE", "NONE", ""})
+# aliceState values that always belong to a voice interaction.
+ALICE_VOICE_STATES = frozenset({"LISTENING", "BUSY", "SPEAKING"})
 
 
 def _external_command(name: str, payload: dict[str, Any] | str | None = None) -> dict[str, Any]:
@@ -230,7 +232,7 @@ class YandexStationPlayer(Player):
         self._intercept_lock: asyncio.Lock = asyncio.Lock()
         # True after we've issued cmd_pause(target) for the current Alice
         # interaction.  Prevents repeating the pause on every WS tick while
-        # Alice is still LISTENING/SPEAKING.  Cleared when alice goes IDLE.
+        # Alice is still active.  Cleared when alice goes IDLE.
         self._alice_active_pause_sent: bool = False
         # Saved Station volume captured ONCE at intercept-session start;
         # restored at session end (target unavailable, handoff failure,
@@ -744,7 +746,12 @@ class YandexStationPlayer(Player):
             track_id = (player_state.get("id") or "").strip()
             progress = int(player_state.get("progress") or 0)
             alice_state = state.get("aliceState", "")
-            alice_active = alice_state in ("LISTENING", "SPEAKING")
+            # A voice request goes LISTENING → BUSY → NONE while Alice speaks the
+            # answer. NONE alone (from IDLE) is a server-action phrase, which
+            # leaves the session untouched.
+            alice_active = alice_state in ALICE_VOICE_STATES or (
+                alice_state == "NONE" and self._alice_active_pause_sent
+            )
 
             # Alice activates → unmute Station so her TTS is audible (the
             # Station mixes Alice voice into the music output, so a vol=0
@@ -783,14 +790,14 @@ class YandexStationPlayer(Player):
                 return
 
             if not alice_active:
-                # Edge LISTENING/SPEAKING → IDLE: re-mute Station now that
+                # Edge from an Alice interaction → IDLE: re-mute Station now that
                 # Alice is done.  Without this, the Station would resume
                 # audible playback and double up with the target.  Same
                 # validation reason as the alice-unmute branch above:
                 # don't flip the flag unless the device confirms success.
                 if (
                     self._intercept_active
-                    and prev_alice_state in ("LISTENING", "SPEAKING")
+                    and (prev_alice_state in ALICE_VOICE_STATES or self._alice_active_pause_sent)
                     and not self._station_muted_by_intercept
                 ):
                     try:
