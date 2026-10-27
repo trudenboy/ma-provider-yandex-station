@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.33] - 2026-10-27
+
+### Fixed
+
+- With voice control on, a request Alice answers while Music Assistant is starting a track no longer hands the Station over to the Yandex track that was playing before: the requested track starts once Alice has answered. Alice's answer now also counts as speech for the auto-resume, while a phrase spoken through `yandex_station/say` after the interaction no longer resumes a paused stream.
+- A pause or stop that is cancelled while waiting for the Station no longer leaves the player believing the stop happened: the previous session is restored, as for a rejected command.
+
 ## [1.5.32] - 2026-10-27
 
 ### Fixed
