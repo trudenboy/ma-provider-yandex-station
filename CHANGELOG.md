@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.29] - 2026-10-27
+
+### Fixed
+
+- With voice intercept enabled, asking Alice something while the intercept target plays (for example "Алиса, сколько времени?") no longer resumes the target before Alice answers. The Station also stays audible until the answer ends, instead of being muted again while Alice is still processing the request.
+
 ## [1.5.28] - 2026-10-26
 
 ### Fixed
