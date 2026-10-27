@@ -174,3 +174,28 @@ def test_stream_is_identified_by_the_reported_track_id_not_its_title() -> None:
         and any(names_title(part) for part in (node.left, *node.comparators))
     ]
     assert offenders == []
+
+
+def test_current_media_is_published_through_one_helper() -> None:
+    """
+    Only _publish_media calls set_current_media.
+
+    The core's setter merges into the previous media and keeps fields it gets
+    empty, so a caller that skips the helper inherits the previous item's type
+    or cover after the item changed.
+    """
+    module = ast.parse((PROJECT_ROOT / "provider" / "player.py").read_text(encoding="utf-8"))
+    player = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.ClassDef) and node.name == "YandexStationPlayer"
+    )
+    offenders = [
+        f"{method.name}:{node.lineno}"
+        for method in player.body
+        if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and method.name != "_publish_media"
+        for node in ast.walk(method)
+        if isinstance(node, ast.Call) and _self_attribute(node.func) == "set_current_media"
+    ]
+    assert offenders == []
