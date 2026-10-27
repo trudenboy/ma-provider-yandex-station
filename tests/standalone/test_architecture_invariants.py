@@ -5,14 +5,14 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-PROVIDER_DIR = Path(__file__).parents[2] / "provider"
+PROJECT_ROOT = Path(__file__).parents[2]
 
 # Transport commands record the state they lead to before awaiting the Station.
 TRANSPORT_COMMANDS = ("pause", "stop")
 
 
 def _parse(name: str) -> ast.Module:
-    return ast.parse((PROVIDER_DIR / name).read_text(encoding="utf-8"))
+    return ast.parse((PROJECT_ROOT / "provider" / name).read_text(encoding="utf-8"))
 
 
 def _player_method(name: str) -> ast.AsyncFunctionDef:
@@ -23,9 +23,7 @@ def _player_method(name: str) -> ast.AsyncFunctionDef:
         if isinstance(node, ast.ClassDef) and node.name == "YandexStationPlayer"
     )
     return next(
-        node
-        for node in player.body
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+        node for node in player.body if isinstance(node, ast.AsyncFunctionDef) and node.name == name
     )
 
 
@@ -39,7 +37,7 @@ def test_provider_leaves_player_authorization_to_the_core() -> None:
     """
     offenders = [
         f"{path.name}:{node.lineno}"
-        for path in sorted(PROVIDER_DIR.glob("*.py"))
+        for path in sorted((PROJECT_ROOT / "provider").glob("*.py"))
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
         if isinstance(node, ast.Attribute) and node.attr == "player_filter"
     ]
