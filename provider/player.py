@@ -1105,17 +1105,6 @@ class YandexStationPlayer(Player):
         native_track_id: str = "",
     ) -> None:
         """Apply one Station playback report to the player state."""
-        if (
-            self._external_playing
-            and playing
-            and self._external_play_confirmed
-            and external_media_matches is False
-        ):
-            # The Station plays something else without a stop in between, e.g.
-            # music Alice was asked for: the stream is gone.
-            _LOGGER.debug("[%s] Station playback replaced the MA stream", self.player_id)
-            self._external_play_generation += 1
-            self._end_external_session()
         if self._external_playing:
             # While Alice handles a request the Station usually only ducks the
             # stream; it is interrupted only once the Station reports it stopped.
@@ -1216,7 +1205,8 @@ class YandexStationPlayer(Player):
         )
 
         _LOGGER.debug(
-            "[%s] playing=%s vol=%s prog=%s dur=%s title=%s extra=%s alice=%s",
+            "[%s] playing=%s vol=%s prog=%s dur=%s title=%s extra=%s alice=%s "
+            "requestID=%s id=%s type=%s playerType=%s",
             self.player_id,
             playing,
             state.get("volume"),
@@ -1225,6 +1215,10 @@ class YandexStationPlayer(Player):
             (player_state.get("title", "") or "")[:30],
             list(extra.keys()) if extra else None,
             state.get("aliceState"),
+            extra.get("requestID") if extra else None,
+            player_state.get("id"),
+            player_state.get("type"),
+            player_state.get("playerType"),
         )
 
         # Volume (0.0-1.0 → 0-100)

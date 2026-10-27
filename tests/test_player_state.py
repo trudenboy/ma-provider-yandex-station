@@ -1164,36 +1164,3 @@ async def test_transport_command_cancels_the_auto_resume(command: str, outcome: 
     for alice_state in ("NONE", "IDLE"):
         _report(player, playing=False, alice_state=alice_state)
     player.mass.call_later.assert_not_called()
-
-
-def test_station_playback_that_replaces_the_stream_ends_it() -> None:
-    """
-    Music Alice was asked for replaces the MA stream without a stop in between.
-
-    The Station reports playing=True throughout, only with another title; the
-    stream is gone and the Station's own playback takes over.
-    """
-    player = _make_player()
-    _enable_voice_control(player)
-    _start_confirmed_stream(player)
-
-    for alice_state in ("LISTENING", "BUSY", "NONE", "IDLE"):
-        _report(player, playing=True, alice_state=alice_state, external_media_matches=True)
-    _report(player, playing=True, external_media_matches=False, native_track_id="yandex-7")
-
-    assert player._external_playing is False
-    assert player._attr_playback_state == PlaybackState.PLAYING
-    assert player._attr_active_source == STATION_SOURCE_ID
-    assert PlayerFeature.PAUSE in player._attr_supported_features
-    assert vars(player)["_external_play_generation"] == 1
-
-
-def test_unconfirmed_stream_ignores_the_title_of_the_source_it_replaces() -> None:
-    """Before the stream is confirmed, another title is the native source still fading out."""
-    player = _make_player()
-    _start_confirmed_stream(player)
-    player._external_play_confirmed = False
-
-    _report(player, playing=True, external_media_matches=False, native_track_id="yandex-7")
-
-    assert player._external_playing is True
