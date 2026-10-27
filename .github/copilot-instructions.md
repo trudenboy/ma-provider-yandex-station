@@ -1,73 +1,85 @@
-# Copilot Instructions
+<!-- ma-provider-tools: rendered from wrappers/.github/copilot-instructions.md.j2 -->
+# Copilot Instructions — Yandex Station
 
-## Project Overview
+This repo is the source of truth for the **Yandex Station** Music Assistant
+provider, which is later inlined upstream into
+`music-assistant/server/music_assistant/providers/yandex_station/`. Review it by
+the upstream standards below (mirrored verbatim from upstream by
+`ma-provider-tools`; do not edit), with these provider-repo exceptions:
 
-Music Assistant (MA) Player Provider for Yandex Station smart speakers. Streams audio to Yandex Station devices via the local Glagol WebSocket protocol, adapted from AlexxIT/YandexStation.
+- **Paths.** Upstream `music_assistant/providers/yandex_station/` is
+  `provider/` here, and `tests/providers/yandex_station/` is `tests/`.
+  `music_assistant/helpers/` and the demo providers come from the installed
+  `music-assistant` package.
+- **Project standards** are in `AGENTS.md` (`CLAUDE.md` is a symlink to it),
+  with provider specifics in `CLAUDE.local.md`. Deviations are at least
+  `[PROBLEM]`.
+- **PR title.** Provider-repo PRs **use** Conventional Commit prefixes
+  (`feat:`, `fix:`, …). Do not flag them. Only PRs in `music-assistant/server`
+  must not have one.
+- **PR description.** Provider-repo PRs follow this repo's
+  `.github/PULL_REQUEST_TEMPLATE.md`. The upstream PR-description rules apply
+  only to text drafted for an upstream PR body.
+- **Settled by CI.** In addition to lint and tests, `check-upstream-rules`
+  (`MA001`–`MA006`), the method-order hook and upstream's own repo checks
+  (blocking IO, icons, manifests) already run. Do not repeat their findings;
+  only question a `# ma-allow:` reason that does not hold up.
+- **Mirrored files.** `.github/instructions/*`, `.claude/skills/*`,
+  `scripts/check_*.py`, `ruff.toml` and the sync-managed workflows are
+  distributed from `ma-provider-tools`. Changes to them belong there, not in
+  this repo.
 
-## Architecture
+## PR Review Standards
 
-```
-MA Core ──play_media()──> YandexStationPlayer ──radio_play──> Glagol WS ──> Yandex Station
-                                                                         <── state updates
-```
+### Philosophy
 
-All provider code lives in `provider/`. The module is installed into MA as `music_assistant.providers.yandex_station`.
+Comment only where you're confident there's a real issue — if you're uncertain whether something is a problem, don't raise it. Actionable feedback, not observations. One sentence where one sentence does the job. On documentation or user-facing text, flag wording only when it's genuinely confusing or could mislead someone into an error.
 
-**Key modules:**
-- `provider.py` — `YandexStationProvider(PlayerProvider)`: mDNS + Quasar cloud discovery, player lifecycle
-- `player.py` — `YandexStationPlayer(Player)`: transport controls, state from Glagol WS, playback via `externalCommandBypass` → `radio_play`
-- `glagol.py` — `YandexGlagol`: persistent WebSocket client with auto-reconnect and command send/receive
-- `quasar.py` — `YandexQuasar`: Quasar cloud API for device list and local IP/port resolution
-- `session.py` — `YandexSession`: HTTP client with x_token → music_token → cookies → CSRF auth chain
-- `protobuf.py` — minimal protobuf encoder/decoder for `externalCommandBypass` payload
-- `__init__.py` — `setup()` + `get_config_entries()` (QR code and cookie auth flows)
+### What to review
 
-**Discovery flow:** mDNS (`_yandexio._tcp.local.`) → enrich with Quasar cloud data → create `YandexGlagol` + `YandexStationPlayer` → register with MA.
+Correctness and bugs, blocking IO in async code, security, performance, test coverage, docs the change makes wrong, and consistency with the surrounding code. `AGENTS.md` holds the project standards — deviations from it are at least `[PROBLEM]`.
 
-**Playback flow:** `play_media()` → `resolve_stream_url()` → build `radio_play` payload → encode via `externalCommandBypass` (protobuf + base64) → send over Glagol WS → station fetches stream URL.
+### Linked issues
 
-## Build, Test, and Lint
+If the PR references an issue, read it before reviewing the diff. Then judge two things: whether the change actually resolves the reported problem, and whether it does so in the most elegant way available. A fix that works but patches a symptom, sits at the wrong layer, or adds a special case where the existing design already had a seam for it is a `[PROBLEM]` — say which approach would be cleaner and why. A change that leaves part of the issue unaddressed, or addresses something else entirely, is `[CRITICAL]`.
 
-```bash
-# Lint (ruff with ALL rules enabled, line-length=100, target py312)
-uv run ruff check provider/ tests/
-uv run ruff format --check provider/ tests/
+### Reuse over reimplementation
 
-# Type checking
-uv run mypy --ignore-missing-imports provider
+Check whether `music_assistant/helpers/` already covers what new code does; providers are expected to use the shared helpers rather than reimplement. A music provider parsing PLS itself instead of calling `parse_pls` from `music_assistant.helpers.playlists` is a `[PROBLEM]`.
 
-# Run all tests
-uv run pytest
+### New providers
 
-# Run a single test
-uv run pytest tests/test_protobuf.py::test_roundtrip_simple -v
+When the PR adds files under `music_assistant/providers/`, the matching demo provider is the ground truth — it's the annotated template that encodes the required structure, lifecycle and config schema:
 
-# All pre-commit hooks (ruff, mypy, codespell, etc.)
-uv run pre-commit run --all-files
-```
+| Provider type | Reference |
+|---|---|
+| Music source | `music_assistant/providers/_demo_music_provider` |
+| Player | `music_assistant/providers/_demo_player_provider` |
+| Plugin | `music_assistant/providers/_demo_plugin_provider` |
+| Audio analysis | `music_assistant/providers/_demo_audio_analysis_provider` |
 
-Tests use `asyncio_mode = "auto"` — async test functions are detected automatically, no `@pytest.mark.asyncio` needed.
+Read the demo provider alongside the new one, then flag deviations from its requirements and patterns as `[PROBLEM]` or `[CRITICAL]` depending on what breaks. Provider icons (`icon.svg`) are capped at 5KB — anything larger is `[CRITICAL]`.
 
-## Code Conventions
+### Don't duplicate CI
 
-- Every file starts with `from __future__ import annotations`
-- All functions have type hints
-- All I/O is async/await using aiohttp (no sync HTTP calls)
-- Ruff uses `select = ["ALL"]` with a specific ignore list — check `ruff.toml` before suppressing a new rule
-- `isort` treats `music_assistant` as first-party
-- Commit messages: `type(scope): description` — types: feat, fix, docs, style, refactor, test, chore
-- Follow MA provider patterns from Chromecast and `_demo_player_provider` in the MA server codebase
+Reviews are requested only once `lint` and `test` have passed on the commit under review, so formatting, lint, test failures and missing dependencies are already settled — don't flag them. `.pre-commit-config.yaml` and `.github/workflows/test.yml` are the authority on that class of problem. Spend the review on what CI can't see.
 
-## Gotchas
+### PR title
 
-- **Volume scale**: Glagol uses 0.0–1.0, MA uses 0–100. Convert in player (`round(volume / 100, 2)`)
-- **Stop ≠ stop**: Glagol `stop` command is actually "pause". To stop `externalCommandBypass` playback, send `radio_play` with unreachable URL (`http://0.0.0.0/stop.flac`)
-- **URL format**: Station requires a file extension in the stream URL (`.flac`, `.mp3`)
-- **HTTP only**: Station rejects HTTPS for local network URLs; use IP addresses, not hostnames
-- **Content-Length required**: Station does NOT support `Transfer-Encoding: chunked` — must send `Content-Length` header
-- **Infinite replay**: Station replays a stream URL endlessly; MA's stream endpoint closing after track end solves this
-- **State tracking for bypass**: Glagol doesn't report `playerState` for `externalCommandBypass` playback — the player tracks this optimistically via `_external_playing` / `_external_media`
+A functional description of the change, with no conventional-commit prefix (`feat:`, `fix:`, `refactor:`, `chore:`, ...) — labels do the categorizing. A prefixed title is a `[PROBLEM]`.
 
-## Testing
+### Existing review comments
 
-The `conftest.py` at repo root sets up namespace package aliases so `from music_assistant.providers.yandex_station.X import Y` works without a full MA server installation. Tests in `tests/` can import provider modules directly.
+Flag earlier review comments on the PR that haven't been addressed.
+
+### Severity
+
+- `[CRITICAL]` — must fix before merge: bugs, security issues, broken functionality
+- `[PROBLEM]` — should fix: bad patterns, missing tests, standards deviations
+- `[SUGGESTION]` — optional: minor refactors, nice-to-haves
+
+### Output
+
+Post an inline comment on GitHub for every `[CRITICAL]` and `[PROBLEM]`. Do not post `[SUGGESTION]` items, and don't comment on what's already fine.
+
+Each comment carries its severity, states the problem in a sentence, says why it matters when that isn't self-evident, and gives a concrete fix or snippet.
