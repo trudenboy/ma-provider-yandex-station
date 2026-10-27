@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1] - 2026-10-27
+
+### Changed
+
+- Debug logs now include the request id of each command sent to the Station and, for every Station report, the request id, track id and type of what it plays, to tell Music Assistant streams apart from the Station's own playback.
+
 ## [1.6.0] - 2026-10-27
 
 ### Changed
