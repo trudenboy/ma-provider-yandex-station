@@ -54,7 +54,7 @@ MA Core --play_media()--> YandexStationPlayer --audio_play/radio_play--> Glagol 
 1. Glagol WS sends state every 1-5 seconds
 2. `_on_glagol_update()` learns firmware capabilities and parses `playerState` (progress, duration, title, playing)
 3. Updates MA player attributes, calls `update_state()`
-4. Audio-client sessions distinguish track completion from a stop on the speaker and reject stale source state during startup
+4. The Station reports an empty `playerState.id` for a stream handed over with `audio_play` and the Yandex Music track id for its own playback. That id, never the title, attributes a report: it confirms our stream's start, and a non-empty id after confirmation means the Station's own playback replaced the stream (no stopped report in between). A stream that replaces another MA stream (both report an empty id) and legacy `radio_play` (no id) are only attributed after a stopped report
 5. A stream the Station stopped (finished, stopped on the speaker, or by Alice) ends the session and reports IDLE; the core resumes the queue on the next play
 6. The Station's own playback is reported as the `yandex_station` source (`can_play_pause`), so it takes over from the MA queue
 

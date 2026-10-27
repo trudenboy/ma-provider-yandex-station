@@ -147,3 +147,30 @@ def test_player_schedules_work_through_the_core() -> None:
         and node.value.id == "asyncio"
     ]
     assert offenders == []
+
+
+def test_stream_is_identified_by_the_reported_track_id_not_its_title() -> None:
+    """
+    No comparison involves a title.
+
+    The Station reports an empty track id for a stream handed over with
+    audio_play and the Yandex Music track id for its own playback. Titles are
+    display data: two sources can share one, and comparing them guessed wrong.
+    """
+
+    def names_title(node: ast.AST) -> bool:
+        return any(
+            (isinstance(sub, ast.Attribute) and "title" in sub.attr)
+            or (isinstance(sub, ast.Name) and "title" in sub.id)
+            or (isinstance(sub, ast.Constant) and sub.value == "title")
+            for sub in ast.walk(node)
+        )
+
+    offenders = [
+        f"{path.name}:{node.lineno}"
+        for path, module in _modules()
+        for node in ast.walk(module)
+        if isinstance(node, ast.Compare)
+        and any(names_title(part) for part in (node.left, *node.comparators))
+    ]
+    assert offenders == []
