@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.32] - 2026-10-27
+
+### Fixed
+
+- Decoding Station command responses no longer hides unexpected internal errors: only malformed nested fields fall back to raw bytes, as before, while genuine bugs are now reported instead of being silently turned into raw data.
+
 ## [1.5.31] - 2026-10-27
 
 ### Fixed
