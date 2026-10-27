@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.34] - 2026-10-27
+
+### Fixed
+
+- A pause or stop that does not reach the Station during a voice request no longer cancels the request's auto-resume: the requested track still starts once Alice has answered.
+- A stop that does not reach the Station no longer forgets a paused Music Assistant stream when the Station reported in the meantime that it was stopped; play resumes the stream as before.
+- With intercept on, a phrase spoken through `yandex_station/say` is now audible on a Station muted by the intercept session: the Station is unmuted for the phrase and muted again afterwards, while the target keeps playing.
+
 ## [1.5.33] - 2026-10-27
 
 ### Fixed
