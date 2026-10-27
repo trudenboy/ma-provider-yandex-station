@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0] - 2026-10-27
+
+### Added
+
+- When the Station plays on its own (music Alice was asked for, the Yandex app) and the provider uses a linked Yandex Music account, the current track is shown as that Yandex Music item: the heart in Music Assistant adds it to the account's favorites instead of searching by title. The Station's cover art is shown as well.
+
 ## [1.6.3] - 2026-10-27
 
 ### Fixed
