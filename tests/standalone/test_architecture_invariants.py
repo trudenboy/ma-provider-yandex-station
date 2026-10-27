@@ -7,8 +7,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parents[2]
 
-# Transport commands record the state they lead to before awaiting the Station.
-TRANSPORT_COMMANDS = ("pause", "stop")
+# Transport commands that stop playback share one implementation.
+STOP_COMMANDS = ("pause", "stop")
+STOP_IMPLEMENTATION = "_stop_playback"
 
 
 def _parse(name: str) -> ast.Module:
@@ -44,15 +45,38 @@ def test_provider_leaves_player_authorization_to_the_core() -> None:
     assert offenders == []
 
 
+def test_pause_and_stop_share_one_implementation() -> None:
+    """
+    pause() and stop() only await _stop_playback.
+
+    Both lead to the same Station state while the command is pending; separate
+    copies drifted once (only pause guarded against stale playing reports).
+    """
+    for name in STOP_COMMANDS:
+        method = _player_method(name)
+        awaited = [
+            node.value.func
+            for node in ast.walk(method)
+            if isinstance(node, ast.Await) and isinstance(node.value, ast.Call)
+        ]
+        assert [func.attr for func in awaited if isinstance(func, ast.Attribute)] == [
+            STOP_IMPLEMENTATION
+        ], name
+        assert not any(
+            isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign))
+            for node in ast.walk(method)
+        ), name
+
+
 def test_transport_commands_set_state_before_awaiting_the_station() -> None:
     """
-    pause() and stop() assign no player state after their first await.
+    The stop implementation assigns no player state after its first await.
 
     Glagol dispatches the state carried by a command's response frame before send()
     returns, so state assigned after the await misses that update.
     """
     offenders: list[str] = []
-    for name in TRANSPORT_COMMANDS:
+    for name in (STOP_IMPLEMENTATION,):
         awaited = False
         for statement in _player_method(name).body:
             if awaited:
