@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- A stop that the Station rejects no longer drops the Music Assistant stream it kept playing: until the stop takes effect, the Station's reports of that stream are no longer mistaken for new playback, as was already the case for pause.
 - Decoding Station command responses no longer hides unexpected internal errors: only malformed nested fields fall back to raw bytes, as before, while genuine bugs are now reported instead of being silently turned into raw data.
 
 ## [1.5.31] - 2026-10-27
