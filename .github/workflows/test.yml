@@ -23,3 +23,4 @@ jobs:
       provider_domain: yandex_station
       provider_path: provider/
       manifest_path: provider/manifest.json
+      needs_ffmpeg: "false"
