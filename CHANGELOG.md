@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.35] - 2026-10-27
+
+### Changed
+
+- Music Assistant leaves pausing a stream it plays on the Station to its own handling: the Station cannot pause such a stream, so pause stops it and play resumes the queue from the same position. The Station's own playback (Yandex Music started through Alice or the app) is shown as the Station's source and can still be paused and resumed.
+- With voice control on, the stream Alice's request stopped, or a track Music Assistant started while Alice was listening, is resumed through Music Assistant's queue once Alice has answered.
+
+### Fixed
+
+- Pause, stop and play no longer leave the player in a state the Station did not report when a command fails, is cancelled, or crosses a Station report.
+- Voice control and intercept now read Alice's state the same way: her answer to a request and a phrase spoken through `yandex_station/say` are no longer confused.
+
 ## [1.5.34] - 2026-10-27
 
 ### Fixed
