@@ -72,3 +72,20 @@ def test_transport_commands_set_state_before_awaiting_the_station() -> None:
             if any(isinstance(node, ast.Await) for node in ast.walk(statement)):
                 awaited = True
     assert offenders == []
+
+
+def test_station_reports_go_through_the_epoch_counter() -> None:
+    """
+    Only _update_playback_state applies a Station report.
+
+    It counts reports that change the session, which decides whether a failed
+    transport command may restore the session it replaced. Applying a report
+    elsewhere would skip that count.
+    """
+    callers = [
+        f"{path.name}:{node.lineno}"
+        for path in sorted((PROJECT_ROOT / "provider").glob("*.py"))
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Attribute) and node.attr == "_apply_playback_report"
+    ]
+    assert len(callers) == 1

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.31] - 2026-10-27
+
+### Fixed
+
+- Pausing the Station's own playback could end up as stopped instead of paused when the Station sent its state while the pause was in progress.
+- With voice control enabled, pausing while Alice finished an answer no longer restarts playback three seconds later.
+- A pause that times out no longer brings back the earlier Music Assistant stream when the Station has started other playback in the meantime.
+
 ## [1.5.30] - 2026-10-27
 
 ### Fixed
