@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.9] - 2026-10-28
+
+### Fixed
+
+- With voice control on, "Alice, stop" while the automatic resume is preparing the music now ends that resume for good; a question asked right after it no longer brings the music back.
+- With voice control on, an automatic resume the Station refuses now leaves the player idle, so play resumes the queue instead of getting stuck.
+
 ## [1.7.8] - 2026-10-28
 
 ### Fixed
