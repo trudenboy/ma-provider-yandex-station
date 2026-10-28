@@ -53,6 +53,7 @@ def test_new_request_takes_over_with_its_own_volume_baseline() -> None:
 
 
 def test_request_without_a_scheduled_resume_takes_nothing_over() -> None:
+    """A request with no scheduled resume leaves nothing to take over."""
     recovery = VoiceRecovery()
 
     assert recovery.request_started(volume=40) is False
@@ -60,6 +61,7 @@ def test_request_without_a_scheduled_resume_takes_nothing_over() -> None:
 
 
 def test_resume_runs_for_the_owning_queue() -> None:
+    """The resume returns the queue that owned the playback, then ends."""
     recovery = _awaiting()
     recovery.request_ended(spoke=True, volume=40)
 
@@ -72,6 +74,7 @@ def test_resume_runs_for_the_owning_queue() -> None:
 
 
 def test_cancel_before_the_resume_runs_drops_it() -> None:
+    """Cancelling before the timer fires leaves nothing to resume."""
     recovery = _awaiting()
     recovery.request_ended(spoke=True, volume=40)
 
