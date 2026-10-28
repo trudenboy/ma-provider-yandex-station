@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.5] - 2026-10-28
+
+### Fixed
+
+- With voice control on, a question Alice answers after a new request already stopped the automatic resume now resumes the music once that resume has returned, instead of leaving it stopped.
+- Stopping the Station's own playback no longer reports the Station idle when it started the next track while the stop was being confirmed.
+
 ## [1.7.4] - 2026-10-28
 
 ### Fixed
