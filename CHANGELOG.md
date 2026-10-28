@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.6] - 2026-10-28
+
+### Fixed
+
+- With voice control on, the automatic resume no longer replaces the Station's own playback that started while the resumed track was being prepared.
+- With voice control on, a question Alice answers after her request stopped the resumed music while it was being handed to the Station now resumes it again instead of leaving it stopped.
+- Intercept no longer hands a track Alice starts over to the target player while she is still answering; the handoff waits until she is done.
+
 ## [1.7.5] - 2026-10-28
 
 ### Fixed
