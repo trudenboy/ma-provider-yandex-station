@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.7] - 2026-10-28
+
+### Fixed
+
+- With voice control on, an Alice request that starts while Music Assistant prepares the next stream now decides it: "Alice, stop" keeps the music stopped, and a question she answers resumes the queue afterwards.
+- With voice control on, the automatic resume after Alice now works for a universal group: the Station no longer reports a source of its own for Music Assistant playback, so the group no longer stops it while it waits.
+- Stopping or pausing a stream while Alice is listening no longer resumes the music after her answer.
+- With voice control on, a question Alice answers over the Station's own track no longer replaces that track with the music the automatic resume was preparing.
+
 ## [1.7.6] - 2026-10-28
 
 ### Fixed
