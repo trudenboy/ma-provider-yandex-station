@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.8] - 2026-10-28
+
+### Fixed
+
+- With voice control on, pausing while the automatic resume after Alice is still preparing the music now stops it, so play resumes the queue instead of sending the Station a play that cannot bring the stream back.
+
 ## [1.7.7] - 2026-10-28
 
 ### Fixed
