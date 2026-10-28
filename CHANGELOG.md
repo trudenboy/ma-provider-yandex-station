@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.2] - 2026-10-28
+
+### Fixed
+
+- With voice control on, pressing play while the music waits for Alice to finish now resumes the Music Assistant queue right away instead of trying to resume the Station's own player.
+- Music the Station starts on its own while the automatic resume after Alice is already running is no longer replaced by the resumed stream.
+- "Alice, louder" followed by "Alice, stop" no longer resumes the music: the second request is judged by the volume it started at.
+
 ## [1.7.1] - 2026-10-28
 
 ### Fixed
