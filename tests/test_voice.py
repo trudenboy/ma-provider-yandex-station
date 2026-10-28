@@ -46,10 +46,12 @@ def test_new_request_takes_over_with_its_own_volume_baseline() -> None:
     recovery = _awaiting(volume=40)
     recovery.request_ended(spoke=False, volume=50)
 
-    assert recovery.request_started(volume=50) is True
-    assert recovery.phase == VoiceRecoveryPhase.AWAITING_ANSWER
-    assert recovery.request_ended(spoke=False, volume=50) is False
-    assert recovery.phase == VoiceRecoveryPhase.NONE
+    taken_over = recovery.request_started(volume=50)
+    phase_after_takeover = recovery.phase
+    resumes = recovery.request_ended(spoke=False, volume=50)
+
+    assert (taken_over, phase_after_takeover) == (True, VoiceRecoveryPhase.AWAITING_ANSWER)
+    assert (resumes, recovery.phase) == (False, VoiceRecoveryPhase.NONE)
 
 
 def test_request_without_a_scheduled_resume_takes_nothing_over() -> None:
@@ -65,11 +67,13 @@ def test_resume_runs_for_the_owning_queue() -> None:
     recovery = _awaiting()
     recovery.request_ended(spoke=True, volume=40)
 
-    assert recovery.start_resume() == "queue_1"
-    assert recovery.phase == VoiceRecoveryPhase.RESUMING
-    assert recovery.holds_playback is False
-
+    source = recovery.start_resume()
+    phase_while_resuming = recovery.phase
+    holds_while_resuming = recovery.holds_playback
     recovery.finish_resume()
+
+    assert source == "queue_1"
+    assert (phase_while_resuming, holds_while_resuming) == (VoiceRecoveryPhase.RESUMING, False)
     assert recovery.phase == VoiceRecoveryPhase.NONE
 
 
