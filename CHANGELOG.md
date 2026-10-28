@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.1] - 2026-10-28
+
+### Fixed
+
+- With voice control on, a second request right after Alice answered, such as "Alice, stop", now decides whether the music resumes instead of being overruled by the first one.
+- A stop or pause from Music Assistant while the music waits for Alice to finish now cancels the automatic resume: the player shows the music as paused meanwhile instead of idle.
+- A group stream that Alice interrupted on the Station is resumed through the group's queue instead of the Station's own, which could be empty.
+- The Station's own content no longer keeps the previous track's type or cover, for example radio after a Yandex Music track.
+- The Station's own playback that stays paused stops overriding the Music Assistant queue after a while, so play in Music Assistant resumes the queue again.
+
 ## [1.7.0] - 2026-10-27
 
 ### Added

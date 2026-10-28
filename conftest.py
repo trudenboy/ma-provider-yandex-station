@@ -259,8 +259,7 @@ except (ImportError, AttributeError):
         def player_id(self) -> str:
             return getattr(self, "_player_id", "")
 
-    class _PlayerMedia:  # type: ignore[no-redef]
-        pass
+    from music_assistant_models.player import PlayerMedia as _PlayerMedia
 
     class _DeviceInfo:  # type: ignore[no-redef]
         def __init__(self, **kw: object) -> None:
@@ -312,6 +311,7 @@ except (ImportError, AttributeError):
                 requires_reload=True,
             ),
             "CONF_ENTRY_OUTPUT_CODEC": _output_codec_entry,
+            "EXTERNAL_PAUSE_IDLE_TIMEOUT": 60,
             "CONF_ENTRY_PREFER_WAV_FOR_LIVE_SOURCES_DEFAULT_ENABLED": ConfigEntry(
                 key="prefer_wav_for_live_sources",
                 type=ConfigEntryType.BOOLEAN,
