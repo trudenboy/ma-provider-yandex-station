@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.4] - 2026-10-28
+
+### Fixed
+
+- With voice control on, a question Alice answers while the automatic resume is already starting no longer leaves the music stopped: the resume that is underway continues.
+
 ## [1.7.3] - 2026-10-28
 
 ### Fixed
