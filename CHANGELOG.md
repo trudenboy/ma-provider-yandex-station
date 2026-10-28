@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.3] - 2026-10-28
+
+### Fixed
+
+- With voice control on, pausing while the music waits for Alice to finish now stops it properly, so play resumes the Music Assistant queue afterwards instead of staying silent.
+- "Alice, stop" spoken while the automatic resume is already starting now keeps the music stopped.
+- The Station's own track is shown as a Yandex Music item only while the linked Yandex Music account is available, so favorites never go to a different account.
+
 ## [1.7.2] - 2026-10-28
 
 ### Fixed
