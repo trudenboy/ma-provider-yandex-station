@@ -841,8 +841,16 @@ class YandexStationPlayer(Player):
                     result = await self.glagol.send({"command": "setVolume", "volume": 0.0})
                     _raise_if_failed(result, "alice-remute")
                     self._station_muted_by_intercept = True
+<<<<<<< provider
                 except Exception as exc:
                     _LOGGER.debug("[%s] alice-remute failed: %s", self.player_id, exc)
+||||||| upstream-base
+                except Exception as exc:
+                    _LOGGER.debug("[%s] alice-remute failed: %s", self.protocol_id, exc)
+=======
+                except PlayerCommandFailed as exc:
+                    _LOGGER.debug("[%s] alice-remute failed: %s", self.protocol_id, exc)
+>>>>>>> upstream-head
             if alice.ended is not None:
                 self._station_unmuted_for_phrase = False
 
@@ -888,8 +896,16 @@ class YandexStationPlayer(Player):
                 {"command": "setVolume", "volume": self._saved_station_volume / 100}
             )
             _raise_if_failed(result, "alice-unmute")
+<<<<<<< provider
         except Exception as exc:
             _LOGGER.debug("[%s] alice-unmute failed: %s", self.player_id, exc)
+||||||| upstream-base
+        except Exception as exc:
+            _LOGGER.debug("[%s] alice-unmute failed: %s", self.protocol_id, exc)
+=======
+        except PlayerCommandFailed as exc:
+            _LOGGER.debug("[%s] alice-unmute failed: %s", self.protocol_id, exc)
+>>>>>>> upstream-head
             return False
         self._station_muted_by_intercept = False
         # Pre-set the mirror baseline so the next state update (with the new
@@ -969,7 +985,7 @@ class YandexStationPlayer(Player):
                 item_id=parsed_id,
                 provider_instance_id_or_domain="yandex_music",
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - any lookup failure leaves the station playing
             _LOGGER.warning(
                 "[%s] intercept resolve failed for %r: %s",
                 self.player_id,
@@ -1021,7 +1037,7 @@ class YandexStationPlayer(Player):
                 media=track_uri,
                 option=QueueOption.REPLACE,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - any failed handoff must unmute the station
             _LOGGER.warning(
                 "[%s] intercept handoff failed for %r: %s",
                 self.player_id,
@@ -1058,7 +1074,7 @@ class YandexStationPlayer(Player):
         try:
             result = await self.glagol.send({"command": "setVolume", "volume": vol_pct / 100})
             _raise_if_failed(result, "restore_volume")
-        except Exception as exc:
+        except PlayerCommandFailed as exc:
             _LOGGER.warning(
                 "[%s] failed to restore Station volume to %s%%: %s",
                 self.player_id,
@@ -1192,7 +1208,7 @@ class YandexStationPlayer(Player):
             return
         try:
             await self.mass.players.cmd_pause(target_id)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - target player errors vary, state is reset after
             _LOGGER.warning(
                 "[%s] intercept: cmd_pause(%s) failed: %s",
                 self.player_id,
