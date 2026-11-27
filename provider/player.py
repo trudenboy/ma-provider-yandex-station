@@ -299,6 +299,11 @@ class YandexStationPlayer(Player):
         if device_id := device_info.get("quasar_info", {}).get("device_id"):
             self._attr_device_info.add_identifier(IdentifierType.UUID, device_id)
 
+    @property
+    def requires_content_length(self) -> bool:
+        """Return if the Station needs a Content-Length on a stream that has no length."""
+        return True
+
     async def async_setup(self) -> None:
         """Set up the Glagol WebSocket connection."""
         self.glagol.update_handler = self._on_glagol_update
@@ -308,8 +313,15 @@ class YandexStationPlayer(Player):
         """
         Return player-specific config entries.
 
+<<<<<<< provider
         Default to WAV for prompt queue and live-source playback, with the
         forced_content_length HTTP profile required by the Station.
+||||||| upstream-base
+        Default to WAV for prompt queue and live-source playback, with the
+        fixed content length required by the Station.
+=======
+        Default to WAV for prompt queue and live-source playback.
+>>>>>>> upstream-head
         """
         # List players that can receive a redirected track.  We dispatch
         # the handoff via ``mass.player_queues.play_media(queue_id=...)``
@@ -337,7 +349,12 @@ class YandexStationPlayer(Player):
         return [
             create_output_codec_config_entry(default_value="wav"),
             CONF_ENTRY_PREFER_WAV_FOR_LIVE_SOURCES_DEFAULT_ENABLED,
+<<<<<<< provider
             CONF_ENTRY_HTTP_PROFILE_DEFAULT_3,
+||||||| upstream-base
+            CONF_ENTRY_REQUIRES_FIXED_CONTENT_LENGTH_ENFORCED,
+=======
+>>>>>>> upstream-head
             CONF_ENTRY_VOICE_CONTROL,
             ConfigEntry(
                 key=CONF_INTERCEPT_ENABLED,
